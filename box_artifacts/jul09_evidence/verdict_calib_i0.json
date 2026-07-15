@@ -1,0 +1,44 @@
+{
+ "steps": 3225,
+ "attempts": 3,
+ "deep_closes": 2,
+ "first_attempt_step": 2175,
+ "first_attempt_sec_at_30fps": 72.5,
+ "close_events": [
+  {
+   "step": 2175,
+   "side": "R",
+   "to": -0.88
+  },
+  {
+   "step": 2178,
+   "side": "R",
+   "to": 0.7
+  },
+  {
+   "step": 2179,
+   "side": "R",
+   "to": -1.01
+  }
+ ],
+ "quarter_activity_arm_base": [
+  [
+   0.73,
+   0.157
+  ],
+  [
+   3.09,
+   0.013
+  ],
+  [
+   4.9,
+   0.01
+  ],
+  [
+   6.29,
+   0.009
+  ]
+ ],
+ "arm_escalation_ratio": 8.62,
+ "classification": "spiral-after-attempt"
+}

@@ -1,0 +1,7 @@
+openpi_fork/
+mainbox_rescue/
+*.tar.gz
+*.mp4
+__pycache__/
+*.pyc
+.DS_Store

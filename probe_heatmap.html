@@ -1,0 +1,89 @@
+<title>Probe Baseline — G2 Vanilla Checkpoint</title>
+<style>
+:root{
+  --bg:#FAFAF7; --surface:#F1F0EA; --ink:#1C2430; --ink-2:#4A5568; --muted:#8A93A3;
+  --accent:#B4530A; --line:#DDDACF; --chip:#E9E6DC;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#12161D; --surface:#1A202B; --ink:#E8EAE6; --ink-2:#AEB6C2; --muted:#6B7686;
+  --accent:#E8A13D; --line:#2A3240; --chip:#232B38;
+}}
+:root[data-theme="dark"]{--bg:#12161D; --surface:#1A202B; --ink:#E8EAE6; --ink-2:#AEB6C2; --muted:#6B7686; --accent:#E8A13D; --line:#2A3240; --chip:#232B38;}
+:root[data-theme="light"]{--bg:#FAFAF7; --surface:#F1F0EA; --ink:#1C2430; --ink-2:#4A5568; --muted:#8A93A3; --accent:#B4530A; --line:#DDDACF; --chip:#E9E6DC;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;font-size:16.5px;line-height:1.55;}
+.wrap{max-width:880px;margin:0 auto;padding:36px 28px 80px;}
+.eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 6px;}
+h1{font-size:28px;line-height:1.2;margin:0 0 6px;text-wrap:balance;}
+.meta{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);margin-bottom:26px;}
+h2{font-size:20px;margin:40px 0 8px;}
+p{max-width:68ch;color:var(--ink-2);}
+p b{color:var(--ink);}
+/* heatmap */
+.hm-wrap{overflow-x:auto;margin-top:18px;}
+.hm{border-collapse:collapse;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;}
+.hm th{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 8px;text-align:center;font-weight:600;}
+.hm th.rowh{text-align:right;}
+.hm td{padding:0;border:2px solid var(--bg);}
+.hm td .cell{width:74px;height:30px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;color:#fff;font-weight:600;}
+.hm td.rowlab{font-size:11px;color:var(--ink-2);padding-right:8px;text-align:right;background:none;}
+.legend{display:flex;align-items:center;gap:10px;margin-top:14px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);}
+.grad{width:180px;height:12px;background:linear-gradient(90deg,#3d4756,#7a6a3a,#B4530A,#E8A13D);border-radius:2px;}
+.note{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--surface);padding:12px 16px;margin:22px 0;font-size:14.5px;color:var(--ink-2);max-width:68ch;}
+.note b{color:var(--ink);}
+ul{max-width:68ch;color:var(--ink-2);}
+li{margin-bottom:8px;}
+li b{color:var(--ink);}
+.foot{margin-top:56px;padding-top:12px;border-top:1px solid var(--line);font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);}
+</style>
+<div class="wrap">
+<p class="eyebrow">B1K-2026 · Diagnostics Tier 3 · Probe Baseline v1</p>
+<h1>What the vanilla policy knows, layer by layer</h1>
+<p class="meta">model: pi05_b1k_ours_lora @ 5k steps (radio task, 200 demos) · features: per-layer prefix-KV, mean-pooled (18 layers) · probes: ridge, held-out R² · 2,000 frames · 2026-07-07</p>
+
+<p>Each cell: how well a <b>linear probe</b> on that layer's representation predicts the target (held-out R²; 1.0 = perfectly readable, ≤0 = absent). Features are the per-layer key-value states the action expert attends into — i.e. what the policy can actually <i>use</i>.</p>
+
+<div class="hm-wrap">
+<table class="hm" id="hm"></table>
+</div>
+<div class="legend"><span>R² 0.0</span><div class="grad"></div><span>1.0</span></div>
+
+<h2>Reading</h2>
+<ul>
+<li><b>Task progress is already there (R² ≈ 0.85, every layer).</b> With no stage head, the representation strongly encodes where-in-the-task the policy is. This is the substrate the 2025 winner's stage-voting exploited from outside; our stage head will anchor it inside the network.</li>
+<li><b>Gripper intent is near-ceiling everywhere (≈ 0.94).</b> Expected — it is close to an input echo — but a useful positive control: the probe machinery works.</li>
+<li><b>Current action rises with depth (0.51 → 0.59, peak layers 13–15).</b> Motor content accumulates toward late layers — consistent with the sensory → workspace → motor stratification reported for LLMs (J-lens paper), and with why per-layer KV mixing into the action expert helps.</li>
+<li><b>Future end-effector delta reads as absent (R² ≤ 0)</b> — but the label is suspect: a 16-frame mean-delta at 30 Hz is noise-dominated on smooth trajectories. Redo with sim-state end-effector poses before concluding anything.</li>
+</ul>
+
+<div class="note"><b>What this baseline is for.</b> This is the "before" picture of the vanilla recipe. The decisive comparison arrives with (a) <b>geometric targets</b> — object 6-DoF pose from the raw sim states (does the policy carry metric scene knowledge, or only semantics?) — and (b) the same map recomputed on the <b>grounded-point + stage-head model</b>. Architecture effects then show up as probe deltas, not vibes.</div>
+
+<h2>Caveats, honestly</h2>
+<ul>
+<li>Flatness across layers may partly be an artifact of mean-pooling the prefix positions; per-token readouts could reveal structure the pooling washes out.</li>
+<li>These first targets are the easy ones; none of them yet tests geometry, which is the question that matters for our thesis.</li>
+<li>Single checkpoint (5k steps), single task. Cross-checkpoint and cross-task maps come with the G3 infrastructure.</li>
+</ul>
+
+<div class="foot">features: mean-pooled per-layer prefix V · ridge α=10, 20% held-out · repo: behavior2026/probes/ · results: box_artifacts/probe_results_g2_5k_vanilla.json</div>
+</div>
+<script>
+const rows = [{"layer": "layer00", "action_t": 0.514, "future_ee_delta": -0.105, "gripper_cmd": 0.915, "phase_frac": 0.849}, {"layer": "layer01", "action_t": 0.507, "future_ee_delta": -0.099, "gripper_cmd": 0.92, "phase_frac": 0.849}, {"layer": "layer02", "action_t": 0.521, "future_ee_delta": -0.108, "gripper_cmd": 0.942, "phase_frac": 0.848}, {"layer": "layer03", "action_t": 0.518, "future_ee_delta": -0.087, "gripper_cmd": 0.935, "phase_frac": 0.848}, {"layer": "layer04", "action_t": 0.515, "future_ee_delta": -0.108, "gripper_cmd": 0.933, "phase_frac": 0.85}, {"layer": "layer05", "action_t": 0.531, "future_ee_delta": -0.079, "gripper_cmd": 0.931, "phase_frac": 0.86}, {"layer": "layer06", "action_t": 0.518, "future_ee_delta": -0.089, "gripper_cmd": 0.94, "phase_frac": 0.839}, {"layer": "layer07", "action_t": 0.571, "future_ee_delta": -0.079, "gripper_cmd": 0.939, "phase_frac": 0.859}, {"layer": "layer08", "action_t": 0.539, "future_ee_delta": -0.087, "gripper_cmd": 0.941, "phase_frac": 0.851}, {"layer": "layer09", "action_t": 0.54, "future_ee_delta": -0.105, "gripper_cmd": 0.942, "phase_frac": 0.864}, {"layer": "layer10", "action_t": 0.537, "future_ee_delta": -0.103, "gripper_cmd": 0.939, "phase_frac": 0.86}, {"layer": "layer11", "action_t": 0.55, "future_ee_delta": -0.119, "gripper_cmd": 0.931, "phase_frac": 0.838}, {"layer": "layer12", "action_t": 0.537, "future_ee_delta": -0.092, "gripper_cmd": 0.934, "phase_frac": 0.858}, {"layer": "layer13", "action_t": 0.594, "future_ee_delta": -0.097, "gripper_cmd": 0.935, "phase_frac": 0.853}, {"layer": "layer14", "action_t": 0.564, "future_ee_delta": -0.078, "gripper_cmd": 0.943, "phase_frac": 0.849}, {"layer": "layer15", "action_t": 0.593, "future_ee_delta": -0.126, "gripper_cmd": 0.951, "phase_frac": 0.842}, {"layer": "layer16", "action_t": 0.539, "future_ee_delta": -0.084, "gripper_cmd": 0.948, "phase_frac": 0.845}, {"layer": "layer17", "action_t": 0.516, "future_ee_delta": -0.064, "gripper_cmd": 0.95, "phase_frac": 0.835}];
+const targets = [["phase_frac","task progress"],["gripper_cmd","gripper cmd"],["action_t","current action"],["future_ee_delta","future EE Δ"]];
+function color(v){
+  const t = Math.max(0, Math.min(1, v));
+  // dark slate -> olive -> burnt amber -> bright amber
+  const stops = [[61,71,86],[122,106,58],[180,83,10],[232,161,61]];
+  const x = t * (stops.length - 1), i = Math.min(Math.floor(x), stops.length - 2), f = x - i;
+  const c = stops[i].map((s, k) => Math.round(s + f * (stops[i+1][k] - s)));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+const tbl = document.getElementById("hm");
+let head = "<tr><th class='rowh'>layer</th>" + targets.map(t => `<th>${t[1]}</th>`).join("") + "</tr>";
+tbl.innerHTML = head + rows.map(r =>
+  `<tr><td class='rowlab'>${r.layer.replace("layer","L")}</td>` + targets.map(([k]) => {
+    const v = r[k];
+    return `<td><div class='cell' style='background:${color(v)}' title='${k}: ${v}'>${v.toFixed(2)}</div></td>`;
+  }).join("") + "</tr>").join("");
+</script>

@@ -1,0 +1,28 @@
+{
+ "steps": 3225,
+ "attempts": 0,
+ "deep_closes": 0,
+ "first_attempt_step": null,
+ "first_attempt_sec_at_30fps": null,
+ "close_events": [],
+ "quarter_activity_arm_base": [
+  [
+   1.16,
+   0.086
+  ],
+  [
+   3.57,
+   0.135
+  ],
+  [
+   5.14,
+   0.02
+  ],
+  [
+   6.7,
+   0.011
+  ]
+ ],
+ "arm_escalation_ratio": 5.78,
+ "classification": "steady-no-attempt"
+}

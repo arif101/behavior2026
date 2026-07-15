@@ -56,8 +56,8 @@ UPLOAD_EVERY = 10
 # Measured on radio/trash pilots: ~3150 bytes of rawdata per frame; effective replay ~6.5
 # frames/s + ~140s sim boot + save. Timeout = 3x expected, from the actual hdf5 size.
 BYTES_PER_FRAME = 3150.0
-TIMEOUT_S_PER_FRAME = 0.5
-EP_TIMEOUT_MIN_S = 1800
+TIMEOUT_S_PER_FRAME = 2.0
+EP_TIMEOUT_MIN_S = 7200
 EP_TIMEOUT_MAX_S = 24 * 3600
 
 
@@ -181,8 +181,19 @@ def run_episode(task_name, task_id, demo_id):
         "--lerobot_root_dir", os.path.join(OUT_DIR, task_name),
         "--labels_out", labels_out,
         "--targets_json", TARGETS_JSON,
-        "--resume_lerobot",
     ]
+    # resume only when a valid local dataset exists; resuming into a missing dir makes
+    # LeRobot fall back to a HUB lookup (b1k/<task> -> 404 -> teardown segfault).
+    _meta = os.path.join(OUT_DIR, task_name, "b1k", task_name, "meta", "info.json")
+    import glob as _glob
+    _clean_eps = _glob.glob(os.path.join(LBL_DIR, task_name, "*.done.json"))
+    if os.path.exists(_meta) and _clean_eps:
+        cmd.append("--resume_lerobot")
+    else:
+        import shutil as _sh
+        _stale = os.path.join(OUT_DIR, task_name, "b1k", task_name)
+        if os.path.isdir(_stale):
+            _sh.rmtree(_stale)  # partial output from a killed first attempt
     env = dict(os.environ)
     for k in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
         env[k] = "16"

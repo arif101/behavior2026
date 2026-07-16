@@ -157,3 +157,27 @@ Phase 2 training is minutes–hours on any of our boxes between sweep/eval jobs.
 4. `grounding/model.py` (the backbone you share) + `grounding/dataset.py` (frame/label pairing)
 5. Papers: Larchenko BEHAVIOR-25 report (stage head + voting); TD-calibration for VLA
    (ICML 63834 — the metacog consumer); our banked ICML sweep notes in memory.
+
+## v1.1 addenda (2026-07-16, from design reviews)
+
+1. **Soft conditioning, discrete arbitration.** The hysteresis voting (Larchenko rules: 3-window,
+   advance on 2/3, rollback on 3/3) applies ONLY to director-level decisions (query switching).
+   Policy conditioning uses **soft stage mixtures** `z_stage = Σ pᵢ·Eᵢ` over your head's full
+   distribution, trained with soft boundary labels (frames within ~0.3s of a transition get
+   blended targets — boundary frames genuinely are ambiguous). Also emit the **progress scalar**
+   (sincos-encoded) and the **distribution entropy** (a metacog feature: confused stage head =
+   off-nominal state).
+2. **Ledger conditioning ablation.** The satisfaction ledger (your per-literal P(satisfied),
+   ≤32-dim) is the true sufficient statistic of task state; the stage token is its proxy. The
+   policy-side interface reserves both — plan the A/B: soft-stage-only vs ledger-only vs both.
+3. **Occlusion lesson (from the grounding pipeline, applies to your labels too):** frustum-inclusion
+   ≠ visibility. When your extractor asserts "object at goal" or phase transitions from object
+   motion, prefer physics-side state over projected appearance; where you DO use projected
+   positions, gate on depth-consistency (label_z vs observed depth, the cache's `margin` field
+   pattern). High-occlusion tasks (hiding_Easter_eggs 76.5%, loading_the_car 64.8%) are where
+   per-frame perception fails by construction — document them as belief-head territory.
+4. **Reference recipe now published:** Larchenko's official paper (arXiv 2512.06951) — his stage
+   labels are temporal-position bins (5-15/task, task-masked logits, ~99% TRAIN accuracy, no
+   held-out eval). Your differentiators to keep sharp: semantic predicate labels, per-arm tracks,
+   held-out-task generalization, the ledger. Cheap ablation to include: train your head once on
+   his position-bin labels vs yours — quantifies what semantic labels buy.

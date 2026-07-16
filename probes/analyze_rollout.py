@@ -12,10 +12,18 @@ Action layout (R1Pro 23-D): base 0:3 · torso 3:7 · armL 7:14 · gripL 14 · ar
 import argparse
 import json
 
+# R1Pro 23-D action conventions (shared with diagnostics/render_debug_video.py)
+GRIP_DIMS = ((14, "L"), (22, "R"))
+CLOSE_DROP = 0.15   # gripper action drop that counts as a close event
+REACH_M = 0.35      # EE-to-target distance gate for a "target attempt"
 
-def analyze(trace_path: str) -> dict:
-    # A crash mid-write leaves a malformed line; appends after it start a new episode.
-    # Split on malformed lines and analyze the last clean segment only.
+
+def load_trace(trace_path: str) -> list:
+    """Parse a step-trace JSONL into rows of the LAST clean segment.
+
+    A crash mid-write leaves a malformed line; appends after it start a new
+    episode. Split on malformed lines and return the last clean segment only.
+    """
     segs, cur = [], []
     for line in open(trace_path):
         try:
@@ -26,24 +34,33 @@ def analyze(trace_path: str) -> dict:
             cur = []
     if cur:
         segs.append(cur)
-    rows = segs[-1] if segs else []
+    return segs[-1] if segs else []
+
+
+def find_closes(acts: list) -> list:
+    """Gripper-close events (attempt proxy): action dim 14/22 drops > CLOSE_DROP."""
+    closes = []
+    for i in range(1, len(acts)):
+        for g, side in GRIP_DIMS:
+            drop = acts[i - 1][g] - acts[i][g]
+            if drop > CLOSE_DROP:
+                closes.append({"step": i, "side": side, "to": round(acts[i][g], 2)})
+    return closes
+
+
+def analyze(trace_path: str) -> dict:
+    rows = load_trace(trace_path)
     n = len(rows)
     if n < 10:
         return {"error": "trace too short", "steps": n}
     acts = [r["action"] for r in rows]
 
     # --- gripper-close events (attempt proxy) ---
-    closes = []
-    for i in range(1, n):
-        for g, side in ((14, "L"), (22, "R")):
-            drop = acts[i - 1][g] - acts[i][g]
-            if drop > 0.15:
-                closes.append({"step": i, "side": side, "to": round(acts[i][g], 2)})
+    closes = find_closes(acts)
     deep_closes = [c for c in closes if c["to"] < 0.0]
 
     # --- proximity gating (when TARGET_CATS pose data present in trace) ---
     # objs logged every 10 steps (forward-fill), ee logged per step, both world-frame.
-    REACH_M = 0.35
     obj_snaps = [(i, r["objs"]) for i, r in enumerate(rows) if r.get("objs")]
     have_prox = bool(obj_snaps) and any(r.get("ee") for r in rows)
     min_target_dist = None

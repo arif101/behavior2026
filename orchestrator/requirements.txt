@@ -1,0 +1,3 @@
+anthropic>=0.60
+pydantic>=2.7
+pillow>=10.0

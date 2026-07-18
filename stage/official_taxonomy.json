@@ -1,0 +1,922 @@
+{
+ "provenance": "behavior-1k/2026-challenge-demos annotations/, sampled 3 episodes (first/middle/last) per task, 2026-07-17. Regenerate with stage/build_taxonomy.py over a full local annotation dump.",
+ "skills": {
+  "1": "move to",
+  "2": "pick up from",
+  "3": "place on",
+  "4": "place in",
+  "5": "hand over",
+  "6": "insert",
+  "8": "release",
+  "9": "open drawer",
+  "10": "open door",
+  "11": "close drawer",
+  "12": "close door",
+  "13": "open lid",
+  "14": "close lid",
+  "19": "attach",
+  "28": "pour",
+  "34": "chop",
+  "46": "wipe hard",
+  "50": "sweep surface",
+  "61": "hang",
+  "67": "press",
+  "69": "turn on switch",
+  "70": "turn off switch",
+  "88": "ignite",
+  "90": "push to",
+  "91": "place on next to",
+  "92": "place in next to",
+  "93": "turn to",
+  "94": "hold",
+  "95": "spray",
+  "98": "place under",
+  "99": "tip over",
+  "100": "push tray",
+  "101": "pull tray",
+  "102": "sweep off"
+ },
+ "task_skills": {
+  "task-0000": [
+   1,
+   2,
+   3,
+   67
+  ],
+  "task-0001": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "task-0002": [
+   1,
+   2,
+   4,
+   9,
+   11,
+   91
+  ],
+  "task-0003": [
+   1,
+   2,
+   4,
+   10,
+   12
+  ],
+  "task-0004": [
+   1,
+   2,
+   4,
+   5,
+   10,
+   12,
+   13,
+   14
+  ],
+  "task-0005": [
+   1,
+   2,
+   91
+  ],
+  "task-0006": [
+   1,
+   2,
+   3,
+   91
+  ],
+  "task-0007": [
+   1,
+   2,
+   4,
+   5,
+   90
+  ],
+  "task-0008": [
+   1,
+   2,
+   4,
+   10,
+   12,
+   92,
+   93
+  ],
+  "task-0009": [
+   1,
+   2,
+   3,
+   28,
+   90,
+   91
+  ],
+  "task-0010": [
+   1,
+   2,
+   3,
+   4,
+   91
+  ],
+  "task-0011": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12
+  ],
+  "task-0012": [
+   1,
+   2,
+   4,
+   10,
+   12,
+   90,
+   91
+  ],
+  "task-0013": [
+   1,
+   2,
+   4,
+   10,
+   13,
+   14,
+   90
+  ],
+  "task-0014": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   10,
+   12,
+   14,
+   28,
+   99
+  ],
+  "task-0015": [
+   1,
+   2,
+   3,
+   10
+  ],
+  "task-0016": [
+   1,
+   2,
+   3,
+   10
+  ],
+  "task-0017": [
+   1,
+   2,
+   3,
+   5,
+   10,
+   12
+  ],
+  "task-0018": [
+   1,
+   2,
+   3,
+   90,
+   91
+  ],
+  "task-0019": [
+   1,
+   2,
+   4,
+   13,
+   14,
+   90
+  ],
+  "task-0020": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "task-0021": [
+   1,
+   2,
+   3,
+   4,
+   90
+  ],
+  "task-0022": [
+   1,
+   2,
+   4
+  ],
+  "task-0023": [
+   1,
+   2,
+   3,
+   4,
+   90
+  ],
+  "task-0024": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   90,
+   99
+  ],
+  "task-0025": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   90
+  ],
+  "task-0026": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "task-0027": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   90,
+   98
+  ],
+  "task-0028": [
+   1,
+   2,
+   3,
+   90,
+   91,
+   93
+  ],
+  "task-0029": [
+   1,
+   2,
+   3,
+   4,
+   6,
+   14,
+   90
+  ],
+  "task-0030": [
+   1,
+   2,
+   4,
+   69,
+   70,
+   88,
+   90
+  ],
+  "task-0031": [
+   1,
+   2,
+   4,
+   10,
+   12,
+   69,
+   93
+  ],
+  "task-0032": [
+   1,
+   2,
+   4,
+   10,
+   12,
+   69,
+   93
+  ],
+  "task-0033": [
+   1,
+   2,
+   4,
+   10,
+   12,
+   69,
+   90
+  ],
+  "task-0034": [
+   1,
+   2,
+   5,
+   61
+  ],
+  "task-0035": [
+   1,
+   2,
+   8,
+   19,
+   94
+  ],
+  "task-0036": [
+   1,
+   2,
+   3,
+   8,
+   50,
+   90,
+   94
+  ],
+  "task-0037": [
+   1,
+   2,
+   3,
+   5,
+   46
+  ],
+  "task-0038": [
+   1,
+   2,
+   69,
+   70,
+   90,
+   95
+  ],
+  "task-0039": [
+   1,
+   2,
+   69,
+   70,
+   95
+  ],
+  "task-0040": [
+   1,
+   2,
+   4,
+   10,
+   12,
+   69
+  ],
+  "task-0041": [
+   1,
+   2,
+   3,
+   10,
+   12,
+   28,
+   34,
+   69,
+   90,
+   91
+  ],
+  "task-0042": [
+   1,
+   2,
+   3,
+   4,
+   28,
+   34,
+   90,
+   91
+  ],
+  "task-0043": [
+   1,
+   2,
+   3,
+   10,
+   12,
+   34,
+   90
+  ],
+  "task-0044": [
+   1,
+   2,
+   3,
+   34,
+   102
+  ],
+  "task-0045": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   69
+  ],
+  "task-0046": [
+   1,
+   2,
+   3,
+   10,
+   12,
+   28,
+   69,
+   91
+  ],
+  "task-0047": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12
+  ],
+  "task-0048": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   28,
+   34,
+   90,
+   91
+  ],
+  "task-0049": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   28,
+   34,
+   69,
+   90,
+   91,
+   100,
+   101
+  ],
+  "task-0050": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12
+  ],
+  "task-0051": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   10,
+   12,
+   28,
+   69,
+   70,
+   90
+  ],
+  "task-0052": [
+   1,
+   2,
+   4,
+   90
+  ],
+  "task-0053": [
+   1,
+   2,
+   3,
+   4,
+   90
+  ],
+  "task-0054": [
+   1,
+   2,
+   4,
+   5
+  ],
+  "task-0055": [
+   1,
+   2,
+   5,
+   6,
+   90
+  ],
+  "task-0056": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "task-0057": [
+   1,
+   2,
+   50
+  ],
+  "task-0058": [
+   1,
+   2,
+   3,
+   91
+  ],
+  "task-0059": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "task-0060": [
+   1,
+   2,
+   5,
+   46
+  ],
+  "task-0061": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   13,
+   14,
+   91
+  ],
+  "task-0062": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   34
+  ],
+  "task-0063": [
+   1,
+   2,
+   3,
+   19
+  ],
+  "task-0064": [
+   1,
+   2,
+   3,
+   10,
+   12,
+   90
+  ],
+  "task-0065": [
+   1,
+   2,
+   3,
+   10,
+   13,
+   14
+  ],
+  "task-0066": [
+   1,
+   10,
+   12,
+   70
+  ],
+  "task-0067": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   28
+  ],
+  "task-0068": [
+   1,
+   2,
+   4,
+   13,
+   14
+  ],
+  "task-0069": [
+   1,
+   2,
+   3,
+   50,
+   69
+  ],
+  "task-0070": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   10,
+   12,
+   69
+  ],
+  "task-0071": [
+   1,
+   2,
+   4,
+   13,
+   14,
+   46
+  ],
+  "task-0072": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   10,
+   12,
+   69
+  ],
+  "task-0073": [
+   1,
+   2,
+   3,
+   4,
+   90
+  ],
+  "task-0074": [
+   1,
+   2,
+   3,
+   10,
+   90,
+   91
+  ],
+  "task-0075": [
+   1,
+   2,
+   4,
+   13,
+   14
+  ],
+  "task-0076": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "task-0077": [
+   1,
+   2,
+   3,
+   5,
+   69
+  ],
+  "task-0078": [
+   1,
+   2,
+   3,
+   19,
+   99
+  ],
+  "task-0079": [
+   1,
+   2,
+   3,
+   5,
+   46,
+   91
+  ],
+  "task-0080": [
+   1,
+   2,
+   4
+  ],
+  "task-0081": [
+   1,
+   2,
+   4
+  ],
+  "task-0082": [
+   1,
+   2,
+   3,
+   4,
+   9,
+   11
+  ],
+  "task-0083": [
+   1,
+   2,
+   3,
+   4,
+   9,
+   11
+  ],
+  "task-0084": [
+   1,
+   2,
+   3,
+   4,
+   10
+  ],
+  "task-0085": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   13,
+   14
+  ],
+  "task-0086": [
+   1,
+   2,
+   3,
+   4,
+   9,
+   11
+  ],
+  "task-0087": [
+   1,
+   2,
+   4
+  ],
+  "task-0088": [
+   1,
+   2,
+   3,
+   90
+  ],
+  "task-0089": [
+   1,
+   2,
+   3,
+   69,
+   90
+  ],
+  "task-0090": [
+   1,
+   2,
+   4,
+   91
+  ],
+  "task-0091": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   28,
+   92
+  ],
+  "task-0092": [
+   1,
+   2,
+   3,
+   69,
+   90
+  ],
+  "task-0093": [
+   1,
+   2,
+   50,
+   90
+  ],
+  "task-0094": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   90
+  ],
+  "task-0095": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   12,
+   28,
+   34,
+   69,
+   90,
+   91
+  ],
+  "task-0096": [
+   1,
+   2,
+   3,
+   28,
+   69
+  ],
+  "task-0097": [
+   1,
+   2,
+   3,
+   28,
+   91
+  ],
+  "task-0098": [
+   1,
+   2,
+   10,
+   91,
+   93
+  ],
+  "task-0099": [
+   1,
+   2,
+   3,
+   90
+  ]
+ },
+ "task_names": {
+  "task-0000": "turning on radio",
+  "task-0001": "picking up trash",
+  "task-0002": "putting away Halloween decorations",
+  "task-0003": "cleaning up plates and food",
+  "task-0004": "can meat",
+  "task-0005": "setting mousetraps",
+  "task-0006": "hiding Easter eggs",
+  "task-0007": "picking up toys",
+  "task-0008": "rearranging kitchen furniture",
+  "task-0009": "putting up Christmas decorations inside",
+  "task-0010": "set up a coffee station in your kitchen",
+  "task-0011": "putting dishes away after cleaning",
+  "task-0012": "preparing lunch box",
+  "task-0013": "loading the car",
+  "task-0014": "carrying in groceries",
+  "task-0015": "bringing in wood",
+  "task-0016": "moving boxes to storage",
+  "task-0017": "bringing water",
+  "task-0018": "tidying bedroom",
+  "task-0019": "outfit a basic toolbox",
+  "task-0020": "sorting vegetables",
+  "task-0021": "collecting childrens toys",
+  "task-0022": "putting shoes on rack",
+  "task-0023": "boxing books up for storage",
+  "task-0024": "storing food",
+  "task-0025": "clearing food from table into fridge",
+  "task-0026": "assembling gift baskets",
+  "task-0027": "sorting household items",
+  "task-0028": "getting organized for work",
+  "task-0029": "clean up your desk",
+  "task-0030": "setting the fire",
+  "task-0031": "clean boxing gloves",
+  "task-0032": "wash a baseball cap",
+  "task-0033": "wash dog toys",
+  "task-0034": "hanging pictures",
+  "task-0035": "attach a camera to a tripod",
+  "task-0036": "clean a patio",
+  "task-0037": "clean a trumpet",
+  "task-0038": "spraying for bugs",
+  "task-0039": "spraying fruit trees",
+  "task-0040": "make microwave popcorn",
+  "task-0041": "cook cabbage",
+  "task-0042": "chop an onion",
+  "task-0043": "slicing vegetables",
+  "task-0044": "chopping wood",
+  "task-0045": "cook hot dogs",
+  "task-0046": "cook bacon",
+  "task-0047": "freeze pies",
+  "task-0048": "canning food",
+  "task-0049": "make pizza",
+  "task-0050": "freeze fruit",
+  "task-0051": "cook a brisket",
+  "task-0052": "sorting bottles cans and paper",
+  "task-0053": "tidying living room",
+  "task-0054": "putting away toys",
+  "task-0055": "re shelving library books",
+  "task-0056": "make rose centerpieces",
+  "task-0057": "sweeping garage",
+  "task-0058": "stacking wood",
+  "task-0059": "organizing art supplies",
+  "task-0060": "scrubbing bathroom floor",
+  "task-0061": "bringing paper to recycling",
+  "task-0062": "halve an egg",
+  "task-0063": "installing smoke detectors",
+  "task-0064": "setting the table",
+  "task-0065": "unloading the car",
+  "task-0066": "turning out all lights before sleep",
+  "task-0067": "boxing food after dinner",
+  "task-0068": "cleaning up branches and twigs",
+  "task-0069": "vacuuming floors",
+  "task-0070": "thawing frozen food",
+  "task-0071": "clean your rusty garden tools",
+  "task-0072": "cook a frozen pie",
+  "task-0073": "organizing school stuff",
+  "task-0074": "carrying out garden furniture",
+  "task-0075": "put together a basic pruning kit",
+  "task-0076": "dispose of glass",
+  "task-0077": "installing a modem",
+  "task-0078": "make cabinet doors",
+  "task-0079": "polishing shoes",
+  "task-0080": "clean up broken glass",
+  "task-0081": "packing meal for delivery",
+  "task-0082": "store batteries",
+  "task-0083": "store honey",
+  "task-0084": "tidying bathroom",
+  "task-0085": "putting dirty dishes in sink",
+  "task-0086": "make gift bags for baby showers",
+  "task-0087": "collecting aluminum cans",
+  "task-0088": "rearrange your room",
+  "task-0089": "installing a fax machine",
+  "task-0090": "composting waste",
+  "task-0091": "store produce",
+  "task-0092": "installing a scanner",
+  "task-0093": "clean a keyboard",
+  "task-0094": "dispose of batteries",
+  "task-0095": "cook brussels sprouts",
+  "task-0096": "cook broccolini",
+  "task-0097": "setup a bar for a cocktail party",
+  "task-0098": "laying tile floors",
+  "task-0099": "sorting books on shelf"
+ }
+}

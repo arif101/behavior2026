@@ -1,0 +1,147 @@
+"""Stage-head window dataset over the extended v0.5 cache.
+
+A sample = one anchor cache-frame t of one episode:
+  rgb [518,518,3] u8 (frames/f_%05d.jpg, current frame only)
+  depth [148,148] f32 m
+  hist_glob [T,768] mean DINO tokens, frames t-T+1..t, edge-padded at start
+  hist_prop [T,61]
+  targets per arm: soft stage distribution (v1.1 boundary blending: frames
+  within BLEND_SEC of a transition get linearly blended two-hot targets --
+  boundary frames genuinely are ambiguous), phase id (-1 = masked), sincos
+  progress + validity, active-literal id (-1 = masked), ledger [L] + mask.
+
+Task balancing at the sampler level: uniform-per-task weights 1/n_items(task)
+(same documented choice as mt_dataset).
+"""
+
+import json
+import os
+
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+
+from common import BLEND_SEC, DGRID, FPS_CACHE, IMG, L_MAX, T_HIST, cache_dir
+from taxonomy import N_STAGES, task_stage_mask
+
+BLEND_F = max(1, int(round(BLEND_SEC * FPS_CACHE)))   # cache frames (~2 @ 6Hz)
+
+
+def soft_stage_targets(stage, seg_id, n_stages):
+    """[N] hard ids -> [N, n_stages] soft targets with boundary blending.
+    Within BLEND_F frames of a seg_id change, blend old/new linearly."""
+    N = len(stage)
+    out = np.zeros((N, n_stages), dtype=np.float32)
+    out[np.arange(N), stage] = 1.0
+    bounds = np.flatnonzero(np.diff(seg_id) != 0) + 1     # first frame of new seg
+    for b in bounds:
+        s_old, s_new = stage[b - 1], stage[b]
+        if s_old == s_new:
+            continue
+        for off in range(-BLEND_F, BLEND_F):
+            i = b + off
+            if 0 <= i < N:
+                # w_new ramps 0->1 across the blend window centred on b
+                w = (off + BLEND_F + 0.5) / (2 * BLEND_F)
+                out[i] = 0.0
+                out[i, s_new] = w
+                out[i, s_old] = 1.0 - w
+    return out
+
+
+class StageWindowDataset(Dataset):
+    def __init__(self, episodes, t_hist=T_HIST, stride=2):
+        """episodes: [(task, file_idx)]; stride subsamples anchors (labels are
+        near-constant at 6 Hz; stride 2 halves epoch cost losslessly)."""
+        self.t_hist = t_hist
+        self.eps = []
+        self.items = []
+        self.item_task = []
+        for task, fi in episodes:
+            d = cache_dir(task, fi)
+            need = ["glob.npy", "proprio.npy", "stage_labels.npz", "depth.npy"]
+            if not all(os.path.exists(os.path.join(d, f)) for f in need):
+                raise FileNotFoundError(f"{d}: stage cache incomplete (run build_cache)")
+            ei = len(self.eps)
+            lab = dict(np.load(os.path.join(d, "stage_labels.npz"), allow_pickle=False))
+            lits = json.load(open(os.path.join(d, "literals.json")))
+            N = len(lab["stage_left"])
+            soft = {arm: soft_stage_targets(lab[f"stage_{arm}"],
+                                            lab[f"seg_{arm}"], N_STAGES)
+                    for arm in ("left", "right")}
+            self.eps.append(dict(
+                task=task, dir=d, lab=lab, soft=soft,
+                glob=np.load(os.path.join(d, "glob.npy"), mmap_mode="r"),
+                prop=np.load(os.path.join(d, "proprio.npy"), mmap_mode="r"),
+                depth=np.load(os.path.join(d, "depth.npy"), mmap_mode="r"),
+                lits=lits, stage_mask=np.array(task_stage_mask(task))))
+            for i in range(0, N, stride):
+                self.items.append((ei, i))
+                self.item_task.append(task)
+
+    def sampler_weights(self):
+        from collections import Counter
+        n = Counter(self.item_task)
+        return torch.tensor([1.0 / n[t] for t in self.item_task], dtype=torch.double)
+
+    def __len__(self):
+        return len(self.items)
+
+    def _rgb(self, ep, i):
+        from PIL import Image
+        p = os.path.join(ep["dir"], "frames", f"f_{i:05d}.jpg")
+        return np.asarray(Image.open(p).convert("RGB"), dtype=np.uint8)
+
+    def __getitem__(self, idx):
+        ei, i = self.items[idx]
+        ep = self.eps[ei]
+        lab = ep["lab"]
+        t0 = i - self.t_hist + 1
+        pad = max(0, -t0)
+        sl = slice(max(0, t0), i + 1)
+        hg = np.asarray(ep["glob"][sl], dtype=np.float32)
+        hp = np.asarray(ep["prop"][sl], dtype=np.float32)
+        if pad:                                          # edge-pad episode start
+            hg = np.concatenate([np.repeat(hg[:1], pad, 0), hg])
+            hp = np.concatenate([np.repeat(hp[:1], pad, 0), hp])
+
+        prog = np.stack([lab["progress_left"][i], lab["progress_right"][i]])
+        ang = 2 * np.pi * prog
+        out = dict(
+            rgb=torch.from_numpy(self._rgb(ep, i)),
+            depth=torch.from_numpy(np.asarray(ep["depth"][i], dtype=np.float32)),
+            hist_glob=torch.from_numpy(hg),
+            hist_prop=torch.from_numpy(hp),
+            stage_soft=torch.from_numpy(np.stack(
+                [ep["soft"]["left"][i], ep["soft"]["right"][i]])),
+            phase=torch.tensor([lab["phase_left"][i], lab["phase_right"][i]],
+                               dtype=torch.long),
+            progress=torch.from_numpy(
+                np.stack([np.sin(ang), np.cos(ang)], -1).astype(np.float32)),
+            progress_valid=torch.tensor(
+                [lab["seg_left"][i] >= 0, lab["seg_right"][i] >= 0]),
+            active_lit=torch.tensor([lab["active_lit_left"][i],
+                                     lab["active_lit_right"][i]], dtype=torch.long),
+            ledger=torch.from_numpy(np.asarray(lab["ledger"][i], dtype=np.float32)),
+            ledger_valid=torch.tensor(bool(lab["ledger_valid"])),
+            lit_pred=torch.tensor(ep["lits"]["pred"], dtype=torch.long),
+            lit_tgt=torch.tensor(ep["lits"]["tgt"], dtype=torch.long),
+            lit_ref=torch.tensor(ep["lits"]["ref"], dtype=torch.long),
+            lit_mask=torch.tensor(ep["lits"]["mask"], dtype=torch.bool),
+            stage_mask=torch.from_numpy(ep["stage_mask"]),
+        )
+        return out
+
+
+def split_episodes(tasks, heldout_files=(), heldout_tasks=()):
+    """(train, val) episode lists. Held-out EPISODES gate memorization;
+    held-out TASKS gate transfer (report both, spec metrics section)."""
+    tr, va = [], []
+    for task, fis in tasks.items():
+        for fi in fis:
+            ep = (task, fi)
+            if task in heldout_tasks or (task, fi) in heldout_files:
+                va.append(ep)
+            else:
+                tr.append(ep)
+    return tr, va

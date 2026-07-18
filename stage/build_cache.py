@@ -1,0 +1,244 @@
+"""Build the stage-head training cache for a set of episodes.
+
+Works over any LeRobot-style episode root (the box sweep_out, or a local
+download of HF behavior-1k/2026-challenge-demos -- see runpod/prep_data.py),
+plus the organizers' annotation JSONs. Extends/creates the per-episode cache
+dir (common.cache_dir) with:
+
+  frames/f_%05d.jpg  518x518 RGB every FRAME_STRIDE-th frame (skipped if the
+                     grounding cache already built them)
+  depth.npy          f16 [N,148,148] m (skipped if present)
+  glob.npy           f16 [N,768] mean DINO patch token per cached frame (GPU)
+  proprio.npy        f32 [N,61] observation.state at cached frames
+  literals.json      encoded goal literals (taxonomy.encode_literals)
+  stage_labels.npz   per-arm supervision on the cache timebase:
+      stage_{arm} i64 [N]      taxonomy stage class (IDLE where none)
+      seg_{arm} i64 [N]        official segment id (-1 none; boundary blending)
+      progress_{arm} f32 [N]   within-segment progress
+      phase_{arm} i64 [N]      extractor phase (-1 = masked; needs Phase-1 labels)
+      active_lit_{arm} i64 [N] literal index (-1 = masked)
+      ledger f32 [N,L]         per-literal P(satisfied) target
+      ledger_valid u8 scalar   1 = trained, 0 = masked
+  .stage_done marker
+
+Ledger v1 proxy (official-only mode): a literal flips satisfied at the END of
+a completed place/insert/close-family segment whose manipulating object
+matches the literal's target category. Replaced by Phase-1's real BDDL
+predicate evaluation when those labels land; ledger_valid distinguishes them.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+
+import numpy as np
+
+from common import (DEPTH_BIAS, DEPTH_SCALE, DGRID, FRAME_STRIDE, H, IMG,
+                    L_MAX, TASK_TARGETS, W, cache_dir)
+from official_annotations import merge_arm_labels, parse_episode
+from taxonomy import (SKILL_NAMES, SKILL_OF_STAGE, encode_literals,
+                      literals_from_task_targets)
+
+# stages whose completion flips a literal (place/insert/close/toggle family)
+COMPLETING_SKILLS = {3, 4, 6, 8, 11, 12, 14, 19, 61, 69, 70, 88, 90, 91, 92, 98}
+
+
+def _select_expr(v0, v1):
+    """LeRobot v3 packs episodes into shared video files: select frames
+    [v0, v1) of the file, then every FRAME_STRIDE-th of those."""
+    return (f"select=between(n\\,{v0}\\,{v1 - 1})*not(mod(n-{v0}\\,{FRAME_STRIDE}))"
+            if v1 else f"select=not(mod(n\\,{FRAME_STRIDE}))")
+
+
+def decode_rgb(video, out_dir, n_expected, v0=0, v1=None):
+    os.makedirs(out_dir, exist_ok=True)
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-threads", "4", "-i", video,
+         "-vf", f"{_select_expr(v0, v1)},scale={IMG}:{IMG}:flags=area",
+         "-vsync", "0", "-start_number", "0", "-q:v", "2",
+         os.path.join(out_dir, "f_%05d.jpg")], check=True)
+    n = len([f for f in os.listdir(out_dir) if f.endswith(".jpg")])
+    assert n == n_expected, f"{video}: {n} jpgs != {n_expected}"
+
+
+def decode_depth(video, n_expected, v0=0, v1=None):
+    """Streamed gray16le decode -> f16 [N,148,148] meters (mt pattern)."""
+    import torch
+    import torch.nn.functional as Fnn
+    proc = subprocess.Popen(
+        ["ffmpeg", "-v", "error", "-threads", "4", "-i", video,
+         "-vf", _select_expr(v0, v1), "-vsync", "0",
+         "-f", "rawvideo", "-pix_fmt", "gray16le", "-"],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    fb = H * W * 2
+    out = np.zeros((n_expected, DGRID, DGRID), dtype=np.float16)
+    i0 = 0
+    while True:
+        buf = proc.stdout.read(fb * 256)
+        if not buf:
+            break
+        n = len(buf) // fb
+        raw = np.frombuffer(buf[:n * fb], dtype=np.uint16).reshape(n, H, W)
+        z = raw.astype(np.float32) * DEPTH_SCALE + DEPTH_BIAS
+        t = torch.from_numpy(z).unsqueeze(1)
+        small = Fnn.adaptive_avg_pool2d(t, DGRID).squeeze(1).numpy()
+        out[i0:i0 + n] = small.astype(np.float16)
+        i0 += n
+    proc.wait()
+    assert i0 == n_expected, f"{video}: {i0} depth frames != {n_expected}"
+    return out
+
+
+def build_glob(frames_dir, n, device, batch=64):
+    """Mean DINO patch token per cached frame -> f16 [N,768]."""
+    import torch
+    from PIL import Image
+    bb = torch.hub.load("facebookresearch/dinov2", "dinov2_vitb14")
+    bb.eval().requires_grad_(False).to(device)
+    mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
+    out = np.zeros((n, 768), dtype=np.float16)
+    with torch.no_grad():
+        for a in range(0, n, batch):
+            b = min(n, a + batch)
+            imgs = np.stack([
+                np.asarray(Image.open(os.path.join(frames_dir, f"f_{i:05d}.jpg"))
+                           .convert("RGB"), dtype=np.uint8) for i in range(a, b)])
+            x = torch.from_numpy(imgs).to(device).permute(0, 3, 1, 2).float() / 255
+            x = (x - mean) / std
+            with torch.autocast(device_type=device.split(":")[0], dtype=torch.bfloat16,
+                                enabled=device != "cpu"):
+                f = bb.forward_features(x)["x_norm_patchtokens"]
+            out[a:b] = f.mean(1).float().cpu().numpy().astype(np.float16)
+    return out
+
+
+def match_literal(obj_names, literals):
+    """First literal whose target category prefixes an object name, else -1."""
+    for j, lit in enumerate(literals[:L_MAX]):
+        t = (lit.get("target") or "").split(".")[0]
+        if t and any(o.startswith(t) for o in obj_names):
+            return j
+    return -1
+
+
+def build_labels(annot_path, literals, n_video, ks, extractor_perframe=None):
+    off = parse_episode(annot_path)
+    if off["n_video"] != n_video:
+        # trust the actual video length; annotation duration is authoritative
+        # for segment frames which are on the same 30fps timebase
+        n_video = max(n_video, off["n_video"])
+    arms = merge_arm_labels(off, extractor_perframe)
+
+    L = L_MAX
+    lab = {}
+    for arm in ("left", "right"):
+        A = arms[arm]
+        lab[f"stage_{arm}"] = A["stage"][ks]
+        lab[f"seg_{arm}"] = A["seg_id"][ks]
+        lab[f"progress_{arm}"] = A["progress"][ks].astype(np.float32)
+        lab[f"phase_{arm}"] = A["phase"][ks]
+        al = np.full(len(ks), -1, dtype=np.int64)
+        for i, k in enumerate(ks):
+            s = A["seg_id"][k]
+            if s >= 0:
+                al[i] = match_literal(off["segments"][s]["manip"] or
+                                      off["segments"][s]["objects"], literals)
+        lab[f"active_lit_{arm}"] = al
+
+    # ledger v1 proxy from completed completing-segments
+    led = np.zeros((len(ks), L), dtype=np.float32)
+    flips = []                                     # (video_frame, literal_idx)
+    for s in off["segments"]:
+        if s["skill_id"] in COMPLETING_SKILLS:
+            j = match_literal(s["manip"] or s["objects"], literals)
+            if j >= 0:
+                flips.append((s["end"], j))
+    for f_end, j in flips:
+        for i, k in enumerate(ks):
+            if k >= f_end:
+                led[i, j] = 1.0
+    lab["ledger"] = led
+    lab["ledger_valid"] = np.uint8(1 if flips else 0)
+    lab["segments_json"] = np.frombuffer(
+        json.dumps([{k: v for k, v in s.items()} for s in off["segments"]])
+        .encode(), dtype=np.uint8)
+    return lab
+
+
+def build_episode(task, file_idx, rgb_video, depth_video, parquet, annot_path,
+                  task_targets, device="cuda", extractor_perframe_path=None,
+                  vrange=None, prange=None):
+    """vrange/prange: [from, to) frame/row spans of this episode inside shared
+    LeRobot-v3 chunk files (None = the file is a single episode)."""
+    d = cache_dir(task, file_idx)
+    if os.path.exists(os.path.join(d, ".stage_done")):
+        return f"{task}/ep{file_idx:03d}: cached"
+    os.makedirs(d, exist_ok=True)
+
+    import pandas as pd
+    import pyarrow.parquet as pq
+    cols = ["observation.state"]
+    if "episode_index" in pq.read_schema(parquet).names:
+        df = pd.read_parquet(parquet, columns=cols + ["episode_index"])
+        df = df[df["episode_index"] == file_idx]
+        assert len(df), f"{parquet}: episode {file_idx} not in file"
+        st = np.stack(df["observation.state"].values).astype(np.float32)
+    else:
+        df = pd.read_parquet(parquet, columns=cols)
+        st = np.stack(df["observation.state"].values).astype(np.float32)
+        if prange:
+            st = st[prange[0]:prange[1]]
+    n_video = len(st)
+    v0, v1 = (vrange if vrange else (0, None))
+    ks = list(range(0, n_video, FRAME_STRIDE))
+    N = len(ks)
+
+    fdir = os.path.join(d, "frames")
+    if not os.path.exists(os.path.join(fdir, f"f_{N-1:05d}.jpg")):
+        decode_rgb(rgb_video, fdir, N, v0, v1)
+    dep_path = os.path.join(d, "depth.npy")
+    if not os.path.exists(dep_path):
+        np.save(dep_path, decode_depth(depth_video, N, v0, v1))
+
+    np.save(os.path.join(d, "proprio.npy"), st[ks])
+    np.save(os.path.join(d, "glob.npy"), build_glob(fdir, N, device))
+
+    literals = literals_from_task_targets(task_targets)
+    pred, tgt, ref, mask = encode_literals(literals, L_MAX)
+    json.dump(dict(pred=pred, tgt=tgt, ref=ref, mask=mask, literals=literals),
+              open(os.path.join(d, "literals.json"), "w"))
+
+    exf = None
+    if extractor_perframe_path and os.path.exists(extractor_perframe_path):
+        exf = [json.loads(l) for l in open(extractor_perframe_path)]
+    lab = build_labels(annot_path, literals, n_video, np.array(ks), exf)
+    np.savez(os.path.join(d, "stage_labels.npz"), **lab)
+    open(os.path.join(d, ".stage_done"), "w").close()
+    return f"{task}/ep{file_idx:03d}: built N={N}"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--manifest", required=True,
+                    help="JSON list of episodes: [{task, file_idx, rgb, depth, "
+                         "parquet, annot, extractor_perframe?}] "
+                         "(runpod/prep_data.py writes this)")
+    ap.add_argument("--task_targets", default=TASK_TARGETS)
+    ap.add_argument("--device", default="cuda")
+    args = ap.parse_args()
+
+    tt_all = json.load(open(args.task_targets))
+    eps = json.load(open(args.manifest))
+    for e in eps:
+        tt = tt_all.get(e["task"], {})
+        msg = build_episode(e["task"], e["file_idx"], e["rgb"], e["depth"],
+                            e["parquet"], e["annot"], tt, args.device,
+                            e.get("extractor_perframe"),
+                            e.get("vrange"), e.get("prange"))
+        print(msg, flush=True)
+
+
+if __name__ == "__main__":
+    main()

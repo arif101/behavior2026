@@ -94,3 +94,101 @@ joints. Recovery skills live in the policy (corrective RFT); the trigger lives i
 - No joint-space control, no waypoints as actions (policy is the only motor).
 - No steering of head inference (queries are config; heads run unconditionally).
 - No learned parameters in v1 (LLM consultant = gated Sep experiment behind timeout+fallback).
+
+---
+
+# v1.1 Amendments — adversarial review wf_ba3610aa (24 confirmed findings: 7 critical / 14 major / 3 minor)
+
+## A. Ledger & scheduling (crit: abandon-livelock, no-clock greedy; maj: dependency cascade ×2)
+- Ledger states: {UNSAT, ACTIVE, SAT_LATCHED, BANKED, **ABANDONED, BLOCKED(dep)**}.
+- Assignment filter: UNSAT ∧ retry_budget>0 ∧ all deps ∈ {SAT_LATCHED, BANKED}.
+- **ABANDON cascades**: transitive dependents → BLOCKED; one cross-arm escalation first (offer
+  literal to OTHER arm, half budget — side reachability is what bimanual buys us).
+- **time_remaining is a first-class input.** Assignment = value-density (expected marginal q /
+  expected time, nav time from belief μ), NOT nearest. Retry budgets weighted by dependency
+  fan-in (open(fridge) is worth its whole subtree). End-game mode: only start literals with
+  E[completion] < time_remaining; suppress scans/long macros below a time floor. Terminal
+  do-no-harm window: retract, release nothing over open space, start nothing.
+- Empty assignable set with UNSAT remaining = terminal state: park safely.
+
+## B. Base arbitration (critical)
+- `base_owner ∈ {arm0, arm1, none}`; **invariant: base frozen while ANY arm in
+  approach/contact**. Assignment is base-aware: second arm claims only literals reachable from
+  the first arm's base pose (co-location batching — also faster under the 1.5× clock).
+
+## C. Instance identity end-to-end (critical)
+- Grounding query = (category, **instance_prior** = bound belief hypothesis: μ, Σ, appearance
+  crop); returns **k candidates + descriptors**, not one point.
+- New **association module** (gated NN/Hungarian, Mahalanobis under belief Σ + appearance):
+  the ONLY writer of instance identity. Hard-excludes attached_to-gripper and BANKED-bound
+  hypotheses. Ledger + arm assignment keyed on hypothesis IDs; no-double-claim at ID level.
+
+## D. Macro lifecycle (crit ×2; maj ×3)
+- Macros are first-class FSM states: completion predicate, timeout, priority+preemption table,
+  **trigger refractory while active**, stage_age reset on entry; budget decrements on a FAILED
+  genuine re-attempt, not on dispatch.
+- **Attachment gate**: while holding, the only legal recovery is PLACE-DOWN-SAFE (nearest
+  support surface + place token) — never retreat-to-pre-contact. Chunk truncation forbidden
+  during contact; retreat conditioning takes effect at the next replan boundary.
+- Coordinated literals: atomic two-phase claim (both arms free ∧ phase-safe), priority aging
+  vs starvation; any trigger during coordinated execution routes BOTH arms into one joint
+  recovery (synchronized lower-and-release), from a dedicated table.
+- Full phase×trigger matrix incl. transport; **unmapped cells default to continue-nominal**.
+- RE-GROUND is costed (fractional budget) + escalation ladder (re-query → scan+base → ABANDON);
+  P_exists decays on failed confirm-scans so belief can legitimately mask out.
+- STAGE-ROLLBACK: flush vote buffers, symmetric 3/3 refractory on re-advance, physical
+  precondition from belief (e.g. attached_to) — not stage votes alone; budget--.
+- Dispatch rate limiter: max macros per literal per unit time.
+
+## E. Banked-credit protection (maj ×3 — final-state scoring makes silent undo the costliest bug)
+- P_sat is **visibility-gated**: occluded → freeze last value + age; rollback requires positive
+  visible contradiction, never absence of evidence.
+- Opportunistic re-verification of BANKED literals whenever targets enter FOV; belief μ
+  displacement beyond literal tolerance = contradiction hint; optional end-episode AUDIT scan
+  if time_remaining > reserve. Un-latch: BANKED→UNSAT on P_sat<θ_low for M windows w/ object
+  visible. Rollback/unlatch gated on time_remaining > E[re-completion].
+- Grounding starvation + RE-GROUND gated on attached_to (never scan for a held object);
+  Σ inflation is a request to belief, not a direct write.
+
+## F. Payload typing & chunk lifecycle (maj; min)
+- target_points carry **(source ∈ {grounding, belief}, uncertainty, age)**; mask=0 when
+  P_exists<p_min ∨ trΣ>S_max → routes to SCAN, not retries. FT trains dropout/noise
+  conditioned on these fields.
+- Per-head validity bit + degraded-mode tables (metacog absent pre-Sep22 → trigger set =
+  {stage_age, starvation}; grounding NaN → conf=0). Degraded modes assert-logged.
+- **Chunk epoch counter**: any change to assignment/hypothesis/mode increments epoch →
+  abort-and-resample at next tick (macro truncation = special case of this one rule).
+- Contact-mode switch on FAST signal (EE-target distance / wrist F-T onset), not
+  hysteresis-lagged stage votes. Publish tick/window/chunk timing table.
+
+## G. Compute & serve reality (maj ×2; min)
+- Grounding on a scheduled cadence (e.g. 5 Hz nav, burst on approach entry); starvation
+  measured against the SCHEDULE, excluding policy-call occupancy. One dense DINOv3 pass feeds
+  all queries+heads (spec requirement). Perception/policy in separate CUDA streams or one
+  framework (TensorRT export preferred); pinned memory partition (XLA fraction + torch pool).
+- **HOLD control mode**: gripper latched + grasp stable → counts as nav-class for cadence;
+  exec_prefix = f(most-constrained ACTIVE arm), HOLD excluded.
+- G3 gains a **75-min soak episode on a 3090-class card**; p99 replan-period violations are a
+  gate metric.
+
+## H. FT plan corrections (crit: macro payloads OOD; maj ×2)
+- **Labels come from a director-in-the-loop replay**: run the compiled director (ledger,
+  hysteresis, latch, FSM) over demo replays with per-frame KnowledgeBase predicates; its
+  switch times and (point, stage) pairs ARE the training conditioning — train clock = serve
+  clock by construction. Jitter switch times ± one window.
+- **Serve-error simulator replaces i.i.d. noise**: (1) per-segment constant bias (magnitude
+  from measured/belief Σ), (2) wrong-instance outlier mode at binder-confusion rate,
+  (3) small per-refresh jitter. Belief-noise tables = G3 deliverable; recalibrate + short FT
+  refresh once belief v1 exists.
+- **Macro payloads enter Aug FT** (not deferred to Sep RFT): synthesized retreat segments via
+  reverse-time relabeling of approach segments (SPR-style) + dedicated retreat/abort stage
+  token outside the demo taxonomy; rollback-style progress discontinuities. G3 adds a
+  force-fire test of every macro on healthy rollouts.
+- Conformal α recalibrated on closed-loop rollouts (Sep RFT rollouts are free data),
+  stratified by stage/contact (contact = permissive threshold).
+
+## I. Coverage/particle literals (minor but real)
+- Region/extent grounding mode (mask → centroid+extent or coverage grid); director emits a
+  coverage plan (sequence of sub-region points); ledger holds fractional monotone q for
+  particle literals; coverage literals exempt from RE-GROUND/RETREAT-RETRY (time-boxed
+  schedule + credit-per-minute arbitration instead).

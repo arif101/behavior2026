@@ -3,8 +3,16 @@
 Per-arm task-progress perception for BEHAVIOR-2026: which official skill each
 arm is executing, phase within it, progress, active goal literal, and an
 instantaneous per-literal P(satisfied) that the director latches into the
-ledger. Spec: `../STAGE_HEAD_OWNERSHIP.md` (+ v1.1 addenda); wiring:
-`../architecture.html`.
+ledger. Spec: STAGE_HEAD_SPEC_v2 (supersedes `../STAGE_HEAD_OWNERSHIP.md`,
+kept for gotchas); wiring: `../architecture.html`.
+
+v2 deltas implemented (2026-07-19): serve API ships NUMBERS only (stage_dist /
+progress / active_literal_dist / p_sat / entropy -- z_stage encoders moved
+policy-side), p_sat head is bilinear vs literal embeds, boundary blending is
+cosine, and the v2 5 loss tricks are in train.py: head-only weight decay 1e-3,
+p_sat tail boost (20x within 0.7 s of a flip), label smoothing toward per-task
+base rates, optional IS-debias. Backbone is selectable (dinov2_vitb14 default,
+dinov3_vitb16 via --backbone, same table as grounding/model_mt.py).
 
 ## Design decision (vs the VLM-orchestrator sketch)
 

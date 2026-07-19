@@ -21,8 +21,10 @@ director latches -- head never accumulates).
 
 Outputs per arm: stage distribution over the OFFICIAL skill taxonomy
 (task-masked logits), 6-phase distribution, sincos progress, active-literal
-distribution; shared: ledger logits; exports: z_stage soft mixture
-(v1.1: sum_i p_i E_i, never argmax) and distribution entropy (metacog).
+distribution; shared: p_sat logits (bilinear vs literal embeds, spec v2 4)
+and distribution entropy. v2 contract: the head ships NUMBERS only -- the
+z_stage soft-mixture encoder lives policy-side, so there is no embedding
+table or embedding export here.
 
 ~12M trainable params (< 20M budget), bf16-safe.
 """
@@ -32,7 +34,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from common import (CX, CY, D_MODEL, D_ZSTAGE, DGRID, FX, FY, GRID, L_MAX,
+from common import (CX, CY, D_MODEL, FX, FY, GRID, L_MAX,
                     N_HEAD, N_PHASES, PROPRIO_DIM, W)
 from taxonomy import CAT_BUCKETS, N_PREDICATES, N_STAGES
 
@@ -59,16 +61,21 @@ class CrossAttnBlock(nn.Module):
 
 class StageHead(nn.Module):
     def __init__(self, d_model=D_MODEL, nhead=N_HEAD, n_enc=2, n_fuse=2,
-                 n_pool_q=4, n_stages=N_STAGES, l_max=L_MAX):
+                 n_pool_q=4, n_stages=N_STAGES, l_max=L_MAX,
+                 grid=GRID, feat=768):
+        """grid/feat follow the shared backbone (dinov2_vitb14: 37/768,
+        dinov3_vitb16: 32/768 -- same table as grounding/model_mt.BACKBONES)."""
         super().__init__()
         self.n_stages = n_stages
         self.l_max = l_max
+        self.grid = grid
+        self.dgrid = 4 * grid
 
         # ---- current-frame spatial branch (mirrors grounding's front end)
-        self.vis_proj = nn.Sequential(nn.LayerNorm(768), nn.Linear(768, d_model))
+        self.vis_proj = nn.Sequential(nn.LayerNorm(feat), nn.Linear(feat, d_model))
         self.depth_mlp = nn.Sequential(nn.Linear(3, 128), nn.GELU(),
                                        nn.Linear(128, d_model), nn.LayerNorm(d_model))
-        self.pos_emb = nn.Parameter(torch.zeros(1, GRID * GRID, d_model))
+        self.pos_emb = nn.Parameter(torch.zeros(1, grid * grid, d_model))
         nn.init.trunc_normal_(self.pos_emb, std=0.02)
         enc_layer = nn.TransformerEncoderLayer(
             d_model, nhead, dim_feedforward=4 * d_model, batch_first=True,
@@ -79,7 +86,7 @@ class StageHead(nn.Module):
         self.pool = CrossAttnBlock(d_model, nhead)
 
         # ---- history branch (mean DINO token + proprio -> GRU)
-        self.hist_proj = nn.Sequential(nn.LayerNorm(768), nn.Linear(768, d_model))
+        self.hist_proj = nn.Sequential(nn.LayerNorm(feat), nn.Linear(feat, d_model))
         self.prop_mlp = nn.Sequential(nn.Linear(PROPRIO_DIM, 128), nn.GELU(),
                                       nn.Linear(128, d_model), nn.LayerNorm(d_model))
         self.gru = nn.GRU(d_model, d_model, num_layers=2, batch_first=True)
@@ -102,14 +109,15 @@ class StageHead(nn.Module):
         self.prog_head = nn.Linear(d_model, 2)                  # sincos
         self.lit_q_proj = nn.Linear(d_model, d_model)           # active-literal dot
         self.lit_k_proj = nn.Linear(d_model, d_model)
-        self.ledger_mlp = nn.Sequential(nn.Linear(2 * d_model, 256), nn.GELU(),
-                                        nn.Linear(256, 1))
-        self.stage_emb = nn.Embedding(n_stages, D_ZSTAGE)       # z_stage table
+        # p_sat: bilinear form literal^T W temporal + b (spec v2 4)
+        self.psat_lit = nn.Linear(d_model, d_model, bias=False)
+        self.psat_tmp = nn.Linear(d_model, d_model, bias=False)
+        self.psat_bias = nn.Parameter(torch.zeros(1))
 
         # unprojection ray grid, identical convention to grounding/model.py
-        s = W / DGRID
-        u = (np.arange(DGRID) + 0.5) * s
-        v = (np.arange(DGRID) + 0.5) * s
+        s = W / self.dgrid
+        u = (np.arange(self.dgrid) + 0.5) * s
+        v = (np.arange(self.dgrid) + 0.5) * s
         uu, vv = np.meshgrid(u, v)
         dirs = np.stack([(uu - CX) / FX, (CY - vv) / FY, np.ones_like(uu)], 0)
         self.register_buffer("ray", torch.from_numpy(dirs.astype(np.float32)),
@@ -129,8 +137,12 @@ class StageHead(nn.Module):
         B = tok.shape[0]
 
         # current-frame spatial branch
-        xyz = self.ray.unsqueeze(0) * depth.unsqueeze(1)          # [B,3,148,148]
-        xyz = F.avg_pool2d(xyz, DGRID // GRID)                    # [B,3,37,37]
+        if depth.shape[-1] != self.dgrid:                         # cache is 148
+            depth = F.interpolate(depth.unsqueeze(1),
+                                  size=(self.dgrid, self.dgrid),
+                                  mode="area").squeeze(1)
+        xyz = self.ray.unsqueeze(0) * depth.unsqueeze(1)          # [B,3,dg,dg]
+        xyz = F.avg_pool2d(xyz, self.dgrid // self.grid)          # [B,3,g,g]
         d_tok = self.depth_mlp(xyz.flatten(2).transpose(1, 2))    # [B,1369,d]
         t = self.vis_proj(tok.float()) + d_tok + self.pos_emb
         t = self.encoder(t)
@@ -170,20 +182,14 @@ class StageHead(nn.Module):
         lit_logits = lq @ lk.transpose(1, 2) / (lq.shape[-1] ** 0.5)
         lit_logits = lit_logits.masked_fill(~lit_mask.unsqueeze(1), NEG_INF)
 
-        # ledger: instantaneous P(satisfied) per literal
-        led_in = torch.cat([lit, temporal.expand(-1, lit.shape[1], -1)], dim=-1)
-        ledger_logits = self.ledger_mlp(led_in).squeeze(-1)       # [B,L]
+        # p_sat: instantaneous P(satisfied) per literal, bilinear vs temporal
+        # state (the director latches; the head never accumulates)
+        ledger_logits = ((self.psat_lit(lit) * self.psat_tmp(temporal)).sum(-1)
+                         / (lit.shape[-1] ** 0.5)) + self.psat_bias  # [B,L]
 
         return dict(stage_logits=stage_logits, phase_logits=phase_logits,
                     progress=progress, lit_logits=lit_logits,
                     ledger_logits=ledger_logits)
-
-    # ---- serve-time exports -------------------------------------------------
-    def z_stage(self, stage_logits):
-        """Soft mixture sum_i p_i E_i per arm [B,2,D_ZSTAGE] (v1.1: soft
-        conditioning for policy AdaLN; hysteresis voting is director-side)."""
-        p = torch.softmax(stage_logits, dim=-1)
-        return p @ self.stage_emb.weight
 
     @staticmethod
     def entropy(logits):

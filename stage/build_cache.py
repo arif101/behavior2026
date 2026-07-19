@@ -90,15 +90,16 @@ def decode_depth(video, n_expected, v0=0, v1=None):
     return out
 
 
-def build_glob(frames_dir, n, device, batch=64):
-    """Mean DINO patch token per cached frame -> f16 [N,768]."""
+def build_glob(frames_dir, n, device, backbone, batch=64):
+    """Mean DINO patch token per cached frame -> f16 [N,feat].
+    backbone: (tokens_fn, spec) from train.load_backbone, loaded ONCE."""
     import torch
+    import torch.nn.functional as Fnn
     from PIL import Image
-    bb = torch.hub.load("facebookresearch/dinov2", "dinov2_vitb14")
-    bb.eval().requires_grad_(False).to(device)
+    tokens_fn, spec = backbone
     mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
     std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
-    out = np.zeros((n, 768), dtype=np.float16)
+    out = np.zeros((n, spec["feat"]), dtype=np.float16)
     with torch.no_grad():
         for a in range(0, n, batch):
             b = min(n, a + batch)
@@ -106,10 +107,14 @@ def build_glob(frames_dir, n, device, batch=64):
                 np.asarray(Image.open(os.path.join(frames_dir, f"f_{i:05d}.jpg"))
                            .convert("RGB"), dtype=np.uint8) for i in range(a, b)])
             x = torch.from_numpy(imgs).to(device).permute(0, 3, 1, 2).float() / 255
+            if x.shape[-1] != spec["img"]:
+                x = Fnn.interpolate(x, size=(spec["img"], spec["img"]),
+                                    mode="bilinear", align_corners=False,
+                                    antialias=True)
             x = (x - mean) / std
             with torch.autocast(device_type=device.split(":")[0], dtype=torch.bfloat16,
                                 enabled=device != "cpu"):
-                f = bb.forward_features(x)["x_norm_patchtokens"]
+                f = tokens_fn(x)
             out[a:b] = f.mean(1).float().cpu().numpy().astype(np.float16)
     return out
 
@@ -169,7 +174,7 @@ def build_labels(annot_path, literals, n_video, ks, extractor_perframe=None):
 
 def build_episode(task, file_idx, rgb_video, depth_video, parquet, annot_path,
                   task_targets, device="cuda", extractor_perframe_path=None,
-                  vrange=None, prange=None):
+                  vrange=None, prange=None, backbone=None):
     """vrange/prange: [from, to) frame/row spans of this episode inside shared
     LeRobot-v3 chunk files (None = the file is a single episode)."""
     d = cache_dir(task, file_idx)
@@ -203,7 +208,10 @@ def build_episode(task, file_idx, rgb_video, depth_video, parquet, annot_path,
         np.save(dep_path, decode_depth(depth_video, N, v0, v1))
 
     np.save(os.path.join(d, "proprio.npy"), st[ks])
-    np.save(os.path.join(d, "glob.npy"), build_glob(fdir, N, device))
+    if backbone is None:
+        from train import load_backbone
+        backbone = load_backbone("dinov2_vitb14", device)
+    np.save(os.path.join(d, "glob.npy"), build_glob(fdir, N, device, backbone))
 
     literals = literals_from_task_targets(task_targets)
     pred, tgt, ref, mask = encode_literals(literals, L_MAX)
@@ -227,8 +235,11 @@ def main():
                          "(runpod/prep_data.py writes this)")
     ap.add_argument("--task_targets", default=TASK_TARGETS)
     ap.add_argument("--device", default="cuda")
+    ap.add_argument("--backbone", default="dinov2_vitb14")
     args = ap.parse_args()
 
+    from train import load_backbone
+    backbone = load_backbone(args.backbone, args.device)
     tt_all = json.load(open(args.task_targets))
     eps = json.load(open(args.manifest))
     for e in eps:
@@ -236,7 +247,7 @@ def main():
         msg = build_episode(e["task"], e["file_idx"], e["rgb"], e["depth"],
                             e["parquet"], e["annot"], tt, args.device,
                             e.get("extractor_perframe"),
-                            e.get("vrange"), e.get("prange"))
+                            e.get("vrange"), e.get("prange"), backbone)
         print(msg, flush=True)
 
 

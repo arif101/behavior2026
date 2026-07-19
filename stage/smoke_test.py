@@ -45,16 +45,15 @@ def test_model():
     # backward
     loss = sum(v.float().pow(2).mean() for v in out.values())
     loss.backward()
-    # stage_emb (z_stage table) trains through the policy AdaLN pathway,
-    # not the head losses -- exempt from the grad check.
-    missing = [n for n, p in m.named_parameters()
-               if p.grad is None and not n.startswith("stage_emb")]
+    missing = [n for n, p in m.named_parameters() if p.grad is None]
     assert not missing, f"no grad: {missing}"
-    # z_stage soft mixture + entropy
-    z = m.z_stage(out["stage_logits"])
-    assert z.shape == (2, 2, 64)
     ent = m.entropy(out["stage_logits"])
     assert (ent >= 0).all()
+    # v2: every head param lands in exactly one optimizer group
+    from train import param_groups
+    pg = param_groups(m)
+    assert sum(len(g["params"]) for g in pg) == len(list(m.parameters()))
+    assert len(pg[1]["params"]) > 0, "no head params matched HEAD_PREFIXES"
     print(f"model ok ({n/1e6:.2f}M params)")
 
 
@@ -68,6 +67,18 @@ def test_soft_targets():
     assert 0 < soft[b - 1, 5] < soft[b, 5] < soft[b + 1, 5] <= 1.0
     assert np.isclose(soft[b - 1, 0] + soft[b - 1, 5], 1.0)
     print("soft boundary targets ok")
+
+
+def test_psat_weights():
+    from common import PSAT_TAIL_BOOST
+    from dataset import TAIL_F, psat_weights_and_base
+    led = np.zeros((40, 3), dtype=np.float32)
+    led[20:, 0] = 1.0            # literal 0 flips at frame 20
+    w, base = psat_weights_and_base(led)
+    assert w[20, 0] == PSAT_TAIL_BOOST and w[20 - TAIL_F, 0] == PSAT_TAIL_BOOST
+    assert w[0, 0] == 1.0 and (w[:, 1] == 1.0).all()
+    assert np.isclose(base[0], 0.5) and base[1] == 0.0
+    print("p_sat tail-boost weights ok")
 
 
 def test_serve():
@@ -87,11 +98,14 @@ def test_serve():
         out = est.update(torch.randn(1, 1369, 768), torch.rand(1, 148, 148),
                          torch.randn(1, PROPRIO_DIM))
     for arm in ("left", "right"):
-        assert set(out[arm]) >= {"stage_id", "stage_name", "active_literal",
-                                 "progress", "entropy", "z_stage"}
+        assert set(out[arm]) >= {"stage_dist", "stage_id", "stage_name",
+                                 "progress", "active_literal_dist"}
         assert 0.0 <= out[arm]["progress"] <= 1.0
-        assert len(out[arm]["z_stage"]) == 64
-    assert len(out["ledger"]) == 1
+        assert abs(sum(out[arm]["stage_dist"]) - 1.0) < 1e-4
+        assert abs(sum(out[arm]["active_literal_dist"]) - 1.0) < 1e-4
+        assert "z_stage" not in out[arm], "v2: numbers only, no embeddings"
+    assert len(out["p_sat"]) == 1 and 0.0 <= out["p_sat"][0] <= 1.0
+    assert out["entropy"]["left"] >= 0
     assert out["stage_age_ratio"]["left"] > 0
     print("serve loop ok")
 
@@ -99,5 +113,6 @@ def test_serve():
 if __name__ == "__main__":
     test_model()
     test_soft_targets()
+    test_psat_weights()
     test_serve()
     print("ALL SMOKE TESTS PASSED")

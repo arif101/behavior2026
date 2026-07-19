@@ -2,14 +2,21 @@
 current frames (one pass -- at serve this pass is shared with grounding).
 
 Losses (masks make every label source optional -- official-only caches train):
-  stage      soft cross-entropy vs boundary-blended targets, task-masked logits
+  stage      soft cross-entropy vs cosine-blended boundary targets, task-masked
   phase      CE, ignore -1 (needs Phase-1 extractor labels)
   progress   MSE on sincos, only where a segment is active
   active_lit CE, ignore -1
-  ledger     BCE, only where ledger_valid
+  p_sat      BCE, only where ledger_valid; v2 5 tricks: near-flip frames
+             upweighted PSAT_TAIL_BOOST x, targets smoothed PSAT_SMOOTH toward
+             the per-task base rate
+
+v2 5 optimizer: weight decay HEAD_WD on the output heads only (aux heads
+"massively overfit" -- LeHome), 0 elsewhere. --is_debias multiplies losses by
+normalized inverse sampling weights (uniform-per-task sampler is non-uniform
+over frames); off by default -- the balancing is intentional.
 
 Also writes stage_medians.json (median stage durations in seconds per task,
-from the training labels) -- serve.py's stage_age_ratio denominator.
+from the training labels) -- serve-side stage_age_ratio denominator.
 """
 
 import argparse
@@ -22,20 +29,34 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from common import FPS_CACHE, T_HIST
+from common import BACKBONES, FPS_CACHE, HEAD_WD, PSAT_SMOOTH, T_HIST
 from dataset import StageWindowDataset
 from model import StageHead
 
 LOSS_W = dict(stage=1.0, phase=0.5, progress=0.5, lit=0.5, ledger=1.0)
 
+# output heads get HEAD_WD weight decay; trunk gets none (v2 5)
+HEAD_PREFIXES = ("stage_head", "phase_head", "prog_head", "lit_q_proj",
+                 "lit_k_proj", "psat_lit", "psat_tmp", "psat_bias")
 
-def soft_ce(logits, soft_targets):
-    return -(soft_targets * torch.log_softmax(logits, -1)).sum(-1).mean()
+
+def param_groups(model):
+    heads, trunk = [], []
+    for n, p in model.named_parameters():
+        (heads if n.startswith(HEAD_PREFIXES) else trunk).append(p)
+    return [{"params": trunk, "weight_decay": 0.0},
+            {"params": heads, "weight_decay": HEAD_WD}]
 
 
-def compute_losses(out, batch):
+def soft_ce(logits, soft_targets, sw=None):
+    ce = -(soft_targets * torch.log_softmax(logits, -1)).sum(-1)
+    return (ce * sw.view(-1, 1)).mean() if sw is not None else ce.mean()
+
+
+def compute_losses(out, batch, sw=None):
+    """sw: optional [B] IS-debias sample weights (mean 1)."""
     losses = {}
-    losses["stage"] = soft_ce(out["stage_logits"], batch["stage_soft"])
+    losses["stage"] = soft_ce(out["stage_logits"], batch["stage_soft"], sw)
 
     ph = batch["phase"]
     if (ph >= 0).any():
@@ -54,9 +75,15 @@ def compute_losses(out, batch):
 
     lv = batch["ledger_valid"].view(-1, 1) & batch["lit_mask"]
     if lv.any():
+        # v2 5: smooth toward per-task base rate; boost near-flip frames
+        tgt = ((1 - PSAT_SMOOTH) * batch["ledger"]
+               + PSAT_SMOOTH * batch["ledger_base"])
+        w = batch["ledger_w"] * lv
+        if sw is not None:
+            w = w * sw.view(-1, 1)
         losses["ledger"] = (F.binary_cross_entropy_with_logits(
-            out["ledger_logits"], batch["ledger"], reduction="none") * lv
-        ).sum() / lv.sum()
+            out["ledger_logits"], tgt, reduction="none") * w
+        ).sum() / w.sum().clamp(min=1e-6)
 
     total = sum(LOSS_W[k] * v for k, v in losses.items())
     return total, {k: v.item() for k, v in losses.items()}
@@ -97,12 +124,38 @@ def evaluate(model, backbone, loader, device):
     return correct / max(1, n)
 
 
+def load_backbone(name, device):
+    """Shared frozen backbone, same table/conventions as grounding/model_mt.
+    Returns (tokens_fn, spec); tokens_fn: normalized rgb -> [B, g*g, feat]."""
+    spec = BACKBONES[name]
+    if spec["kind"] == "hub":
+        bb = torch.hub.load("facebookresearch/dinov2", name)
+        n_special = 0
+    else:
+        from transformers import AutoModel
+        bb = AutoModel.from_pretrained(spec["hf_id"],
+                                       token=os.environ.get("HF_TOKEN"))
+        n_special = 1 + bb.config.num_register_tokens      # CLS + registers
+    bb.eval().requires_grad_(False).to(device)
+
+    def tokens(x):
+        if n_special == 0:
+            return bb.forward_features(x)["x_norm_patchtokens"]
+        return bb(pixel_values=x).last_hidden_state[:, n_special:, :]
+    return tokens, spec
+
+
 def forward(model, backbone, batch, device):
+    """backbone: (tokens_fn, spec) from load_backbone."""
+    tokens_fn, spec = backbone
     rgb = batch["rgb"].permute(0, 3, 1, 2).float() / 255.0
+    if rgb.shape[-1] != spec["img"]:                       # cache is 518
+        rgb = F.interpolate(rgb, size=(spec["img"], spec["img"]),
+                            mode="bilinear", align_corners=False, antialias=True)
     mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
     std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
     with torch.no_grad():
-        tok = backbone.forward_features((rgb - mean) / std)["x_norm_patchtokens"]
+        tok = tokens_fn((rgb - mean) / std)
     return model(tok, batch["depth"], batch["hist_glob"], batch["hist_prop"],
                  batch["lit_pred"], batch["lit_tgt"], batch["lit_ref"],
                  batch["lit_mask"], batch["stage_mask"])
@@ -119,6 +172,10 @@ def main():
     ap.add_argument("--t_hist", type=int, default=T_HIST)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--val_every", type=int, default=1000)
+    ap.add_argument("--backbone", default="dinov2_vitb14",
+                    choices=sorted(BACKBONES))
+    ap.add_argument("--is_debias", action="store_true",
+                    help="IS-debias losses for the uniform-per-task sampler")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -135,13 +192,13 @@ def main():
                     num_workers=args.workers, pin_memory=True, drop_last=True)
     va = DataLoader(va_ds, batch_size=args.bs, num_workers=4)
 
-    backbone = torch.hub.load("facebookresearch/dinov2", "dinov2_vitb14")
-    backbone.eval().requires_grad_(False).to(device)
-    model = StageHead().to(device)
+    backbone = load_backbone(args.backbone, device)
+    spec = backbone[1]
+    model = StageHead(grid=spec["grid"], feat=spec["feat"]).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"stage head params: {n_params/1e6:.2f}M")
 
-    opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
+    opt = torch.optim.AdamW(param_groups(model), lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, args.steps)
 
     step = 0
@@ -153,7 +210,8 @@ def main():
             with torch.autocast(device_type="cuda", dtype=torch.bfloat16,
                                 enabled=device == "cuda"):
                 out = forward(model, backbone, batch, device)
-                loss, parts = compute_losses(out, batch)
+                sw = batch["is_w"] if args.is_debias else None
+                loss, parts = compute_losses(out, batch, sw)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)

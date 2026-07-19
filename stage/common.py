@@ -34,8 +34,20 @@ D_MODEL = 384
 N_HEAD = 6
 T_HIST = 24          # history window in cache frames (4.0 s @ 6 Hz)
 L_MAX = 32           # max goal literals per task (spec: ledger <= 32-dim)
-D_ZSTAGE = 64        # exported soft-mixture stage embedding dim (policy AdaLN)
-BLEND_SEC = 0.3      # soft-boundary label blending half-width (v1.1 addendum)
+BLEND_SEC = 0.3      # soft-boundary label blending half-width (cosine, v2 3.2)
+
+# ---- v2 loss tricks (spec 5, Larchenko/LeHome-validated) ----
+HEAD_WD = 1e-3       # weight decay on output heads only (aux heads overfit)
+PSAT_TAIL_SEC = 0.7  # upweight p_sat frames within this of a satisfaction flip
+PSAT_TAIL_BOOST = 20.0   # (LeHome: 20x on last 20 frames @30fps ~ 0.67s)
+PSAT_SMOOTH = 0.05   # label smoothing toward per-task p_sat base rates
+
+# Shared frozen backbones (same table as grounding/model_mt.BACKBONES).
+BACKBONES = {
+    "dinov2_vitb14": dict(img=518, grid=37, feat=768, kind="hub"),
+    "dinov3_vitb16": dict(img=512, grid=32, feat=768, kind="hf",
+                          hf_id="facebook/dinov3-vitb16-pretrain-lvd1689m"),
+}
 
 # Extractor phase set (stage/extract_stages.py) -- the *within-skill* axis.
 PHASES = ["idle", "approach", "grasp", "transport", "place", "release"]

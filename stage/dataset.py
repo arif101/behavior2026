@@ -5,10 +5,12 @@ A sample = one anchor cache-frame t of one episode:
   depth [148,148] f32 m
   hist_glob [T,768] mean DINO tokens, frames t-T+1..t, edge-padded at start
   hist_prop [T,61]
-  targets per arm: soft stage distribution (v1.1 boundary blending: frames
-  within BLEND_SEC of a transition get linearly blended two-hot targets --
-  boundary frames genuinely are ambiguous), phase id (-1 = masked), sincos
-  progress + validity, active-literal id (-1 = masked), ledger [L] + mask.
+  targets per arm: soft stage distribution (v2 3.2 boundary blending: frames
+  within BLEND_SEC of a transition get cosine-blended two-hot targets --
+  the softness in the live demos is the intended output), phase id (-1 =
+  masked), sincos progress + validity, active-literal id (-1 = masked),
+  ledger [L] + per-literal tail-boost weights + per-episode base rates
+  (v2 5: near-flip frames upweighted, smoothing target for p_sat).
 
 Task balancing at the sampler level: uniform-per-task weights 1/n_items(task)
 (same documented choice as mt_dataset).
@@ -21,15 +23,17 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from common import BLEND_SEC, DGRID, FPS_CACHE, IMG, L_MAX, T_HIST, cache_dir
+from common import (BLEND_SEC, FPS_CACHE, L_MAX, PSAT_TAIL_BOOST,
+                    PSAT_TAIL_SEC, T_HIST, cache_dir)
 from taxonomy import N_STAGES, task_stage_mask
 
 BLEND_F = max(1, int(round(BLEND_SEC * FPS_CACHE)))   # cache frames (~2 @ 6Hz)
+TAIL_F = max(1, int(round(PSAT_TAIL_SEC * FPS_CACHE)))
 
 
 def soft_stage_targets(stage, seg_id, n_stages):
     """[N] hard ids -> [N, n_stages] soft targets with boundary blending.
-    Within BLEND_F frames of a seg_id change, blend old/new linearly."""
+    Within BLEND_F frames of a seg_id change, cosine-blend old/new (v2 3.2)."""
     N = len(stage)
     out = np.zeros((N, n_stages), dtype=np.float32)
     out[np.arange(N), stage] = 1.0
@@ -41,12 +45,27 @@ def soft_stage_targets(stage, seg_id, n_stages):
         for off in range(-BLEND_F, BLEND_F):
             i = b + off
             if 0 <= i < N:
-                # w_new ramps 0->1 across the blend window centred on b
-                w = (off + BLEND_F + 0.5) / (2 * BLEND_F)
+                # w_new: cosine ramp 0->1 across the blend window centred on b
+                u = (off + BLEND_F + 0.5) / (2 * BLEND_F)
+                w = 0.5 * (1.0 - np.cos(np.pi * u))
                 out[i] = 0.0
                 out[i, s_new] = w
                 out[i, s_old] = 1.0 - w
     return out
+
+
+def psat_weights_and_base(ledger):
+    """ledger [N, L] 0/1 targets -> (weights [N, L], base [L]).
+    Frames within TAIL_F cache frames of a satisfaction flip get
+    PSAT_TAIL_BOOST weight (near-miss states dominate otherwise); base is
+    the per-episode positive rate, the smoothing anchor (v2 5)."""
+    w = np.ones_like(ledger, dtype=np.float32)
+    N, L = ledger.shape
+    for j in range(L):
+        flips = np.flatnonzero(np.diff(ledger[:, j]) != 0) + 1
+        for f in flips:
+            w[max(0, f - TAIL_F):min(N, f + TAIL_F + 1), j] = PSAT_TAIL_BOOST
+    return w, ledger.mean(0).astype(np.float32)
 
 
 class StageWindowDataset(Dataset):
@@ -57,6 +76,7 @@ class StageWindowDataset(Dataset):
         self.eps = []
         self.items = []
         self.item_task = []
+        self._is_w = None
         for task, fi in episodes:
             d = cache_dir(task, fi)
             need = ["glob.npy", "proprio.npy", "stage_labels.npz", "depth.npy"]
@@ -69,8 +89,11 @@ class StageWindowDataset(Dataset):
             soft = {arm: soft_stage_targets(lab[f"stage_{arm}"],
                                             lab[f"seg_{arm}"], N_STAGES)
                     for arm in ("left", "right")}
+            led_w, led_base = psat_weights_and_base(
+                np.asarray(lab["ledger"], dtype=np.float32))
             self.eps.append(dict(
                 task=task, dir=d, lab=lab, soft=soft,
+                led_w=led_w, led_base=led_base,
                 glob=np.load(os.path.join(d, "glob.npy"), mmap_mode="r"),
                 prop=np.load(os.path.join(d, "proprio.npy"), mmap_mode="r"),
                 depth=np.load(os.path.join(d, "depth.npy"), mmap_mode="r"),
@@ -83,6 +106,17 @@ class StageWindowDataset(Dataset):
         from collections import Counter
         n = Counter(self.item_task)
         return torch.tensor([1.0 / n[t] for t in self.item_task], dtype=torch.double)
+
+    @property
+    def is_w(self):
+        """Per-item IS-debias weights (mean 1 under the uniform-per-task
+        sampler): w_i = n_task_i * Z / N with Z = sum_j 1/n_task_j (v2 5)."""
+        if self._is_w is None:
+            from collections import Counter
+            n = Counter(self.item_task)
+            ni = np.array([n[t] for t in self.item_task], dtype=np.float64)
+            self._is_w = (ni * (1.0 / ni).sum() / len(ni)).astype(np.float32)
+        return self._is_w
 
     def __len__(self):
         return len(self.items)
@@ -123,12 +157,15 @@ class StageWindowDataset(Dataset):
             active_lit=torch.tensor([lab["active_lit_left"][i],
                                      lab["active_lit_right"][i]], dtype=torch.long),
             ledger=torch.from_numpy(np.asarray(lab["ledger"][i], dtype=np.float32)),
+            ledger_w=torch.from_numpy(ep["led_w"][i]),
+            ledger_base=torch.from_numpy(ep["led_base"]),
             ledger_valid=torch.tensor(bool(lab["ledger_valid"])),
             lit_pred=torch.tensor(ep["lits"]["pred"], dtype=torch.long),
             lit_tgt=torch.tensor(ep["lits"]["tgt"], dtype=torch.long),
             lit_ref=torch.tensor(ep["lits"]["ref"], dtype=torch.long),
             lit_mask=torch.tensor(ep["lits"]["mask"], dtype=torch.bool),
             stage_mask=torch.from_numpy(ep["stage_mask"]),
+            is_w=torch.tensor(self.is_w[idx]),
         )
         return out
 

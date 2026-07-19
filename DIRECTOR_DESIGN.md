@@ -192,3 +192,34 @@ joints. Recovery skills live in the policy (corrective RFT); the trigger lives i
   coverage plan (sequence of sub-region points); ledger holds fractional monotone q for
   particle literals; coverage literals exempt from RE-GROUND/RETREAT-RETRY (time-boxed
   schedule + credit-per-minute arbitration instead).
+
+---
+
+# v1.2 Amendment (2026-07-19, USER DECISION): the director's deliberative tier is a VLM (Claude Opus)
+
+Supersedes v1's "programmed only, LLM optional." Rules verified: external LLM querying permitted;
+we supply credentials/quota to organizers (M4 checklist item), we pay usage.
+
+## Two-tier director
+- **Tier 1 — REFLEX (programmed, every tick).** Unchanged from v1.1: payload assembly, frame
+  conversion, ledger latching w/ hysteresis, safety invariants (base-freeze, attachment gates),
+  chunk epochs, query bookkeeping. Runs at tick rate; no API model can.
+- **Tier 2 — DELIBERATIVE (Claude Opus, event-driven, ~10-30 calls/episode, WITH camera frames).**
+  Consulted at: episode start (BDDL plan + scene images → strategy, e.g. carry-the-container
+  ordering); subtask boundaries (literal→arm assignment); metacog alarms (macro choice with
+  commonsense, incl. actions outside the macro table's vocabulary but inside Tier-1 safety
+  rails); ambiguity (stage-entropy spikes, binding conflicts).
+
+## Hard requirements
+1. Every Tier-2 call: strict timeout (3-5 s) → PROGRAMMED FALLBACK (the v1.1 rules). An API
+   failure degrades to boring-but-sane; never burns a prescribed rollout.
+2. Tier-2 outputs constrained to a typed action schema (assign/macro/query/none) validated by
+   Tier 1 before execution — Opus decides, never actuates; safety invariants are un-overridable.
+3. Cost telemetry + decision caching from day one. Budget est: final eval ≈ $1-3k at event cadence.
+4. A/B REQUIRED (Aug): DirectorBrain interface with two impls — programmed vs Opus — identical
+   episodes, pre-registered comparison. If Opus loses, fallback IS the submission; publish either way.
+
+## Sequencing impact
+- Director skeleton build order unchanged (Tier 1 = the skeleton = the fallback; nothing wasted).
+- G3 (Jul 31) unaffected: single-literal gate tasks barely exercise Tier 2.
+- New M4 items: organizer credential/quota handoff; serve-side API key management; offline mode test.

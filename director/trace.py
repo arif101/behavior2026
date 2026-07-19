@@ -29,6 +29,7 @@ class TraceWriter:
                 "time_remaining": obs["time_remaining"],
             },
             "ledger": tick_out["ledger"],
+            "arms": tick_out.get("arms"),
             "q": tick_out["q"],
             "payload": tick_out["payload"],
             "events": tick_out["events"],

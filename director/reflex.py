@@ -184,9 +184,9 @@ class Reflex:
             if pick is None:
                 for cand in elig:
                     if arm.attached is not None:
-                        # a holding arm may only take the literal OF the held object
+                        # a holding arm may only take the literal OF the held instance
                         if not (cand.target_instance == arm.attached
-                                or arm.attached.startswith(cand.target_cat)):
+                                or self._bound.get(cand.lid) == arm.attached):
                             continue
                     if cand.skill_type == "coordinated":
                         both_free = all(
@@ -245,6 +245,8 @@ class Reflex:
         mu = self._target_mu(lit.lid, obs)
         if mu is not None:
             return mu
+        if lit.target_instance and lit.target_instance in obs["belief"]:
+            return obs["belief"][lit.target_instance]["mu"]
         best, best_d = None, float("inf")
         for inst, h in obs["belief"].items():
             if not inst.startswith(lit.target_cat) or h.get("attached_to"):
@@ -304,6 +306,18 @@ class Reflex:
             arm.stage_age += 1
             arm.attached = next(
                 (i for i, h in obs["belief"].items() if h.get("attached_to") == name), None)
+            if arm.attached is not None and arm.assigned is not None:
+                lit = self.literals[arm.assigned]
+                held_is_target = (self._bound.get(arm.assigned) == arm.attached
+                                  or lit.target_instance == arm.attached)
+                if not held_is_target:
+                    # holding something unrelated to the assignment (e.g. carrying the
+                    # container): release the literal for a free arm to claim
+                    lid = arm.assigned
+                    arm.assigned = None
+                    arm.stage_age = 0
+                    st.epoch += 1
+                    events.append(("release_assign", name, lid))
         self._update_ledger(obs, events)
         self._macro_lifecycle(obs, events)
         self._maybe_dispatch(obs, events, brain_decision)
@@ -316,4 +330,9 @@ class Reflex:
         total = sum(l.credit for l in self.literals.values())
         return {"payload": self._payload(obs), "events": events, "q": q / total if total else 0.0,
                 "ledger": {l: s.value for l, s in st.lstate.items()},
+                "arms": {n: {"assigned": a.assigned, "attached": a.attached,
+                             "macro": a.macro.kind if a.macro else None,
+                             "phase": a.phase, "bound": self._bound.get(a.assigned)
+                             if a.assigned is not None else None}
+                         for n, a in st.arms.items()},
                 "base_frozen": st.base_frozen, "terminal": st.terminal, "tick": st.tick}

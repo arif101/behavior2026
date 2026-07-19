@@ -128,18 +128,27 @@ def match_literal(obj_names, literals):
     return -1
 
 
+def _fit(a, n):
+    """Edge-extend a per-frame array to n rows (annotation task_duration can
+    run a few frames short of the LeRobot row count for the same episode)."""
+    if len(a) >= n:
+        return a
+    if isinstance(a, list):
+        return a + [a[-1]] * (n - len(a))
+    return np.concatenate([a, np.repeat(a[-1:], n - len(a), axis=0)])
+
+
 def build_labels(annot_path, literals, n_video, ks, extractor_perframe=None):
     off = parse_episode(annot_path)
-    if off["n_video"] != n_video:
-        # trust the actual video length; annotation duration is authoritative
-        # for segment frames which are on the same 30fps timebase
-        n_video = max(n_video, off["n_video"])
     arms = merge_arm_labels(off, extractor_perframe)
+    need = int(ks.max()) + 1
 
     L = L_MAX
     lab = {}
     for arm in ("left", "right"):
         A = arms[arm]
+        for k in ("stage", "seg_id", "progress", "phase", "active_obj"):
+            A[k] = _fit(A[k], need)
         lab[f"stage_{arm}"] = A["stage"][ks]
         lab[f"seg_{arm}"] = A["seg_id"][ks]
         lab[f"progress_{arm}"] = A["progress"][ks].astype(np.float32)
@@ -174,7 +183,7 @@ def build_labels(annot_path, literals, n_video, ks, extractor_perframe=None):
 
 def build_episode(task, file_idx, rgb_video, depth_video, parquet, annot_path,
                   task_targets, device="cuda", extractor_perframe_path=None,
-                  vrange=None, prange=None, backbone=None):
+                  vrange=None, prange=None, backbone=None, drange=None):
     """vrange/prange: [from, to) frame/row spans of this episode inside shared
     LeRobot-v3 chunk files (None = the file is a single episode)."""
     d = cache_dir(task, file_idx)
@@ -205,13 +214,16 @@ def build_episode(task, file_idx, rgb_video, depth_video, parquet, annot_path,
         decode_rgb(rgb_video, fdir, N, v0, v1)
     dep_path = os.path.join(d, "depth.npy")
     if not os.path.exists(dep_path):
-        np.save(dep_path, decode_depth(depth_video, N, v0, v1))
+        d0, d1 = (drange if drange else (v0, v1))
+        np.save(dep_path, decode_depth(depth_video, N, d0, d1))
 
     np.save(os.path.join(d, "proprio.npy"), st[ks])
-    if backbone is None:
-        from train import load_backbone
-        backbone = load_backbone("dinov2_vitb14", device)
-    np.save(os.path.join(d, "glob.npy"), build_glob(fdir, N, device, backbone))
+    glob_path = os.path.join(d, "glob.npy")
+    if not os.path.exists(glob_path):
+        if backbone is None:
+            from train import load_backbone
+            backbone = load_backbone("dinov2_vitb14", device)
+        np.save(glob_path, build_glob(fdir, N, device, backbone))
 
     literals = literals_from_task_targets(task_targets)
     pred, tgt, ref, mask = encode_literals(literals, L_MAX)
@@ -247,7 +259,8 @@ def main():
         msg = build_episode(e["task"], e["file_idx"], e["rgb"], e["depth"],
                             e["parquet"], e["annot"], tt, args.device,
                             e.get("extractor_perframe"),
-                            e.get("vrange"), e.get("prange"), backbone)
+                            e.get("vrange"), e.get("prange"), backbone,
+                            e.get("drange"))
         print(msg, flush=True)
 
 

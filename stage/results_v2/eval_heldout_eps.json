@@ -1,0 +1,42 @@
+{
+ "collecting_childrens_toys": {
+  "stage_acc": 0.6837,
+  "boundary_median_frames": 10.0,
+  "boundary_recall": 0.8333,
+  "ledger_f1": 0.8002,
+  "progress_mae": 0.1768,
+  "monotonicity_violation_rate": 0.0138,
+  "entropy_boundary": 0.2803,
+  "entropy_midsegment": 0.1781
+ },
+ "picking_up_trash": {
+  "stage_acc": 0.3593,
+  "boundary_median_frames": 9.5,
+  "boundary_recall": 0.3333,
+  "ledger_f1": 0.7258,
+  "progress_mae": 0.2254,
+  "monotonicity_violation_rate": 0.0043,
+  "entropy_boundary": 0.1932,
+  "entropy_midsegment": 0.223
+ },
+ "tidying_bedroom": {
+  "stage_acc": 0.4767,
+  "boundary_median_frames": 8.0,
+  "boundary_recall": 0.6429,
+  "ledger_f1": 0.8033,
+  "progress_mae": 0.2315,
+  "monotonicity_violation_rate": 0.011,
+  "entropy_boundary": 0.3457,
+  "entropy_midsegment": 0.1889
+ },
+ "turning_on_radio": {
+  "stage_acc": 0.6347,
+  "boundary_median_frames": 7.0,
+  "boundary_recall": 0.75,
+  "ledger_f1": 0.0,
+  "progress_mae": 0.174,
+  "monotonicity_violation_rate": 0.0135,
+  "entropy_boundary": 0.2636,
+  "entropy_midsegment": 0.0859
+ }
+}

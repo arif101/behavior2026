@@ -86,6 +86,10 @@ def main():
             dc = int(r[f"videos/{ZED_DEP}/chunk_index"])
             dfi = int(r[f"videos/{ZED_DEP}/file_index"])
             dsub = f"chunk-{dc:03d}/file-{dfi:03d}.mp4"
+            # depth files are chunked independently of rgb -- their within-file
+            # frame span comes from the DEPTH stream's own timestamps
+            d0 = round(float(r[f"videos/{ZED_DEP}/from_timestamp"]) * FPS)
+            d1 = round(float(r[f"videos/{ZED_DEP}/to_timestamp"]) * FPS)
             dpath = (f"data/chunk-{int(r['data/chunk_index']):03d}/"
                      f"file-{int(r['data/file_index']):03d}.parquet")
             manifest.append(dict(
@@ -99,6 +103,7 @@ def main():
                     if "annotation_path" in r and r["annotation_path"]
                     else None,
                 vrange=[v0, v1],
+                drange=[d0, d1],
                 prange=[int(r["dataset_from_index"]), int(r["dataset_to_index"])],
             ))
         print(f"{task}: {len(rows)} episodes queued")

@@ -153,7 +153,7 @@ class StageWindowDataset(Dataset):
             progress=torch.from_numpy(
                 np.stack([np.sin(ang), np.cos(ang)], -1).astype(np.float32)),
             progress_valid=torch.tensor(
-                [lab["seg_left"][i] >= 0, lab["seg_right"][i] >= 0]),
+                [bool(lab["seg_left"][i] >= 0), bool(lab["seg_right"][i] >= 0)]),
             active_lit=torch.tensor([lab["active_lit_left"][i],
                                      lab["active_lit_right"][i]], dtype=torch.long),
             ledger=torch.from_numpy(np.asarray(lab["ledger"][i], dtype=np.float32)),

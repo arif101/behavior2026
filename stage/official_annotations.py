@@ -62,15 +62,19 @@ def load_segments(path):
         sid = _first(s.get("skill_id"))
         if sid is None or int(sid) not in STAGE_OF_SKILL:
             continue
-        f0, f1 = s["frame_duration"][0], s["frame_duration"][-1]
-        segs.append(dict(
-            skill_id=int(sid),
-            stage=STAGE_OF_SKILL[int(sid)],
-            start=int(f0), end=int(f1),
-            objects=_flat_names(s.get("object_id")),
-            manip=_flat_names(s.get("manipulating_object_id")),
-            skill_type=_first(s.get("skill_type"), "uncoordinated"),
-        ))
+        # frame_duration is [f0, f1], or a list of such pairs when the skill
+        # was interrupted and resumed -- emit one segment per interval
+        fd = s["frame_duration"]
+        ivals = fd if fd and isinstance(fd[0], (list, tuple)) else [fd]
+        for iv in ivals:
+            segs.append(dict(
+                skill_id=int(sid),
+                stage=STAGE_OF_SKILL[int(sid)],
+                start=int(iv[0]), end=int(iv[-1]),
+                objects=_flat_names(s.get("object_id")),
+                manip=_flat_names(s.get("manipulating_object_id")),
+                skill_type=_first(s.get("skill_type"), "uncoordinated"),
+            ))
     segs.sort(key=lambda s: s["start"])
     return segs, n_video, a.get("task_name", "?")
 

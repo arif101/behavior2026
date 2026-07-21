@@ -6,7 +6,12 @@
     # {"left"/"right": {"stage_dist":  [S] softmax (task-masked, calibrated),
     #                   "stage_id", "stage_name",       # argmax, informational
     #                   "progress": float 0-1,
-    #                   "active_literal_dist": [n_lit] softmax},
+    #                   "active_literal_dist": [n_lit] softmax,
+    #                   "grounding_query": {"object", "reference", "predicate",
+    #                                       "instruction"}},  # ex: "locate radio
+    #                                       on island" -- returned to the
+    #                                       orchestrator, which routes it to the
+    #                                       grounding head (system design)
     #  "p_sat":   [n_lit] sigmoid -- instantaneous, NOT latched,
     #  "entropy": {"left": nats, "right": nats},
     #  "stage_age_ratio": {"left": ..., "right": ...}}   # serve-side stopwatch
@@ -31,7 +36,13 @@ import torch
 
 from common import FPS_CACHE, L_MAX, T_HIST
 from model import StageHead
-from taxonomy import encode_literals, stage_name, task_stage_mask
+from taxonomy import SKILL_OF_STAGE, encode_literals, stage_name, task_stage_mask
+
+# Skills whose current goal is the RECEPTACLE side of the literal (place /
+# insert / close / toggle family — same ids as build_cache.COMPLETING_SKILLS):
+# while executing one of these, the grounding query should locate the
+# reference object; during approach/grasp skills it locates the target.
+PLACING_SKILLS = {3, 4, 6, 8, 11, 12, 14, 19, 61, 69, 70, 88, 90, 91, 92, 98}
 
 
 class StageEstimator:
@@ -55,6 +66,7 @@ class StageEstimator:
         pred, tgt, ref, mask = encode_literals(literals, L_MAX)
         dev = self.device
         self.task = task
+        self.literals = literals
         self.lit = tuple(torch.tensor(x, device=dev).unsqueeze(0)
                          for x in (pred, tgt, ref))
         self.lit_mask = torch.tensor(mask, device=dev, dtype=torch.bool).unsqueeze(0)
@@ -66,6 +78,23 @@ class StageEstimator:
     def _median(self, stage_id):
         return self.medians.get(f"{self.task}|{stage_id}") or \
             self.medians.get(f"__global__|{stage_id}", 10.0)
+
+    def _grounding_query(self, sid, lit_dist):
+        """Compose the grounding-head query for the current subtask (system
+        design: returned to the orchestrator, which routes it to the grounding
+        head).  Approach/grasp skills locate the literal's target; place/
+        insert/close/toggle skills locate its reference receptacle."""
+        if not lit_dist:
+            return None
+        lit = self.literals[max(range(len(lit_dist)), key=lit_dist.__getitem__)]
+        tgt, ref = lit.get("target", ""), lit.get("reference", "")
+        placing = SKILL_OF_STAGE.get(sid) in PLACING_SKILLS
+        obj = (ref or tgt) if placing else tgt
+        instr = f"locate {obj}"
+        if not placing and ref:
+            instr += f" on {ref}"
+        return {"object": obj, "reference": ref, "predicate": lit.get("predicate", ""),
+                "instruction": instr}
 
     @torch.no_grad()
     def update(self, dino_tokens, depth, proprio):
@@ -94,7 +123,8 @@ class StageEstimator:
                         .tolist() if self.n_lit else [])
             res[arm] = dict(stage_dist=dist.tolist(), stage_id=sid,
                             stage_name=stage_name(sid), progress=prog,
-                            active_literal_dist=lit_dist)
+                            active_literal_dist=lit_dist,
+                            grounding_query=self._grounding_query(sid, lit_dist))
             res["entropy"][arm] = float(ent[0, a])
             # stage-age stopwatch (age of the *argmax* stage vs label median)
             if sid == self.cur_stage[arm]:

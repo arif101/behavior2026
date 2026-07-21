@@ -99,7 +99,10 @@ def test_serve():
                          torch.randn(1, PROPRIO_DIM))
     for arm in ("left", "right"):
         assert set(out[arm]) >= {"stage_dist", "stage_id", "stage_name",
-                                 "progress", "active_literal_dist"}
+                                 "progress", "active_literal_dist",
+                                 "grounding_query"}
+        q = out[arm]["grounding_query"]
+        assert q["object"] and q["instruction"].startswith("locate ")
         assert 0.0 <= out[arm]["progress"] <= 1.0
         assert abs(sum(out[arm]["stage_dist"]) - 1.0) < 1e-4
         assert abs(sum(out[arm]["active_literal_dist"]) - 1.0) < 1e-4

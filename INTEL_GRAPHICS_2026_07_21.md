@@ -1,10 +1,37 @@
-# Graphics/animation sweep for B26 (2026-07-21, wf_041eb865, 104 agents, 25/25 verified)
+# Graphics/animation sweep for B26 (2026-07-21, wf_041eb865 + follow-up wf_b30608d2, 209 agents)
 
-Asked for SIGGRAPH-2026-relevant mechanisms transferable to our stack. NOTE: the actual
-SIGGRAPH 2026 program was effectively not indexable yet — verified corpus is SIGGRAPH
-2024/2025/Asia-2024 + CVPR/ICCV/NeurIPS 2025 + 2025-26 preprints. RQ4 (long-horizon scene
-sequencing) and RQ5 (rendering/domain-rand robustness) produced ZERO surviving claims —
-re-sweep when the program is indexed.
+Sweep 1 missed the live SIGGRAPH 2026 program (user caught it — conference running Jul
+21-23); sweep 2 reached it via the ACM schedule system (sess104/sess105) + arXiv
+journal-refs + a partial Ke-Sen index fetch (index still filling mid-conference).
+
+## From the ACTUAL SIGGRAPH 2026 program (follow-up sweep)
+
+- **GPC** (Peng group, 2606.29148, IN PROGRAM) — FSQ skill-token generative pretraining
+  for motor control with **EMERGENT perturbation recovery** (no dedicated recovery
+  mechanism). The one genuinely new program item for us. Tension to resolve before W3:
+  does recovery emerge from scale, or need our dedicated corrective loop? (Their recovery
+  numbers not adversarially verified; read before finalizing RFT design. Note we rejected
+  FSQ for our LIBERO motor — different context, action-head vs skill-token pretraining.)
+- **SMP** confirmed in-program; MotionBricks/ARDY/MUSIC/MOCHI = program's other motion
+  papers, low transfer value. Awards (5 best + 10 HM): zero manipulation-relevant.
+- **SCRIPT** (2605.22894, venue unconfirmed) — RL post-training of a TRUE flow-matching
+  policy: learnable noise injected into Euler sampling (ReinFlow-style sigma-net over
+  flow-time+state) + PPO, 128 parallel envs. = the concrete mechanism template for
+  RFT-ing pi0.5's flow head. Their own ablation: RLHR gains modest (FID 0.203→0.164) —
+  consistent with our plan: corrective-DAgger/AWR carries the bulk, RLHR is polish.
+- **InterPrior** (CVPR 2026 Highlight, NOT SIGGRAPH) — 3-stage distill→perturb-augment→
+  RL-finetune with **prior-preservation env split** (subset of parallel envs keeps the
+  distillation objective during RL) = validated ALTERNATIVE to our proximal anchor;
+  68.8% on 3-subgoal chains (+39.7pp over MaskedMimic). Cheap A/B inside W3.
+- **XDiffuser** (2605.16863) — plan-first-diffuse-later: classical planner as connectivity
+  oracle guiding denoising. Same extrinsic-guidance family as OmniGuide; director-computed
+  plan → sampler guidance is the analogue.
+- RQ3 (appearance randomization w/ measured perception gains): STILL zero surviving claims
+  (absence over ~6% of program; index incomplete). One refuted claim properly killed
+  (2604.07984 headline 0-3; its Table-3 robustness numbers survived 3-0).
+
+## Ranking update: ADD GPC-read + SCRIPT-RLHR-template + InterPrior-env-split A/B.
+## Nothing displaces the sweep-1 top-5 below.
 
 ## Ranked adoptions (impact × buildability)
 

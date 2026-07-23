@@ -9,6 +9,10 @@
 #          goal_literals.py wrote /root/task_literals.json.
 # Run detached:  setsid nohup bash run_pred_sweep.sh > /root/pred_sweep.log 2>&1 < /dev/null &
 set -uo pipefail
+# Provider-image quirk (found 2026-07-22): Mesa Vulkan ICDs collide with the
+# NVIDIA GLX ICD and Vulkan silently falls back to llvmpipe -- Isaac won't
+# boot. Mesa ICDs are removed at bringup; this pin is belt-and-braces.
+export VK_DRIVER_FILES=/etc/vulkan/icd.d/nvidia_icd.json
 export PATH=/root/miniconda3/bin:$PATH
 PY=/root/miniconda3/envs/behavior/bin/python
 MANIFEST=/root/data/manifest.json

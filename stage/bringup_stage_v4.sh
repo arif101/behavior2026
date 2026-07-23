@@ -21,6 +21,13 @@ nohup aria2c -x16 -s16 -k4M --file-allocation=none -c -d /workspace -o b1k_asset
   > /workspace/aria2.log 2>&1 &
 ARIA_PID=$!
 
+# --- 1b. PI-futex shim: RunPod seccomp EPERMs FUTEX_LOCK_PI and glibc treats
+# that as fatal; Isaac/PhysX contends PI mutexes at scene play. The shim
+# no-ops pthread_mutexattr_setprotocol (LD_PRELOAD'd by run scripts).
+apt-get install -y -qq gcc
+printf "int pthread_mutexattr_setprotocol(void *a, int p) { return 0; }\n" > /root/nopi.c
+gcc -shared -fPIC -o /root/nopi.so /root/nopi.c && echo STAGE_NOPI_OK
+
 # --- 2. light stage-pipeline deps (system python; v3 pipeline ran on these)
 python3 -c "import torch" 2>/dev/null || pip3 install -q torch --index-url https://download.pytorch.org/whl/cu124
 pip3 install -q pandas pyarrow scipy pillow huggingface_hub && echo STAGE_PYDEPS_OK

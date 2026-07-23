@@ -13,6 +13,10 @@ set -uo pipefail
 # NVIDIA GLX ICD and Vulkan silently falls back to llvmpipe -- Isaac won't
 # boot. Mesa ICDs are removed at bringup; this pin is belt-and-braces.
 export VK_DRIVER_FILES=/etc/vulkan/icd.d/nvidia_icd.json
+# RunPod seccomp EPERMs FUTEX_LOCK_PI -> glibc fatal ("The futex facility
+# returned an unexpected error code") the moment PhysX contends a PI mutex.
+# nopi.so (built at bringup) no-ops pthread_mutexattr_setprotocol.
+export LD_PRELOAD=/root/nopi.so
 export PATH=/root/miniconda3/bin:$PATH
 PY=/root/miniconda3/envs/behavior/bin/python
 MANIFEST=/root/data/manifest.json

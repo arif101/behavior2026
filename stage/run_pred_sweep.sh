@@ -19,11 +19,13 @@ export VK_DRIVER_FILES=/etc/vulkan/icd.d/nvidia_icd.json
 export LD_PRELOAD=/root/nopi.so
 export PATH=/root/miniconda3/bin:$PATH
 PY=/root/miniconda3/envs/behavior/bin/python
+SYSPY=/usr/bin/python3   # miniconda shadows python3; hf deps live in system python
 MANIFEST=/root/data/manifest.json
 export OMP_NUM_THREADS=16 MKL_NUM_THREADS=16
 
 # --- 1. fetch the rawdata HDF5s this manifest needs -------------------------
-python3 - <<'EOF'
+/usr/bin/pip3 install -q hf_transfer 2>/dev/null
+$SYSPY - <<'EOF'
 import json, os, re
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
@@ -41,6 +43,7 @@ for e in json.load(open("/root/data/manifest.json")):
                         repo_type="dataset", local_dir="/root/rawdata")
 print("RAWDATA_OK", flush=True)
 EOF
+if [ $? -ne 0 ]; then echo RAWDATA_FETCH_FAILED; exit 1; fi
 
 # --- 2. per-episode replay + predicate eval ---------------------------------
 # First episode is the CANARY: eval_predicates.py has never met the real API
@@ -48,7 +51,7 @@ EOF
 # instead of burning 40 x 2 x timeout.
 cd /root/BEHAVIOR-1K/OmniGibson
 first=1
-for key in $(python3 -c "
+for key in $($SYSPY -c "
 import json
 for e in json.load(open('$MANIFEST')):
     print(f\"{e['task']}/{e['file_idx']}\")"); do
@@ -76,5 +79,5 @@ for e in json.load(open('$MANIFEST')):
 done
 
 n_done=$(find /root/predicates -name '*.done' | wc -l)
-n_all=$(python3 -c "import json; print(len(json.load(open('$MANIFEST'))))")
+n_all=$($SYSPY -c "import json; print(len(json.load(open('$MANIFEST'))))")
 echo "PRED_SWEEP_DONE $n_done/$n_all"

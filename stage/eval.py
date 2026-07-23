@@ -60,6 +60,8 @@ def main():
     ap.add_argument("--out", default="stage_eval.json")
     ap.add_argument("--bs", type=int, default=64)
     ap.add_argument("--backbone", default="dinov2_vitb14")
+    ap.add_argument("--label_file", default="stage_labels.npz",
+                    help="stage_labels_posbins.npz = score vs bin labels (v4)")
     args = ap.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -75,7 +77,8 @@ def main():
         led_tp=0, led_fp=0, led_fn=0, prog_err=[], mono_viol=0, mono_n=0,
         ent_bnd=[], ent_mid=[]))
     for task, fi in eps:
-        ds = StageWindowDataset([(task, fi)], stride=1)
+        ds = StageWindowDataset([(task, fi)], stride=1,
+                                label_file=args.label_file)
         dl = DataLoader(ds, batch_size=args.bs, num_workers=4)
         preds, gts, progs, ents = [], [], [], []
         led_p, led_g, led_m = [], [], []
@@ -94,7 +97,8 @@ def main():
             led_p.append((torch.sigmoid(out["ledger_logits"]) > 0.5).cpu().numpy())
             led_g.append(batch["ledger"].cpu().numpy() > 0.5)
             led_m.append((batch["ledger_valid"].view(-1, 1)
-                          & batch["lit_mask"]).cpu().numpy())
+                          & batch["lit_mask"]
+                          & batch["ledger_lit_valid"]).cpu().numpy())
         pred = np.concatenate(preds)          # [N,2]
         gt = np.concatenate(gts)
         prog = np.concatenate(progs)          # [N,2] in [0,1)

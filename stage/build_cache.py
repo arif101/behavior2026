@@ -25,6 +25,18 @@ Ledger v1 proxy (official-only mode): a literal flips satisfied at the END of
 a completed place/insert/close-family segment whose manipulating object
 matches the literal's target category. Replaced by Phase-1's real BDDL
 predicate evaluation when those labels land; ledger_valid distinguishes them.
+
+v4: three label upgrades, each independently optional so partial data trains:
+  * literals come from B2026_TASK_LITERALS (goal_literals.py: real predicates
+    from the task's BDDL goal) when present, else the task_targets guess;
+  * the ledger comes from B2026_PREDICATES/<task>/ep{fi:03d}.json
+    (eval_predicates.py: per-frame sim-state predicate eval) when present,
+    else the v1 proxy; per-literal validity lands in ledger_lit_valid [L]
+    (old caches without it default to all-valid);
+  * stage_labels_posbins.npz: the kill-ablation label set (spec eval 4) --
+    stage/seg/progress relabeled as N_STAGES uniform temporal-position bins,
+    ledger/literal fields copied -- so the identical head trains on
+    Larchenko-style bins with --label_file stage_labels_posbins.npz.
 """
 
 import argparse
@@ -37,8 +49,11 @@ import numpy as np
 from common import (DEPTH_BIAS, DEPTH_SCALE, DGRID, FRAME_STRIDE, H, IMG,
                     L_MAX, TASK_TARGETS, W, cache_dir)
 from official_annotations import merge_arm_labels, parse_episode
-from taxonomy import (SKILL_NAMES, SKILL_OF_STAGE, encode_literals,
+from taxonomy import (N_STAGES, SKILL_NAMES, SKILL_OF_STAGE, encode_literals,
                       literals_from_task_targets)
+
+TASK_LITERALS = os.environ.get("B2026_TASK_LITERALS", "/root/task_literals.json")
+PREDICATES_DIR = os.environ.get("B2026_PREDICATES", "/root/predicates")
 
 # stages whose completion flips a literal (place/insert/close/toggle family)
 COMPLETING_SKILLS = {3, 4, 6, 8, 11, 12, 14, 19, 61, 69, 70, 88, 90, 91, 92, 98}
@@ -138,7 +153,51 @@ def _fit(a, n):
     return np.concatenate([a, np.repeat(a[-1:], n - len(a), axis=0)])
 
 
-def build_labels(annot_path, literals, n_video, ks, extractor_perframe=None):
+def real_ledger(pred_eval, ks, L):
+    """eval_predicates.py output -> (ledger [len(ks), L], lit_valid [L]).
+    sat rows are sampled every eval_every_frames video frames; cache frame k
+    takes the last row at or before it. -1 (not evaluable this frame) forward-
+    fills; leading unknowns are 0."""
+    frames = np.asarray(pred_eval["frames"])
+    sat = np.asarray(pred_eval["sat"], dtype=np.int8)      # [T, L], -1/0/1
+    filled = sat.astype(np.float32)
+    for j in range(sat.shape[1]):
+        last = 0.0
+        for t in range(sat.shape[0]):
+            if sat[t, j] < 0:
+                filled[t, j] = last
+            else:
+                last = filled[t, j]
+    rows = np.clip(np.searchsorted(frames, ks, side="right") - 1, 0, len(frames) - 1)
+    led = np.zeros((len(ks), L), dtype=np.float32)
+    led[:, :sat.shape[1]] = filled[rows]
+    lit_valid = np.zeros(L, dtype=np.uint8)
+    lit_valid[:sat.shape[1]] = np.asarray(pred_eval["evaluable"], dtype=np.uint8)
+    return led, lit_valid
+
+
+def posbin_labels(lab, ks, n_video):
+    """Kill-ablation label set (spec eval 4): identical head, Larchenko-style
+    temporal-position bins instead of semantic skills. Same class count
+    (N_STAGES) so capacity matches; both arms share the episode-time bin;
+    phase/active-literal masked; ledger fields copied (comparable ledger F1)."""
+    bins = np.minimum((ks.astype(np.float64) / max(1, n_video) * N_STAGES)
+                      .astype(np.int64), N_STAGES - 1)
+    within = (ks.astype(np.float64) / max(1, n_video) * N_STAGES) - bins
+    out = {}
+    for arm in ("left", "right"):
+        out[f"stage_{arm}"] = bins
+        out[f"seg_{arm}"] = bins                     # bin id = segment id
+        out[f"progress_{arm}"] = within.astype(np.float32)
+        out[f"phase_{arm}"] = np.full(len(ks), -1, dtype=np.int64)
+        out[f"active_lit_{arm}"] = np.full(len(ks), -1, dtype=np.int64)
+    for k in ("ledger", "ledger_valid", "ledger_lit_valid", "segments_json"):
+        out[k] = lab[k]
+    return out
+
+
+def build_labels(annot_path, literals, n_video, ks, extractor_perframe=None,
+                 pred_eval=None):
     off = parse_episode(annot_path)
     arms = merge_arm_labels(off, extractor_perframe)
     need = int(ks.max()) + 1
@@ -161,20 +220,26 @@ def build_labels(annot_path, literals, n_video, ks, extractor_perframe=None):
                                       off["segments"][s]["objects"], literals)
         lab[f"active_lit_{arm}"] = al
 
-    # ledger v1 proxy from completed completing-segments
-    led = np.zeros((len(ks), L), dtype=np.float32)
-    flips = []                                     # (video_frame, literal_idx)
-    for s in off["segments"]:
-        if s["skill_id"] in COMPLETING_SKILLS:
-            j = match_literal(s["manip"] or s["objects"], literals)
-            if j >= 0:
-                flips.append((s["end"], j))
-    for f_end, j in flips:
-        for i, k in enumerate(ks):
-            if k >= f_end:
-                led[i, j] = 1.0
-    lab["ledger"] = led
-    lab["ledger_valid"] = np.uint8(1 if flips else 0)
+    if pred_eval is not None:
+        # v4: real per-frame predicate evaluation over recorded sim state
+        lab["ledger"], lab["ledger_lit_valid"] = real_ledger(pred_eval, ks, L)
+        lab["ledger_valid"] = np.uint8(1 if lab["ledger_lit_valid"].any() else 0)
+    else:
+        # ledger v1 proxy from completed completing-segments
+        led = np.zeros((len(ks), L), dtype=np.float32)
+        flips = []                                 # (video_frame, literal_idx)
+        for s in off["segments"]:
+            if s["skill_id"] in COMPLETING_SKILLS:
+                j = match_literal(s["manip"] or s["objects"], literals)
+                if j >= 0:
+                    flips.append((s["end"], j))
+        for f_end, j in flips:
+            for i, k in enumerate(ks):
+                if k >= f_end:
+                    led[i, j] = 1.0
+        lab["ledger"] = led
+        lab["ledger_valid"] = np.uint8(1 if flips else 0)
+        lab["ledger_lit_valid"] = np.ones(L, dtype=np.uint8)
     lab["segments_json"] = np.frombuffer(
         json.dumps([{k: v for k, v in s.items()} for s in off["segments"]])
         .encode(), dtype=np.uint8)
@@ -225,18 +290,40 @@ def build_episode(task, file_idx, rgb_video, depth_video, parquet, annot_path,
             backbone = load_backbone("dinov2_vitb14", device)
         np.save(glob_path, build_glob(fdir, N, device, backbone))
 
-    literals = literals_from_task_targets(task_targets)
+    # v4 literal/ledger sources, best available first (see docstring)
+    pred_eval = None
+    pe_path = os.path.join(PREDICATES_DIR, task, f"ep{file_idx:03d}.json")
+    if os.path.exists(pe_path + ".done"):
+        pred_eval = json.load(open(pe_path))
+    if pred_eval is not None:
+        literals = pred_eval["literals"]
+        lit_src = "predicates"
+    elif os.path.exists(TASK_LITERALS):
+        tl = json.load(open(TASK_LITERALS))
+        literals = (tl.get(task) or {}).get("literals")
+        lit_src = "bddl"
+        if not literals:
+            literals = literals_from_task_targets(task_targets)
+            lit_src = "guess"
+    else:
+        literals = literals_from_task_targets(task_targets)
+        lit_src = "guess"
     pred, tgt, ref, mask = encode_literals(literals, L_MAX)
-    json.dump(dict(pred=pred, tgt=tgt, ref=ref, mask=mask, literals=literals),
+    json.dump(dict(pred=pred, tgt=tgt, ref=ref, mask=mask, literals=literals,
+                   source=lit_src),
               open(os.path.join(d, "literals.json"), "w"))
 
     exf = None
     if extractor_perframe_path and os.path.exists(extractor_perframe_path):
         exf = [json.loads(l) for l in open(extractor_perframe_path)]
-    lab = build_labels(annot_path, literals, n_video, np.array(ks), exf)
+    lab = build_labels(annot_path, literals, n_video, np.array(ks), exf, pred_eval)
     np.savez(os.path.join(d, "stage_labels.npz"), **lab)
+    np.savez(os.path.join(d, "stage_labels_posbins.npz"),
+             **posbin_labels(lab, np.array(ks), n_video))
     open(os.path.join(d, ".stage_done"), "w").close()
-    return f"{task}/ep{file_idx:03d}: built N={N}"
+    return (f"{task}/ep{file_idx:03d}: built N={N} lits={lit_src} "
+            f"ledger={'real' if pred_eval else 'proxy'} "
+            f"arms={'extractor' if exf else 'official-only'}")
 
 
 def main():

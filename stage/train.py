@@ -48,15 +48,20 @@ def param_groups(model):
             {"params": heads, "weight_decay": HEAD_WD}]
 
 
-def soft_ce(logits, soft_targets, sw=None):
-    ce = -(soft_targets * torch.log_softmax(logits, -1)).sum(-1)
+def soft_ce(logits, soft_targets, sw=None, w=None):
+    """w: optional [B, 2] per-arm label-confidence weights (v4: transition
+    frames at TRANSITION_W)."""
+    ce = -(soft_targets * torch.log_softmax(logits, -1)).sum(-1)   # [B, 2]
+    if w is not None:
+        ce = ce * w
     return (ce * sw.view(-1, 1)).mean() if sw is not None else ce.mean()
 
 
 def compute_losses(out, batch, sw=None):
     """sw: optional [B] IS-debias sample weights (mean 1)."""
     losses = {}
-    losses["stage"] = soft_ce(out["stage_logits"], batch["stage_soft"], sw)
+    losses["stage"] = soft_ce(out["stage_logits"], batch["stage_soft"], sw,
+                              batch.get("stage_w"))
 
     ph = batch["phase"]
     if (ph >= 0).any():
@@ -73,7 +78,8 @@ def compute_losses(out, batch, sw=None):
         losses["lit"] = F.cross_entropy(
             out["lit_logits"].flatten(0, 1), al.flatten(), ignore_index=-1)
 
-    lv = batch["ledger_valid"].view(-1, 1) & batch["lit_mask"]
+    lv = (batch["ledger_valid"].view(-1, 1) & batch["lit_mask"]
+          & batch.get("ledger_lit_valid", batch["lit_mask"]))
     if lv.any():
         # v2 5: smooth toward per-task base rate; boost near-flip frames
         tgt = ((1 - PSAT_SMOOTH) * batch["ledger"]
@@ -176,13 +182,17 @@ def main():
                     choices=sorted(BACKBONES))
     ap.add_argument("--is_debias", action="store_true",
                     help="IS-debias losses for the uniform-per-task sampler")
+    ap.add_argument("--label_file", default="stage_labels.npz",
+                    help="stage_labels_posbins.npz = kill-ablation bins (v4)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     splits = json.load(open(args.episodes))
-    tr_ds = StageWindowDataset([tuple(e) for e in splits["train"]], args.t_hist)
-    va_ds = StageWindowDataset([tuple(e) for e in splits["val"]], args.t_hist)
+    tr_ds = StageWindowDataset([tuple(e) for e in splits["train"]], args.t_hist,
+                               label_file=args.label_file)
+    va_ds = StageWindowDataset([tuple(e) for e in splits["val"]], args.t_hist,
+                               label_file=args.label_file)
     print(f"train items {len(tr_ds)}  val items {len(va_ds)}")
 
     json.dump(stage_medians(tr_ds), open(os.path.join(args.out, "stage_medians.json"), "w"))

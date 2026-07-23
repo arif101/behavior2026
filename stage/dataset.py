@@ -25,10 +25,11 @@ from torch.utils.data import Dataset
 
 from common import (BLEND_SEC, FPS_CACHE, L_MAX, PSAT_TAIL_BOOST,
                     PSAT_TAIL_SEC, T_HIST, cache_dir)
-from taxonomy import N_STAGES, task_stage_mask
+from taxonomy import N_STAGES, TRANSITION, task_stage_mask
 
 BLEND_F = max(1, int(round(BLEND_SEC * FPS_CACHE)))   # cache frames (~2 @ 6Hz)
 TAIL_F = max(1, int(round(PSAT_TAIL_SEC * FPS_CACHE)))
+TRANSITION_W = 0.3   # low-confidence transition labels (spec enrichment 1)
 
 
 def soft_stage_targets(stage, seg_id, n_stages):
@@ -69,35 +70,48 @@ def psat_weights_and_base(ledger):
 
 
 class StageWindowDataset(Dataset):
-    def __init__(self, episodes, t_hist=T_HIST, stride=2):
+    def __init__(self, episodes, t_hist=T_HIST, stride=2,
+                 label_file="stage_labels.npz"):
         """episodes: [(task, file_idx)]; stride subsamples anchors (labels are
-        near-constant at 6 Hz; stride 2 halves epoch cost losslessly)."""
+        near-constant at 6 Hz; stride 2 halves epoch cost losslessly).
+        label_file (v4): stage_labels_posbins.npz trains the kill-ablation head
+        on temporal-position bins -- every stage class live (bins are task-
+        agnostic, no task mask)."""
         self.t_hist = t_hist
+        self.posbins = "posbins" in label_file
         self.eps = []
         self.items = []
         self.item_task = []
         self._is_w = None
         for task, fi in episodes:
             d = cache_dir(task, fi)
-            need = ["glob.npy", "proprio.npy", "stage_labels.npz", "depth.npy"]
+            need = ["glob.npy", "proprio.npy", label_file, "depth.npy"]
             if not all(os.path.exists(os.path.join(d, f)) for f in need):
                 raise FileNotFoundError(f"{d}: stage cache incomplete (run build_cache)")
             ei = len(self.eps)
-            lab = dict(np.load(os.path.join(d, "stage_labels.npz"), allow_pickle=False))
+            lab = dict(np.load(os.path.join(d, label_file), allow_pickle=False))
+            if "ledger_lit_valid" not in lab:      # pre-v4 caches: all-valid
+                lab["ledger_lit_valid"] = np.ones(L_MAX, dtype=np.uint8)
             lits = json.load(open(os.path.join(d, "literals.json")))
             N = len(lab["stage_left"])
             soft = {arm: soft_stage_targets(lab[f"stage_{arm}"],
                                             lab[f"seg_{arm}"], N_STAGES)
                     for arm in ("left", "right")}
+            # low-confidence transition frames get TRANSITION_W in the stage CE
+            stage_w = {arm: np.where(lab[f"stage_{arm}"] == TRANSITION,
+                                     TRANSITION_W, 1.0).astype(np.float32)
+                       for arm in ("left", "right")}
             led_w, led_base = psat_weights_and_base(
                 np.asarray(lab["ledger"], dtype=np.float32))
+            mask = (np.ones(N_STAGES, dtype=bool) if self.posbins
+                    else np.array(task_stage_mask(task)))
             self.eps.append(dict(
-                task=task, dir=d, lab=lab, soft=soft,
+                task=task, dir=d, lab=lab, soft=soft, stage_w=stage_w,
                 led_w=led_w, led_base=led_base,
                 glob=np.load(os.path.join(d, "glob.npy"), mmap_mode="r"),
                 prop=np.load(os.path.join(d, "proprio.npy"), mmap_mode="r"),
                 depth=np.load(os.path.join(d, "depth.npy"), mmap_mode="r"),
-                lits=lits, stage_mask=np.array(task_stage_mask(task))))
+                lits=lits, stage_mask=mask))
             for i in range(0, N, stride):
                 self.items.append((ei, i))
                 self.item_task.append(task)
@@ -148,6 +162,8 @@ class StageWindowDataset(Dataset):
             hist_prop=torch.from_numpy(hp),
             stage_soft=torch.from_numpy(np.stack(
                 [ep["soft"]["left"][i], ep["soft"]["right"][i]])),
+            stage_w=torch.tensor([ep["stage_w"]["left"][i],
+                                  ep["stage_w"]["right"][i]]),
             phase=torch.tensor([lab["phase_left"][i], lab["phase_right"][i]],
                                dtype=torch.long),
             progress=torch.from_numpy(
@@ -160,6 +176,8 @@ class StageWindowDataset(Dataset):
             ledger_w=torch.from_numpy(ep["led_w"][i]),
             ledger_base=torch.from_numpy(ep["led_base"]),
             ledger_valid=torch.tensor(bool(lab["ledger_valid"])),
+            ledger_lit_valid=torch.from_numpy(
+                np.asarray(lab["ledger_lit_valid"], dtype=bool)),
             lit_pred=torch.tensor(ep["lits"]["pred"], dtype=torch.long),
             lit_tgt=torch.tensor(ep["lits"]["tgt"], dtype=torch.long),
             lit_ref=torch.tensor(ep["lits"]["ref"], dtype=torch.long),

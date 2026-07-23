@@ -29,7 +29,9 @@ import json
 
 import numpy as np
 
-from taxonomy import IDLE, NAV_SKILL_IDS, STAGE_OF_SKILL
+from taxonomy import IDLE, NAV_SKILL_IDS, STAGE_OF_SKILL, TRANSITION
+
+TRANSITION_MAX_F = 150   # video frames (~5 s): longer untagged gaps stay IDLE
 
 
 def _first(x, default=None):
@@ -138,8 +140,12 @@ def merge_arm_labels(official, extractor_perframe=None):
             a, b = max(0, s["start"]), min(Nv, s["end"])
             if b <= a:
                 continue
-            if s["skill_id"] in NAV_SKILL_IDS or not s["manip"]:
-                owns = True                            # whole-body / no-hand skill
+            # skill_type is the annotators' own arm scoping (v4): navigation
+            # moves the whole base, coordinated engages both arms -- neither
+            # needs arbitration. Only uncoordinated manipulation does.
+            if (s["skill_type"] in ("navigation", "coordinated")
+                    or s["skill_id"] in NAV_SKILL_IDS or not s["manip"]):
+                owns = True
             elif extractor_perframe:
                 manip = s["manip"][0]
                 span = ex_obj[arm][a:b]
@@ -153,6 +159,23 @@ def merge_arm_labels(official, extractor_perframe=None):
                 stage[a:b] = s["stage"]
                 seg_id[a:b] = k
                 progress[a:b] = (np.arange(a, b) - s["start"]) / max(1, s["end"] - s["start"])
+
+        # TRANSITION (spec enrichment 1): short untagged gaps BETWEEN this
+        # arm's owned segments; long stretches (the other arm's work) stay IDLE.
+        # seg_id stays -1 (no boundary blending into transitions); dataset
+        # downweights the class via stage_w.
+        owned = np.flatnonzero(seg_id >= 0)
+        if len(owned):
+            gap_start = None
+            for i in range(int(owned[0]), int(owned[-1]) + 1):
+                if seg_id[i] < 0:
+                    if gap_start is None:
+                        gap_start = i
+                elif gap_start is not None:
+                    if i - gap_start <= TRANSITION_MAX_F:
+                        stage[gap_start:i] = TRANSITION
+                    gap_start = None
+
         out[arm] = dict(stage=stage, progress=progress, seg_id=seg_id,
                         phase=ex_phase[arm], active_obj=ex_obj[arm])
     return out

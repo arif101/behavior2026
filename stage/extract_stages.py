@@ -15,8 +15,21 @@ Signals used (all CPU, from positions + proprio):
 Output:
   * SUBTASK TIMELINE   : list of (active_object, phase, frame-range) segments,
                          phase in {approach, grasp, transport, place, release, idle}.
-  * PER-FRAME labels   : {frame, active_object, phase, subtask_index, goal_literals_satisfied_count}.
+  * PER-FRAME labels   : {frame, active_object, phase, subtask_index,
+                          goal_literals_satisfied_count, arms: {left/right:
+                          {active_object, phase, subtask_index}}}  -- the arms
+                          key (v4) is the per-arm attribution track consumed by
+                          official_annotations.merge_arm_labels.
   * stage_timeline.json + a diagnostic overlay grid on the video.
+
+v4 additions:
+  * EE<->object distance uses AABB NEAREST-POINT when the labels carry "ext"
+    (per-object half-extents, written by eval_predicates.py) -- gotcha #3:
+    elongated objects grasped at an edge exceed center-radius thresholds.
+  * HOLD detection: a long near-run with the gripper closed that displaces the
+    object less than a carry (left arm holding the ashcan while the right arm
+    works) becomes its own subtask (phase "transport") on that arm -- without
+    it the holding arm reads idle and per-arm attribution collapses.
 
 R1Pro observation.state (61-dim) layout (from OmniGibson PROPRIOCEPTION_INDICES["R1Pro"]):
   base_qvel 0:3 | arm_left_qpos 3:10 | arm_left_qvel 10:17 | eef_left_pos 17:20 |
@@ -51,6 +64,8 @@ CFG = dict(
     GRIP_OPEN=0.08,       # gripper qpos-sum above this ~ open (secondary signal only)
     STATIONARY_V=0.002,   # m/frame; "placed & stationary"
     FPS=30,
+    HOLD_MIN_DUR=90,      # frames; minimum hold duration (~3 s)
+    HOLD_GRIP_FRAC=0.5,   # fraction of the run with gripper closed (secondary)
 )
 
 
@@ -68,11 +83,26 @@ def quat_to_R(q):
     ])
 
 
-def load_episode(labels_path, parquet_path):
-    """Return a dict of per-frame arrays on a common frame index (N = parquet frames)."""
+def load_episode(labels_path, parquet_path, episode_index=None, prange=None):
+    """Return a dict of per-frame arrays on a common frame index (N = parquet frames).
+    episode_index/prange (v4): select one episode out of a shared LeRobot-v3
+    chunk parquet (same convention as build_cache.build_episode)."""
     import pandas as pd
-    df = pd.read_parquet(parquet_path, columns=[
-        "observation.state", "observation.robot2cam_pose.zed_link_camera_0"])
+    cols = ["observation.state", "observation.robot2cam_pose.zed_link_camera_0"]
+    if episode_index is not None:
+        import pyarrow.parquet as pq
+        if "episode_index" in pq.read_schema(parquet_path).names:
+            df = pd.read_parquet(parquet_path, columns=cols + ["episode_index"])
+            df = df[df["episode_index"] == episode_index]
+            assert len(df), f"{parquet_path}: episode {episode_index} not in file"
+        else:
+            df = pd.read_parquet(parquet_path, columns=cols)
+            if prange:
+                df = df.iloc[prange[0]:prange[1]]
+    else:
+        df = pd.read_parquet(parquet_path, columns=cols)
+        if prange:
+            df = df.iloc[prange[0]:prange[1]]
     st = np.stack(df["observation.state"].values)                       # (N,61)
     r2c = np.stack(df["observation.robot2cam_pose.zed_link_camera_0"].values)  # (N,7) pos+quat(xyzw)
     N = len(st)
@@ -85,11 +115,15 @@ def load_episode(labels_path, parquet_path):
         return min(int((i + 1) * LR / N) - 1, LR - 1)
 
     P = {o: np.zeros((N, 3)) for o in objnames}
+    E = {o: np.zeros((N, 3)) for o in objnames}    # AABB half-extents (v4; zero = absent)
+    has_ext = "ext" in rows[0]
     M = np.zeros((N, 4, 4))
     for i in range(N):
         r = rows[lidx(i)]
         for o in objnames:
             P[o][i] = r["objs"][o]
+            if has_ext:
+                E[o][i] = r["ext"].get(o, (0, 0, 0))
         M[i] = np.array(r["M"], dtype=float).reshape(4, 4)
 
     # EE -> world:  T_world_base = T_world_cam @ inv(T_base_cam)
@@ -108,7 +142,14 @@ def load_episode(labels_path, parquet_path):
         eef[arm] = ew
     grip = {arm: st[:, SL[f"gripper_{arm}_qpos"][0]:SL[f"gripper_{arm}_qpos"][1]].sum(1)
             for arm in ("left", "right")}
-    return dict(N=N, P=P, M=M, eef=eef, grip=grip, objnames=objnames)
+    return dict(N=N, P=P, E=E, M=M, eef=eef, grip=grip, objnames=objnames)
+
+
+def ee_obj_dist(ep, arm, o):
+    """Per-frame EE->object distance; AABB nearest-point when extents exist
+    (gotcha #3), else center distance."""
+    d = ep["eef"][arm] - ep["P"][o]
+    return np.linalg.norm(np.maximum(np.abs(d) - ep["E"][o], 0.0), axis=1)
 
 
 def smooth_speed(Po, win):
@@ -131,36 +172,40 @@ def classify_objects(objnames, task_targets):
     return targets, refs
 
 
+def _near_runs(near, gap_merge):
+    """Contiguous True-runs of a bool array, merged across short gaps."""
+    N = len(near)
+    runs = []
+    i = 0
+    while i < N:
+        if near[i]:
+            j = i
+            while j + 1 < N and near[j + 1]:
+                j += 1
+            runs.append([i, j])
+            i = j + 1
+        else:
+            i += 1
+    merged = []
+    for r in runs:
+        if merged and r[0] - merged[-1][1] <= gap_merge:
+            merged[-1][1] = r[1]
+        else:
+            merged.append(r[:])
+    return merged
+
+
 def detect_carries(ep, targets, cfg):
     """For each target, find its primary carry window and grasp/place/release events."""
-    N = ep["N"]
     carries = []
     for o in targets:
         Po = ep["P"][o]
         sp = smooth_speed(Po, cfg["SPEED_WIN"])
-        dmin = np.minimum(np.linalg.norm(ep["eef"]["left"] - Po, axis=1),
-                          np.linalg.norm(ep["eef"]["right"] - Po, axis=1))
-        armidx = (np.linalg.norm(ep["eef"]["right"] - Po, axis=1) <
-                  np.linalg.norm(ep["eef"]["left"] - Po, axis=1)).astype(int)  # 0=L,1=R
-        near = dmin < cfg["R_NEAR"]
-        # contiguous near-runs, merged across short gaps
-        runs = []
-        i = 0
-        while i < N:
-            if near[i]:
-                j = i
-                while j + 1 < N and near[j + 1]:
-                    j += 1
-                runs.append([i, j])
-                i = j + 1
-            else:
-                i += 1
-        merged = []
-        for r in runs:
-            if merged and r[0] - merged[-1][1] <= cfg["GAP_MERGE"]:
-                merged[-1][1] = r[1]
-            else:
-                merged.append(r[:])
+        dl = ee_obj_dist(ep, "left", o)
+        dr = ee_obj_dist(ep, "right", o)
+        dmin = np.minimum(dl, dr)
+        armidx = (dr < dl).astype(int)             # 0=L,1=R
+        merged = _near_runs(dmin < cfg["R_NEAR"], cfg["GAP_MERGE"])
         # keep runs that actually displace the object; pick the largest-displacement one
         best = None
         best_disp = 0.0
@@ -185,42 +230,90 @@ def detect_carries(ep, targets, cfg):
     return carries
 
 
-def build_timeline(ep, carries, refs, cfg):
-    """Per-frame labels + subtask segments + goal-satisfied count."""
+def detect_holds(ep, objnames, carries, cfg):
+    """Long per-arm near-runs with the gripper closed that are NOT the carry --
+    a stationary/ambulatory hold (left arm pinning the ashcan while the right
+    arm works). Returns carry-shaped dicts flagged hold=True."""
     N = ep["N"]
-    # per-frame active-object / phase from subtasks (handle overlap: nearest EE wins)
+    carry_span = {}                                # arm -> [(a,b,obj)]
+    for c in carries:
+        carry_span.setdefault(c["arm"], []).append(
+            (max(0, c["approach"] - 1), c["release"] + cfg["RELEASE_LEN"], c["obj"]))
+    holds = []
+    for o in objnames:
+        sp = smooth_speed(ep["P"][o], cfg["SPEED_WIN"])
+        d = {arm: ee_obj_dist(ep, arm, o) for arm in ("left", "right")}
+        for arm in ("left", "right"):
+            for a, b in _near_runs(d[arm] < cfg["R_NEAR"], cfg["GAP_MERGE"]):
+                if b - a < cfg["HOLD_MIN_DUR"]:
+                    continue
+                # not this arm's own carry of any object over the same span
+                ov = sum(min(b, e) - max(a, s) for s, e, _ in carry_span.get(arm, [])
+                         if min(b, e) > max(a, s))
+                if ov > 0.5 * (b - a):
+                    continue
+                # the other arm being the actual carrier disqualifies the run
+                other = "right" if arm == "left" else "left"
+                if d[other][a:b].mean() < d[arm][a:b].mean():
+                    continue
+                # gripper mostly closed over the run (secondary, lenient)
+                if (ep["grip"][arm][a:b] < cfg["GRIP_OPEN"]).mean() < cfg["HOLD_GRIP_FRAC"]:
+                    continue
+                holds.append(dict(obj=o, arm=arm, approach=int(a), grasp=int(a),
+                                  place=int(b), release=int(b),
+                                  disp=float(np.linalg.norm(ep["P"][o][b] - ep["P"][o][a])),
+                                  speed=sp, dmin=d[arm], hold=True))
+    holds.sort(key=lambda c: c["grasp"])
+    return holds
+
+
+def build_timeline(ep, carries, refs, cfg):
+    """Per-frame labels + subtask segments + goal-satisfied count.
+
+    carries may include detect_holds output (hold=True): single-span
+    "transport" subtasks with no approach extension.
+    Per-frame output carries BOTH the legacy flat track (cross-arm,
+    smaller-window-wins) and the v4 per-arm tracks under "arms"."""
+    N = ep["N"]
     per_frame = [dict(frame=i, active_object=None, phase="idle", subtask_index=-1,
-                      goal_literals_satisfied_count=0) for i in range(N)]
+                      goal_literals_satisfied_count=0,
+                      arms={arm: dict(active_object=None, phase="idle",
+                                      subtask_index=-1)
+                            for arm in ("left", "right")}) for i in range(N)]
 
     subtasks = []
     for k, c in enumerate(carries):
         g, p, r = c["grasp"], c["place"], c["release"]
-        appr0 = max(0, g - cfg["APPROACH_LEN"])
-        # Only clamp to the previous subtask on the SAME arm (bimanual subtasks can
-        # be concurrent -- a nested left-arm carry inside a long right-arm carry must
-        # NOT be clamped to the right-arm subtask's release).
-        for kk in range(k - 1, -1, -1):
-            if carries[kk]["arm"] == c["arm"]:
-                appr0 = max(appr0, carries[kk]["release"] + cfg["RELEASE_LEN"])
-                break
-        appr0 = min(appr0, g)  # never past our own grasp
-        spans = [
-            ("approach", appr0, g),
-            ("grasp", g, min(g + cfg["GRASP_LEN"], p)),
-            ("transport", min(g + cfg["GRASP_LEN"], p), p),
-            ("place", p, r),
-            ("release", r, min(r + cfg["RELEASE_LEN"], N)),
-        ]
+        if c.get("hold"):
+            appr0 = g
+            spans = [("transport", g, r)]
+        else:
+            appr0 = max(0, g - cfg["APPROACH_LEN"])
+            # Only clamp to the previous subtask on the SAME arm (bimanual subtasks
+            # can be concurrent -- a nested left-arm carry inside a long right-arm
+            # carry must NOT be clamped to the right-arm subtask's release).
+            for kk in range(k - 1, -1, -1):
+                if carries[kk]["arm"] == c["arm"] and not carries[kk].get("hold"):
+                    appr0 = max(appr0, carries[kk]["release"] + cfg["RELEASE_LEN"])
+                    break
+            appr0 = min(appr0, g)  # never past our own grasp
+            spans = [
+                ("approach", appr0, g),
+                ("grasp", g, min(g + cfg["GRASP_LEN"], p)),
+                ("transport", min(g + cfg["GRASP_LEN"], p), p),
+                ("place", p, r),
+                ("release", r, min(r + cfg["RELEASE_LEN"], N)),
+            ]
         subtasks.append(dict(subtask_index=k, active_object=c["obj"], arm=c["arm"],
                              approach_start=appr0, grasp_frame=g, place_frame=p,
-                             release_frame=r, spans=spans))
+                             release_frame=r, spans=spans,
+                             hold=bool(c.get("hold"))))
 
-    # window length per subtask; on bimanual overlap the SMALLER (nested, transient)
-    # window wins its frames -- a short left-arm pick nested inside a long right-arm
-    # carry represents the salient action happening "now".
+    # Legacy flat track: on bimanual overlap the SMALLER (nested, transient)
+    # window wins its frames. Per-arm tracks: same rule but only within an arm.
     win_len = [sub["release_frame"] - sub["approach_start"] for sub in subtasks]
     for k, sub in enumerate(subtasks):
-        c = carries[k]
+        arm = sub["arm"]
         for phase, s, e in sub["spans"]:
             for i in range(int(s), int(e)):
                 cur = per_frame[i]
@@ -228,12 +321,19 @@ def build_timeline(ep, carries, refs, cfg):
                     cur["active_object"] = sub["active_object"]
                     cur["phase"] = phase
                     cur["subtask_index"] = k
+                at = cur["arms"][arm]
+                if at["subtask_index"] == -1 or win_len[k] < win_len[at["subtask_index"]]:
+                    at["active_object"] = sub["active_object"]
+                    at["phase"] = phase
+                    at["subtask_index"] = k
 
-    # goal_literals_satisfied_count: a subtask's literal is "satisfied" once released AND
-    # the object stays put afterward (not re-grabbed). Monotone step function over frames.
-    n_goal = 0
+    # goal_literals_satisfied_count: a subtask's literal is "satisfied" once released
+    # AND the object stays put afterward (not re-grabbed). Monotone step over frames.
+    # Holds are not relocations and never count.
     sat_frames = []
     for sub in subtasks:
+        if sub["hold"]:
+            continue
         c = carries[sub["subtask_index"]]
         r = sub["release_frame"]
         after = c["speed"][r:]
@@ -361,18 +461,26 @@ def main():
     ap.add_argument("--out_json", required=True)
     ap.add_argument("--out_overlay", default=None)
     ap.add_argument("--out_perframe", default=None)
+    ap.add_argument("--episode_index", type=int, default=None,
+                    help="select one episode from a shared LeRobot chunk parquet")
+    ap.add_argument("--prange", type=int, nargs=2, default=None,
+                    help="row span fallback when the parquet has no episode_index")
     args = ap.parse_args()
 
     tt_all = json.load(open(args.task_targets))
     # task_targets.json may be flat (one task) or keyed by task name
     task_targets = tt_all if "targets" in tt_all else tt_all[args.task]
     intr = json.load(open(args.intrinsics))
-    ep = load_episode(args.labels, args.parquet)
+    ep = load_episode(args.labels, args.parquet, args.episode_index, args.prange)
     targets, refs = classify_objects(ep["objnames"], task_targets)
     print(f"[objects] targets={targets}")
     print(f"[objects] references(static/surfaces)={refs}")
 
     carries = detect_carries(ep, targets, CFG)
+    holds = detect_holds(ep, ep["objnames"], carries, CFG)
+    if holds:
+        print(f"[holds] {[(h['obj'], h['arm'], h['grasp'], h['release']) for h in holds]}")
+    carries = sorted(carries + holds, key=lambda c: c["grasp"])
     per_frame, subtasks = build_timeline(ep, carries, refs, CFG)
     segs = flatten_segments(per_frame)
 
@@ -420,7 +528,7 @@ def main():
         subtasks=[dict(subtask_index=s["subtask_index"], active_object=s["active_object"],
                        arm=s["arm"], approach_start=s["approach_start"],
                        grasp_frame=s["grasp_frame"], place_frame=s["place_frame"],
-                       release_frame=s["release_frame"],
+                       release_frame=s["release_frame"], hold=s["hold"],
                        displacement_m=round(carries[s["subtask_index"]]["disp"], 3))
                   for s in subtasks],
         segments=segs,

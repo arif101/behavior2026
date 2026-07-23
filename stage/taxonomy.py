@@ -28,7 +28,10 @@ SKILL_NAMES = {int(k): v for k, v in _TAX["skills"].items()}
 IDLE = 0                                                     # stage class 0
 STAGE_OF_SKILL = {sid: i + 1 for i, sid in enumerate(SKILL_IDS)}
 SKILL_OF_STAGE = {i + 1: sid for i, sid in enumerate(SKILL_IDS)}
-N_STAGES = 1 + len(SKILL_IDS)                                # 35
+# TRANSITION (spec enrichment layer 1): short untagged gaps between an arm's
+# own segments -- low-confidence labels (dataset downweights them in the CE).
+TRANSITION = 1 + len(SKILL_IDS)
+N_STAGES = 2 + len(SKILL_IDS)                                # 36 (v4: +transition)
 # task_skills is keyed by the HF dir (task-0000); the repo uses underscored
 # task names (turning_on_radio) -- index by both.
 TASK_SKILLS = {t: set(v) for t, v in _TAX["task_skills"].items()}
@@ -51,13 +54,16 @@ CAT_BUCKETS = 256
 def stage_name(stage_idx):
     if stage_idx == IDLE:
         return "idle"
+    if stage_idx == TRANSITION:
+        return "transition"
     return SKILL_NAMES[SKILL_OF_STAGE[stage_idx]]
 
 
 def task_stage_mask(task):
-    """[N_STAGES] bool: IDLE + this task's official skills are live."""
+    """[N_STAGES] bool: IDLE + TRANSITION + this task's official skills."""
     mask = [False] * N_STAGES
     mask[IDLE] = True
+    mask[TRANSITION] = True
     for sid in TASK_SKILLS.get(task, set(SKILL_IDS)):  # unknown task -> all live
         mask[STAGE_OF_SKILL[sid]] = True
     if task not in TASK_SKILLS:

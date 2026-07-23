@@ -135,11 +135,15 @@ def build_glob(frames_dir, n, device, backbone, batch=64):
 
 
 def match_literal(obj_names, literals):
-    """First literal whose target category prefixes an object name, else -1."""
+    """First literal whose target category prefixes an object name, else -1.
+    v4 literals carry target_cats (all asset categories of the synset) --
+    match any of them; guess-mode literals fall back to the single target."""
     for j, lit in enumerate(literals[:L_MAX]):
-        t = (lit.get("target") or "").split(".")[0]
-        if t and any(o.startswith(t) for o in obj_names):
-            return j
+        cats = lit.get("target_cats") or [lit.get("target") or ""]
+        for t in cats:
+            t = t.split(".")[0]
+            if t and any(o.startswith(t) for o in obj_names):
+                return j
     return -1
 
 

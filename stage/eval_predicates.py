@@ -24,6 +24,7 @@ exit code.
 
 import argparse
 import json
+import contextlib
 import os
 import re
 import sys
@@ -192,7 +193,7 @@ def run_episode(task, file_idx, task_id, demo_id, lits_spec, args):
         load_room_instances=load_room_instances,
         robot_sensor_config={"VisionSensor": {"sensor_kwargs": {
             "image_height": 128, "image_width": 128}}},   # minimal render load
-        n_render_iterations=1,
+        n_render_iterations=(0 if args.no_render else 1),
         flush_every_n_steps=100000,
         flush_every_n_traj=1,
         include_robot_control=False,
@@ -209,6 +210,16 @@ def run_episode(task, file_idx, task_id, demo_id, lits_spec, args):
     env.load_observation_space()
     fcntl.flock(boot_lock, fcntl.LOCK_UN)
     print("BOOT_LOCK_RELEASED", flush=True)
+
+    if args.no_render:
+        # Predicate eval reads physics + joint state, never pixels, so rendering
+        # is pure waste. playback_episode calls og.sim.render() every step when
+        # a post_state_update_callback is set (data_wrapper ~L747), on top of
+        # the render inside env.step(); killing both is ~5-10x on long episodes.
+        # render_on_step(False) routes env.step() through the physics-only branch
+        # (simulator ~L1388); the no-op render() neutralizes the explicit calls.
+        og.sim.render = lambda *a, **k: None
+        print("NO_RENDER enabled", flush=True)
 
     scene = env.scene
     robot = scene.robots[0]
@@ -312,13 +323,16 @@ def run_episode(task, file_idx, task_id, demo_id, lits_spec, args):
                       if k.startswith("demo_"))
     episode_id = demo_ids[-1]
     print(f"REPLAYING demo_{episode_id}", flush=True)
-    try:
-        env.playback_episode(episode_id=episode_id, record_data=False,
-                             post_state_update_callback=cb)
-    except TypeError:
-        # older wrapper signature: recording not optional -- scratch dir absorbs it
-        env.playback_episode(episode_id=episode_id, record_data=True,
-                             post_state_update_callback=cb)
+    render_ctx = (og.sim.render_on_step(False) if args.no_render
+                  else contextlib.nullcontext())
+    with render_ctx:
+        try:
+            env.playback_episode(episode_id=episode_id, record_data=False,
+                                 post_state_update_callback=cb)
+        except TypeError:
+            # older wrapper signature: recording not optional -- scratch absorbs it
+            env.playback_episode(episode_id=episode_id, record_data=True,
+                                 post_state_update_callback=cb)
     fh.close()
 
     evaluable = [bool(ev.evaluable) and any(r[j] >= 0 for r in sat_rows)
@@ -347,6 +361,10 @@ def main():
     ap.add_argument("--max_objs", type=int, default=20)
     ap.add_argument("--only", nargs="*", default=None,
                     help="restrict to task/file_idx entries, e.g. turning_on_radio/3")
+    ap.add_argument("--render", dest="no_render", action="store_false",
+                    help="render every step (old, slow path); default is no-render")
+    ap.add_argument("--no_render", dest="no_render", action="store_true", default=True,
+                    help="physics-only playback (default): ~5-10x faster, pixels unused")
     args = ap.parse_args()
 
     lits_all = json.load(open(args.task_literals))

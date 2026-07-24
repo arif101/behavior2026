@@ -41,9 +41,25 @@ GATE_TASKS = {  # Tier 0 — always included (deep labels + eval baselines ancho
 
 def strip_instance(obj_id: str) -> str:
     """radio_89 -> radio ; can_of_soda_113 -> can_of_soda ; bar_byvbuc_0 -> bar."""
-    if not obj_id:
+    if not obj_id or not isinstance(obj_id, str):
         return ""
     return re.sub(r"_[a-z0-9]+$", "", re.sub(r"_\d+$", "", obj_id))
+
+
+def _flatten_str(x) -> list[str]:
+    """Annotation fields nest inconsistently (str | [str] | [[str]]). Flatten to strings."""
+    out = []
+    if isinstance(x, str):
+        out.append(x)
+    elif isinstance(x, (list, tuple)):
+        for e in x:
+            out.extend(_flatten_str(e))
+    return out
+
+
+def norm_task(name: str) -> str:
+    """'turning on radio' -> 'turning_on_radio' (annotation uses spaces; gate set uses _)."""
+    return re.sub(r"\s+", "_", (name or "").strip())
 
 
 def primitive_verb(desc: str) -> str:
@@ -64,20 +80,19 @@ def task_signature(ann_episodes: list[dict]) -> dict:
     verbs, objs, types = set(), set(), set()
     for ep in ann_episodes:
         for seg in ep.get("skill_annotation", []):
-            for d in (seg.get("skill_description") or []):
+            for d in _flatten_str(seg.get("skill_description")):
                 v = primitive_verb(d)
                 if v:
                     verbs.add(v)
-            for o in (seg.get("object_id") or []):
+            for o in _flatten_str(seg.get("object_id")):
                 c = strip_instance(o)
                 if c:
                     objs.add(c)
-            for m in (seg.get("manipulating_object_id") or []):
+            for m in _flatten_str(seg.get("manipulating_object_id")):
                 c = strip_instance(m)
                 if c:
                     objs.add(c)
-            st = seg.get("skill_type")
-            if st:
+            for st in _flatten_str(seg.get("skill_type")):
                 types.add(st)
     return {"verbs": verbs, "objects": objs, "skill_types": types}
 
@@ -104,7 +119,7 @@ def load_task_annotations(anndir: str, flat_glob: str | None) -> dict[str, list[
             d = json.load(open(p))
         except Exception:
             continue
-        t = d.get("task_name") or os.path.basename(os.path.dirname(p))
+        t = norm_task(d.get("task_name")) or os.path.basename(os.path.dirname(p))
         if len(by_task[t]) < 3:  # 1-3 episodes is enough for a coverage signature
             by_task[t].append(d)
     return dict(by_task)

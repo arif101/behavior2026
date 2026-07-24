@@ -33,12 +33,17 @@ man = json.load(open("/root/data/manifest.json"))
 for e in man:
     task, fi = e["task"], e["file_idx"]
     labels = f"/root/sweep_labels_v4/{task}/labels_{fi:03d}.jsonl"
+    done = f"/root/predicates/{task}/ep{fi:03d}.json.done"
     out = f"/root/perframe/{task}/ep{fi:03d}.jsonl"
     e["extractor_perframe"] = out
-    if os.path.exists(out) or not os.path.exists(labels):
-        if not os.path.exists(labels):
-            print(f"NO_LABELS {task}/ep{fi:03d} (official-only fallback)")
-            e["extractor_perframe"] = None
+    # Only use extractor labels from a COMPLETED replay (.done). Timed-out
+    # replays leave truncated label files that would give bad per-arm labels on
+    # their tail -- those fall back to official-only arm attribution.
+    if not os.path.exists(done):
+        print(f"NO_COMPLETE_REPLAY {task}/ep{fi:03d} (official-only fallback)")
+        e["extractor_perframe"] = None
+        continue
+    if os.path.exists(out):
         continue
     os.makedirs(os.path.dirname(out), exist_ok=True)
     cmd = ["python3", "extract_stages.py", "--labels", labels,

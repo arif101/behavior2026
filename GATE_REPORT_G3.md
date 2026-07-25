@@ -130,6 +130,31 @@ doesn't rescue a multi-fault pipeline.
 6. **The stack can reason** — Opus, given only geometry, picks the correct approach edge every
    time; the intelligence exists, it just wasn't in the runtime loop (it was hardcoded).
 
+### Post-report correction (2026-07-25, measured on box)
+
+§3.4 listed a "press-EXECUTION bug (fingertip reaches 3–8mm and the button still doesn't
+fire)". **That inference is REFUTED by direct measurement.** A dz sweep on a *reachable*
+instance (overlap sphere r=22.4mm; servo link confirmed in `robot.finger_links`):
+
+| descend target | contact steps | overlap+contact | success |
+|---|---|---|---|
+| **+20mm (current default)** | 833 | **5** (= `CAN_TOGGLE_STEPS`) | **TRUE** |
+| 0mm | 624 | **5** | **TRUE** |
+| −10mm | 735 | 1 | FALSE |
+| −25mm | 623 | 1 | FALSE |
+
+The press primitive **works and is already optimally tuned**; driving the finger deeper
+(the "fix" suggested by reading `toggle.py`) *loses* the overlap and breaks it. Consequences:
+(a) a **reliable commit teacher for distillation exists today** — the highest-uncertainty
+dependency of the August plan is already satisfied; (b) the earlier no-toggle observations
+were **base-placement failures, not actuation failures**; (c) the "last centimeter" reduces
+from three problems to **one: reach-aware base placement + orientation** (measured band: base
+≤0.61m from target succeeds, ≥0.70m always fails).
+
+**Methodological lesson (banked):** a confident mechanism inferred from source reading nearly
+caused a regression on working code. Measure before fixing — this is the second such case
+this week (the first: "grounding precision is the blocker", also refuted by measurement).
+
 ### Hypotheses tested and rejected
 - **Memorization gap** — rejected: 0 on training layouts too.
 - **Catastrophic forgetting** — rejected: would spare the trained task; ours fails it too.

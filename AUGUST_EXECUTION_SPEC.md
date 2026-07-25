@@ -180,3 +180,43 @@ The stage head is now on the critical path as the **RL reward spec**, not just a
 input. Re-target the Jul 25 labels review to also check **reward-usability**: dense, monotone,
 per-subtask progress, validated on **policy-rollout (closed-loop) states**, not only human
 demo frames. Continue scaling to more tasks (aligns with diversity-first). Keep training.
+
+---
+
+## 12. Session addendum (2026-07-25) — measured corrections to §4
+
+Three hypotheses about the terminal primitive were **refuted by measurement** on box
+203.57.40.126 (A5000). Net effect: §4's premise improves, §4's work item changes.
+
+**(a) There is NO actuation bug — the commit teacher already exists.** dz sweep on a reachable
+instance (overlap sphere r=22.4mm; servo link confirmed in `robot.finger_links`):
+
+| descend target | contact steps | overlap+contact | success |
+|---|---|---|---|
+| **+20mm (current default)** | 833 | **5** (=`CAN_TOGGLE_STEPS`) | **TRUE** |
+| 0mm | 624 | **5** | **TRUE** |
+| −10mm / −25mm | 735 / 623 | 1 / 1 | FALSE |
+
+The press works at its current tuning; driving deeper *loses overlap* and breaks it. **§4's
+"fix the actuation bug" is DONE/void — the teacher is available now.**
+
+**(b) The sole remaining blocker is base placement — and distance is the wrong abstraction.**
+Iterations: face-normal standoff (1/10) → measured distance band ≤0.62m (detected but escape
+hatches bypassed it) → enforcing gate + retry-another-side (retries fire correctly) → but
+INST 0 sat at **0.501m (inside the band) with the fingertip stuck at 501mm**. Reachability
+depends on the arm's **kinematic workspace** (yaw/height/torso/joint limits), which no planar
+distance heuristic can express.
+
+**(c) The principled fix is a kinematic REACH_PROBE** (implemented): after the base arrives,
+servo the arm at the button for ~70 steps and require the EE error to fall **below 15cm**
+(the band from which the press phases demonstrably close — the successful instance reached
+31mm). "Improved slightly" is NOT reachable (a 5cm-gain criterion passed an instance that
+plateaued at 454mm). On failure: exclude that approach side, re-solve, ≤3 retries.
+
+**Open item:** if several instances remain unreachable from *every* side, the constraint is
+physical (target mid-table beyond arm reach) → the teacher needs **whole-body reach (torso
+extension)**, not better base positioning. Decide from the probe's REACHABLE/UNREACHABLE
+distribution, not from success count alone.
+
+**Methodological lesson (3rd refutation this week):** don't infer mechanism from source
+reading — measure. Reasoned-but-wrong diagnoses nearly caused a regression on working code.

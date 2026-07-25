@@ -83,6 +83,19 @@ ok = [e for e in eps if all((root/meta.get_video_file_path(e,k)).exists() for k 
    Then pass `ok` as `dataset_kwargs["episodes"]`. Verify the fix by loading and printing
    `num_episodes`/`num_frames` — a successful local load never touches the network.
 
+**Patching the data loader: there are TWO loader paths, and b1k uses the less obvious one.**
+`train_b1k.py` calls `create_b1k_data_loader()`, which builds `TorchDataLoader` directly —
+NOT `create_torch_data_loader()`. Patching the latter produces no error, no log line, and a
+silently unmodified loader. Any sampler/weighting change must go in `create_b1k_data_loader`,
+and must **raise** rather than fall back, or an A/B arm can be labelled "weighted" while
+actually training uniform. Verify with a log line printed from inside the loader, and treat
+its absence as a failed launch.
+
+Also: `torch.utils.data.WeightedRandomSampler` calls `torch.multinomial`, which **caps at
+2**24 = 16,777,216 categories**. Any frame-level weighting over a bigger dataset needs a
+custom sampler (for two-valued weights, sample a pool by Bernoulli then an index within it —
+exact, and no cap). See `data_assembly/_patch_contact_sampler.py`.
+
 ## Step 3 — config + weight-loader patches
 
 - Fill the dataset_root placeholder in the config; wire the episodes list (partial mirror →

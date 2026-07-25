@@ -61,6 +61,28 @@ Norm stats — the full frame set is huge (600k+), so SAMPLE:
 # copy the resulting outputs/assets/<cfg>/ to the other configs that share the dataset
 ```
 
+**`RepositoryNotFoundError` / 401 during a LOCAL dataset load is a LIAR.** LeRobot's
+`LeRobotDataset.__init__` calls `self.reader.try_load()`, and on *any* failure silently falls
+back to downloading from the Hub — so every local-integrity problem surfaces as an auth error
+against a repo that was never meant to exist. Do not chase the token. Check, in order:
+
+1. **Every column written must be registered in `meta/info.json` `features`** — a column present
+   in the parquet but absent from `features` (e.g. an added `sample_weight`) throws
+   `DatasetGenerationError` first, then the 401.
+2. **Every feature declared must actually exist** — the reverse: declared depth-video streams
+   with no files on disk fail the same way.
+3. **Every episode must have ALL its video files.** This is the one that hides longest. A
+   partial mirror fetches *data* parquets and *video* chunks separately, and a parquet chunk
+   can carry "bonus" episodes whose video chunks were never fetched. They look like free extra
+   data (I had 2041 episodes where 1800 were planned) but `_check_cached_episodes_sufficient`
+   rejects the whole load. Diagnose and filter with:
+```python
+# per episode, confirm a file exists for every video key; keep only complete ones
+ok = [e for e in eps if all((root/meta.get_video_file_path(e,k)).exists() for k in meta.video_keys)]
+```
+   Then pass `ok` as `dataset_kwargs["episodes"]`. Verify the fix by loading and printing
+   `num_episodes`/`num_frames` — a successful local load never touches the network.
+
 ## Step 3 — config + weight-loader patches
 
 - Fill the dataset_root placeholder in the config; wire the episodes list (partial mirror →

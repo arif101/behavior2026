@@ -6,6 +6,15 @@
 #
 # The two arms share a config (pi05_phaseA_point) and therefore ONE set of norm stats — this
 # is what makes the comparison clean, so do not regenerate them per arm.
+#
+# POINT SOURCE: the primary A/B runs on ORACLE points (g3_deep_labels), deliberately. The
+# question under test is whether contact oversampling raises the closed-loop floor; feeding
+# predicted points would confound that with grounding error. Swap to the learned grounder only
+# as a follow-up, after the BC question is answered.
+#
+# NOTE (grounding): only v0.5 is on HF. The v0.6 gate fine-tune that fixed thawing
+# (124.6px -> 4.56px) lived on the spun-down G3 eval box and was never backed up. It is ~13 min
+# to re-derive (grounding/mt_train.py, gate split) and is NOT needed for the oracle-point A/B.
 set -x
 export HF_HUB_DISABLE_XET=1
 
@@ -39,9 +48,9 @@ snapshot_download("arif101/behavior2026-artifacts", token=tok, local_dir="/works
                   allow_patterns=[
                       "ckpts/phaseA/*/*/params/**",       # both arms, final step
                       "assets_phaseA/pi05_phaseA_point/**",
-                      "ckpts/grounding_v06/**",           # v0.6 gate-fixed grounder
+                      "ckpts/grounding_v05/**",           # see NOTE below re: v0.6
                       "g3_pipeline/*.json",               # task_targets, maps
-                      "g3_deep_labels/**",                # oracle points (point-source A/B)
+                      "g3_deep_labels/**",                # oracle points (primary eval source)
                   ])
 print("STAGE_PHASEA_RESTORE_OK")
 PY

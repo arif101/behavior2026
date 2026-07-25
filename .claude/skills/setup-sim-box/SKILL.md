@@ -53,6 +53,26 @@ Apply in order; re-check vulkaninfo after each:
 
 If after this ladder vulkaninfo still shows only llvmpipe → REJECT the box.
 
+## Step 1.5 — CHECK FOR A PRE-EXISTING INSTALL FIRST (saves ~40 min + ~87GB)
+
+Some marketplace images ship BEHAVIOR-1K/OmniGibson already installed. ALWAYS check before
+running bring-up (a clue: the box reports tens of GB already used at gate time):
+
+```
+ls /root/miniconda3/envs/ 2>/dev/null            # look for a `behavior` env
+find / -maxdepth 3 -name "BEHAVIOR-1K" -type d 2>/dev/null
+/root/miniconda3/envs/behavior/bin/python -c "import omnigibson; print(omnigibson.__version__, omnigibson.__file__)"
+```
+If that imports, ALSO verify: assets (`<tree>/datasets/behavior-1k-assets`), task instances
+(`datasets/2026-challenge-task-instances`), the eval kit
+(`OmniGibson/omnigibson/eval/`), and the appdata symlink. If all present → **SKIP Steps 3
+(bring-up) entirely**; go to Step 4 (eval-prep) using the existing tree's python
+(`/root/miniconda3/envs/behavior/bin/python`) and paths.
+
+If you already started bring-up before noticing, kill it and remove ONLY the duplicate tree it
+created (verify the pre-existing one still imports afterwards). Note deleted files aren't
+reclaimed until the holding processes exit.
+
 ## Step 2 — HF token + scripts
 
 - Stage the HF token to `/root/.hf_token` (chmod 600). NEVER inline the token in a shell

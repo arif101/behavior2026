@@ -1,0 +1,82 @@
+{
+ "collecting_childrens_toys": {
+  "stage_acc": 0.7085,
+  "boundary_median_frames": 6.0,
+  "boundary_recall": 0.8958,
+  "ledger_f1": 0.7246,
+  "progress_mae": 0.1922,
+  "monotonicity_violation_rate": 0.0184,
+  "entropy_boundary": 0.5164,
+  "entropy_midsegment": 0.3253
+ },
+ "picking_up_toys": {
+  "stage_acc": 0.5301,
+  "boundary_median_frames": 11.0,
+  "boundary_recall": 0.6667,
+  "ledger_f1": 0.7419,
+  "progress_mae": 0.2177,
+  "monotonicity_violation_rate": 0.0234,
+  "entropy_boundary": 0.4828,
+  "entropy_midsegment": 0.3745
+ },
+ "picking_up_trash": {
+  "stage_acc": 0.3957,
+  "boundary_median_frames": 29.0,
+  "boundary_recall": 0.3929,
+  "ledger_f1": 0.2641,
+  "progress_mae": 0.2115,
+  "monotonicity_violation_rate": 0.0241,
+  "entropy_boundary": 0.378,
+  "entropy_midsegment": 0.4017
+ },
+ "putting_shoes_on_rack": {
+  "stage_acc": 0.8,
+  "boundary_median_frames": 26.0,
+  "boundary_recall": 0.7931,
+  "ledger_f1": 0.0,
+  "progress_mae": 0.2085,
+  "monotonicity_violation_rate": 0.0309,
+  "entropy_boundary": 0.3481,
+  "entropy_midsegment": 0.269
+ },
+ "sorting_vegetables": {
+  "stage_acc": 0.5895,
+  "boundary_median_frames": 11.0,
+  "boundary_recall": 0.76,
+  "ledger_f1": 0.2558,
+  "progress_mae": 0.2139,
+  "monotonicity_violation_rate": 0.0445,
+  "entropy_boundary": 0.3329,
+  "entropy_midsegment": 0.2952
+ },
+ "storing_food": {
+  "stage_acc": 0.8208,
+  "boundary_median_frames": 7.0,
+  "boundary_recall": 0.8065,
+  "ledger_f1": 0.7064,
+  "progress_mae": 0.1569,
+  "monotonicity_violation_rate": 0.0177,
+  "entropy_boundary": 0.3629,
+  "entropy_midsegment": 0.1814
+ },
+ "tidying_bedroom": {
+  "stage_acc": 0.3195,
+  "boundary_median_frames": 16.0,
+  "boundary_recall": 0.28,
+  "ledger_f1": 0.0,
+  "progress_mae": 0.2502,
+  "monotonicity_violation_rate": 0.0234,
+  "entropy_boundary": 0.3554,
+  "entropy_midsegment": 0.2332
+ },
+ "turning_on_radio": {
+  "stage_acc": 0.8,
+  "boundary_median_frames": 5.0,
+  "boundary_recall": 0.8571,
+  "ledger_f1": 0.9524,
+  "progress_mae": 0.182,
+  "monotonicity_violation_rate": 0.0104,
+  "entropy_boundary": 0.4957,
+  "entropy_midsegment": 0.3866
+ }
+}

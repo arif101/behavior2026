@@ -21,6 +21,20 @@ cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || cat /sys/fs/cgrou
 nproc
 ```
 
+**GPU MEMORY: π0.5 full fine-tune needs ~60GB of PER-GPU state before a single activation.**
+With `fsdp_devices=1` (the default — replicated, not sharded) each GPU holds: params 12GB +
+grads 12GB + Adam μ/ν 24GB + **an EMA copy 12GB** (`ema_decay` defaults to **0.99**, a fifth
+full copy nobody notices in the config). Plus ~12GB activations at batch 32 ⇒ ~72GB.
+- **80GB cards (A100/H100) fit at batch 32. 48GB cards (A40/L40S) CANNOT, at any batch size** —
+  it is fixed state, not activations, so shrinking the batch does not help.
+- Smaller cards only work with `fsdp_devices=N` (shards state N ways). Mathematically equivalent
+  for the same global batch, but check `nvidia-smi topo -m` FIRST: without NVLink (and worse,
+  with GPUs on different NUMA nodes showing `SYS`), per-layer all-gather rides the slowest link.
+- **You cannot read real usage off a running job**: `XLA_PYTHON_CLIENT_MEM_FRACTION=0.9`
+  preallocates ~72GB of an 80GB card regardless of need. To measure, run with
+  `XLA_PYTHON_CLIENT_PREALLOCATE=false`. Note `scripts/b1k/train_b1k.py` always builds a real
+  dataset, so a fake-data memory probe must go through `scripts/train.py`.
+
 REJECT / plan rules:
 - **Disk: need ~200GB+ free.** A single full π0.5 checkpoint is **~43GB** (12GB params + 31GB
   train_state). Orbax keeps the previous rolling checkpoint WHILE writing the next → transient

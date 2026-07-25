@@ -150,3 +150,47 @@ Then Phase A1 assembly runs on the first data box; BC retrain (+SAM A/B) follows
 - **Commit-primitive distillation** target set (contact windows identify where to teach).
 - **RL staged rewards** (`reward_shaping.json`) → Phase B, without waiting on the stage head.
 - **Cofounder alignment:** `reward_shaping.json` is the shape the stage head should output.
+
+---
+
+## 10. AS-BUILT (2026-07-25) — where reality diverged from the plan
+
+Recorded because three of these change how the Phase-A A/B must be *read*, not just how it was built.
+
+**Dataset.** 1,837 episodes / 18,837,213 frames / 24 tasks, on the 2×A100 trainer box at
+`/root/phaseA/b1k_phaseA` (94 GB). Norm stats sampled at 40k frames; both arms share them
+(`assets_phaseA/pi05_phaseA_point` on HF).
+
+**Depth is bimodal — this is NOT "200 eps/task".** Only 4 tasks reached 200 episodes
+(`picking_up_trash`, `thawing_frozen_food`, `turning_on_radio`, `attach_a_camera_to_a_tripod`
+= 800 eps). The other 20 tasks have ~50 each (1,037 eps); median is 51.5, and **20 of 24 tasks
+sit below the 100 eps/task level that is the lowest documented nonzero reference**
+(π0.5 ≈56% tabletop at 100/task). Consequences:
+- Do not describe Phase A as "30→200/task". It is 30→200 on four tasks and 30→50 on twenty.
+- **Eval must be stratified deep-vs-shallow** (`/root/phaseA/eval_strata.json`). This is a free
+  within-run dose-response on episodes/task at otherwise identical settings.
+- If success is nonzero it should concentrate on the four deep tasks. If it does *not*, depth
+  is not the binding constraint — which argues for RL over collecting more demos.
+
+**204 episodes were dropped.** The fetch produced 2,041 episodes, but 204 had data parquets
+with no video chunks (bonus episodes riding along in shared parquets). LeRobot rejects the
+whole load, surfacing as a misleading HF 401. Kept the 1,837 video-complete ones. Diagnosis
+ladder is in the `setup-training-box` skill.
+
+**Contact numbers, corrected on the final dataset.** Commit frames are **2.98%** (the 3.12%
+figure was measured on the 2,041-episode set), weighted 10.36× → **24.1% of draws**
+(empirically 24.3%). That is ~8× more contact exposure than uniform. Concretely, over the
+60k×32 = 1.92M draws of a run: the weighted arm draws ~463k commit samples against 561k
+commit frames (~0.83× coverage), the uniform arm ~57k (~0.10× coverage).
+
+**Two sampler bugs nearly voided the A/B** (both fixed, see `_patch_contact_sampler.py`):
+weights were patched into `create_torch_data_loader()` while `train_b1k.py` calls
+`create_b1k_data_loader()`, so the "weighted" arm silently trained uniform with no log line
+either way; and `WeightedRandomSampler`→`torch.multinomial` caps at 2²⁴ = 16.8M categories
+< 18.8M frames, so it would have crashed on the correct path anyway. Unusable weights now
+**raise**. The A/B is only valid if `CONTACT OVERSAMPLING ON` appears in the arm-1 log.
+
+**Gradient budget caveat.** 60k steps × 32 = 1.92M samples = **0.10 epochs** over 18.8M frames,
+and per-task budget is ~3× lower than G3 (60k/24 tasks vs 30k/4). Justified by the diversity
+power law, but it means a null result should not be read as "BC scale doesn't help" without
+noting the steps/task drop.

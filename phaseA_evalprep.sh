@@ -28,12 +28,12 @@ os.environ["HF_HUB_DISABLE_XET"] = "1"
 from huggingface_hub import hf_hub_download
 tok = open("/root/.hf_token").read().strip()
 p = hf_hub_download("arif101/behavior2026-artifacts", "code/openpi_fork_adaln_src.tar.gz",
-                    repo_type="model", token=tok, local_dir="/workspace/stage")
+                    repo_type="model", token=tok, local_dir="/root/stage")
 print(p)
 PY
-mkdir -p /workspace && tar xzf /workspace/stage/code/openpi_fork_adaln_src.tar.gz -C /workspace
-mv /workspace/openpi /workspace/openpi_adaln
-cd /workspace/openpi_adaln
+tar xzf /root/stage/code/openpi_fork_adaln_src.tar.gz -C /root
+mv /root/openpi /root/openpi_adaln
+cd /root/openpi_adaln
 sed -i "s|download-r2\.pytorch\.org|download.pytorch.org|g" uv.lock 2>/dev/null
 GIT_LFS_SKIP_SMUDGE=1 uv sync && GIT_LFS_SKIP_SMUDGE=1 uv pip install -e . && echo STAGE_FORK_OK
 
@@ -44,7 +44,7 @@ os.environ["HF_HUB_DISABLE_XET"] = "1"
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 from huggingface_hub import snapshot_download
 tok = open("/root/.hf_token").read().strip()
-snapshot_download("arif101/behavior2026-artifacts", token=tok, local_dir="/workspace/hf_restore",
+snapshot_download("arif101/behavior2026-artifacts", token=tok, local_dir="/root/hf_restore",
                   allow_patterns=[
                       "ckpts/phaseA/*/*/params/**",       # both arms, final step
                       "assets_phaseA/pi05_phaseA_point/**",
@@ -54,26 +54,26 @@ snapshot_download("arif101/behavior2026-artifacts", token=tok, local_dir="/works
                   ])
 print("STAGE_PHASEA_RESTORE_OK")
 PY
-mkdir -p /workspace/openpi_adaln/outputs/assets
-cp -r /workspace/hf_restore/assets_phaseA/* /workspace/openpi_adaln/outputs/assets/
-mkdir -p /root/phaseA_ckpts && cp -r /workspace/hf_restore/ckpts/phaseA/* /root/phaseA_ckpts/
-cp -r /workspace/hf_restore/ckpts/grounding_v06 /root/grounding_v06 2>/dev/null
-cp -r /workspace/hf_restore/g3_pipeline /root/g3_pipeline
-cp -r /workspace/hf_restore/g3_deep_labels /root/g3_deep_labels
+mkdir -p /root/openpi_adaln/outputs/assets
+cp -r /root/hf_restore/assets_phaseA/* /root/openpi_adaln/outputs/assets/
+mkdir -p /root/phaseA_ckpts && cp -r /root/hf_restore/ckpts/phaseA/* /root/phaseA_ckpts/
+cp -r /root/hf_restore/ckpts/grounding_v05 /root/grounding_v05 2>/dev/null
+cp -r /root/hf_restore/g3_pipeline /root/g3_pipeline
+cp -r /root/hf_restore/g3_deep_labels /root/g3_deep_labels
 # create_trained_policy reads <ckpt>/assets first, so mirror norm stats into each arm/step
 for arm in $ARMS; do
   for step in /root/phaseA_ckpts/$arm/*/; do
     [ -d "$step" ] || continue
     mkdir -p "$step/assets"
-    cp -r /workspace/openpi_adaln/outputs/assets/pi05_phaseA_point/* "$step/assets/" 2>/dev/null
+    cp -r /root/openpi_adaln/outputs/assets/pi05_phaseA_point/* "$step/assets/" 2>/dev/null
   done
 done
-rm -rf /workspace/hf_restore /workspace/stage
+rm -rf /root/hf_restore /root/stage
 echo STAGE_PHASEA_ARTIFACTS_OK
 
 # --- 8a. serve smoke: load EACH arm, one dummy infer ------------------------
 # Both arms must load. A silent norm-stats mismatch shows up here, not 200 episodes later.
-cd /workspace/openpi_adaln
+cd /root/openpi_adaln
 for arm in $ARMS; do
   CK=$(ls -d /root/phaseA_ckpts/$arm/*/ 2>/dev/null | sort -t/ -k5 -n | tail -1)
   [ -n "$CK" ] || { echo "STAGE_SERVE_SMOKE_FAIL missing $arm"; continue; }

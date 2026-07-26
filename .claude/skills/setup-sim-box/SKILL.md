@@ -113,6 +113,23 @@ Phase-A checkpoints + norm stats + grounding + labels, and ends with a serve smo
    - Robot config `name` must be **`robot_r1`** (eval kit), and camera obs_keys are
      **double-prefixed**: `robot_r1::robot_r1:<link>:Camera:0::rgb`. If unsure, add a one-shot
      obs-key dump in the serve handler and read the actual keys.
+     **WHERE TO FIX IT** (this is the part that bit twice): the fork ships
+     `src/openpi/configs/robots/b1k.py` with `name="robot"` and `obs_key="robot::robot:..."`,
+     while the eval kit's `omnigibson/eval/r1pro.yaml` declares `name: robot_r1`. Patch BOTH the
+     name and every obs_key prefix:
+     ```
+     sed -i 's|name="robot",|name="robot_r1",|; s|obs_key="robot::robot:|obs_key="robot_r1::robot_r1:|g' \
+       src/openpi/configs/robots/b1k.py
+     ```
+     Symptom if you miss it: the rollout connects, then the SERVER raises
+     `KeyError: 'robot::proprio'` (in `eval_b1k_wrapper.act_receding_horizon`) and the eval side
+     only shows `websockets ConnectionClosedError 1011 internal error` — the real traceback is in
+     the SERVE log, not the eval log. Restart the server after patching; it caches the config.
+     Only obs_key/name are affected — `dataset_key` is what training uses, so this is eval-only.
+   - Serve args are not obvious: `--task` is `bucket/name` (`b1k/turning_on_radio`), `--robot` is
+     the exact `ROBOT_REGISTRY` key (`b1k/R1Pro`, NOT `r1pro`), and **`--repo-id` must be passed
+     explicitly** (e.g. `b1k_phaseA`) — it defaults to `args.task`, which silently loads the wrong
+     norm stats rather than erroring.
    - Eval entry: `python -m omnigibson.eval.eval --task-name <t> --port <p> --mode public_test
      --instance-indices ... ` (mode `train` for training layouts). `--write-video` for footage.
 

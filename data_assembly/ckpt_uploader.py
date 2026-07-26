@@ -41,6 +41,17 @@ while True:
                 # which is the whole point of uploading during a 65h run.
                 if newer:
                     shutil.rmtree(s / "train_state", ignore_errors=True)
+        # Standing sweep: prune optimizer state from ANY non-newest checkpoint already on HF.
+        # Doing this only at upload time misses checkpoints that were newest when uploaded (the
+        # stale-rule path) and never revisited -- which filled the disk to 52GB free mid-run.
+        for arm_dir in sorted(p for p in ROOT.iterdir() if p.is_dir()) if ROOT.exists() else []:
+            steps = sorted([p for p in arm_dir.iterdir() if p.is_dir() and p.name.isdigit()],
+                           key=lambda p: int(p.name))
+            for s in steps[:-1]:                       # never the newest: it is the resume point
+                ts = s / "train_state"
+                if ts.exists() and f"{arm_dir.name}/{s.name}" in done:
+                    shutil.rmtree(ts, ignore_errors=True)
+                    print(f"swept train_state from {arm_dir.name}/{s.name}", flush=True)
     except Exception as e:
         print(f"uploader error (continuing): {e}", flush=True)
     time.sleep(600)

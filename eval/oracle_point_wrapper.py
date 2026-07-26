@@ -37,6 +37,7 @@ from omnigibson.utils.ui_utils import create_module_logger
 logger = create_module_logger(module_name=__name__)
 
 TASK_TARGETS = os.environ.get("B1K_TASK_TARGETS", "/root/g3_pipeline/task_targets.json")
+STATS_PATH = os.environ.get("B1K_ORACLE_STATS", "/root/oracle_wrapper_stats.json")
 EEF_LEFT = slice(17, 20)
 EEF_RIGHT = slice(42, 45)
 
@@ -58,7 +59,29 @@ class OraclePointWrapper(DefaultWrapper):
         super().__init__(env=env)
         self._robot = env.robots[0]
         self._targets = self._resolve_targets(env)
+        self._n_inject = 0
+        self._last = None
         logger.info(f"OraclePointWrapper: tracking {len(self._targets)} target object(s)")
+        # The eval kit logs nothing about wrapper instantiation and this module's logger does not
+        # reach the run log, so "did conditioning actually happen?" is otherwise unanswerable
+        # after the fact. Write it to a file instead of inferring it from behaviour.
+        self._dump()
+
+    def _dump(self):
+        try:
+            json.dump(
+                {
+                    "loaded": True,
+                    "n_targets": len(self._targets),
+                    "target_names": [getattr(o, "name", "?") for o in self._targets][:4],
+                    "n_injections": self._n_inject,
+                    "last_points": None if self._last is None else np.asarray(self._last).tolist(),
+                },
+                open(STATS_PATH, "w"),
+                indent=1,
+            )
+        except Exception:
+            pass
 
     def _resolve_targets(self, env):
         """Find the task's target objects in the scene, by category then by name substring."""
@@ -126,6 +149,10 @@ class OraclePointWrapper(DefaultWrapper):
                 msk[a] = True
             obs["target_points"] = pts
             obs["target_points_mask"] = msk
+            self._n_inject += 1
+            self._last = pts
+            if self._n_inject % 50 == 1:  # cheap: first, then every 50th
+                self._dump()
         except Exception as e:  # never take down a rollout over conditioning
             logger.warning(f"OraclePointWrapper: injection failed ({e})")
         return obs

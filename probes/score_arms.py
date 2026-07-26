@@ -75,7 +75,20 @@ def main():
     ap.add_argument("--batch-size", type=int, default=16)
     ap.add_argument("--seed", type=int, default=0, help="MUST match across arms")
     ap.add_argument("--out", default="/root/scores.json")
+    ap.add_argument(
+        "--dataset-root",
+        default=None,
+        help="override to score HELD-OUT data, e.g. /root/valA/demos (default: the training set)",
+    )
+    ap.add_argument("--repo-id", default="valA", help="repo_id to pair with --dataset-root")
+    ap.add_argument(
+        "--episodes-json",
+        default=None,
+        help="JSON list of episode indices, or a dict of stratum->list (each scored separately)",
+    )
     args = ap.parse_args()
+
+    import dataclasses
 
     from openpi.policies import policy_config as _policy_config
     from openpi.training import config as _config
@@ -83,45 +96,65 @@ def main():
 
     cfg = _config.get_config(args.config_name)
     data_cfg = cfg.data.create(cfg.assets_dirs, cfg.model)
-    dataset = dl.transform_dataset(
-        dl.create_b1k_dataset(data_cfg, cfg.model.action_horizon), data_cfg
-    )
 
-    w = _resolve_hf(dataset).data.column("sample_weight").to_numpy(zero_copy_only=False)
-    w = np.asarray(w, dtype=np.float64)
-    commit_pool = np.flatnonzero(w > 1.0)
-    ordinary_pool = np.flatnonzero(w <= 1.0)
-    print(f"pools: commit={len(commit_pool)} ordinary={len(ordinary_pool)}", flush=True)
-
-    # Seeded off --seed alone => identical frame sets for every arm.
-    rng = np.random.default_rng(args.seed)
-    n = min(args.n, len(commit_pool), len(ordinary_pool))
-    splits = {
-        "commit": rng.choice(commit_pool, n, replace=False),
-        "ordinary": rng.choice(ordinary_pool, n, replace=False),
-    }
-
+    # Held-out mode: same config (so normalization and transforms are identical to training),
+    # only the underlying episodes change. Scoring on data neither arm has seen turns this from
+    # a fit measurement into a generalization one.
+    strata = {None: None}
+    if args.dataset_root:
+        eps = json.load(open(args.episodes_json))
+        strata = eps if isinstance(eps, dict) else {"heldout": eps}
+        print(f"held-out mode: {args.dataset_root} strata={list(strata)}", flush=True)
     policy = _policy_config.create_trained_policy(cfg, args.ckpt)
     model = policy._model  # noqa: SLF001 - scoring harness reaches into internals by design
 
-    results = {"ckpt": args.ckpt, "n_per_split": int(n), "seed": args.seed}
-    for name, idx in splits.items():
-        loader = dl.DataLoaderImpl(
-            data_cfg,
-            dl.TorchDataLoader(
-                dataset,
-                local_batch_size=args.batch_size,
-                sampler=_FixedSampler(np.sort(idx)),
-                num_batches=max(1, n // args.batch_size),
-                num_workers=4,
-                seed=args.seed,
-            ),
-        )
-        results[name] = _score(model, loader, args.seed)
-        print(f"{name}: {results[name]:.5f}", flush=True)
+    results = {"ckpt": args.ckpt, "seed": args.seed, "strata": {}}
+    for stratum, eps in strata.items():
+        dc = data_cfg
+        if args.dataset_root:
+            dc = dataclasses.replace(
+                data_cfg,
+                repo_id=args.repo_id,
+                dataset_root=args.dataset_root,
+                dataset_kwargs={"tolerance_s": 5e-4, "episodes": eps},
+            )
+        dataset = dl.transform_dataset(dl.create_b1k_dataset(dc, cfg.model.action_horizon), dc)
 
-    # The headline number: negative means the checkpoint is relatively better on contact.
-    results["commit_minus_ordinary"] = results["commit"] - results["ordinary"]
+        w = np.asarray(
+            _resolve_hf(dataset).data.column("sample_weight").to_numpy(zero_copy_only=False),
+            dtype=np.float64,
+        )
+        commit_pool = np.flatnonzero(w > 1.0)
+        ordinary_pool = np.flatnonzero(w <= 1.0)
+        n = min(args.n, len(commit_pool), len(ordinary_pool))
+        label = stratum or "train"
+        print(f"[{label}] commit={len(commit_pool):,} ordinary={len(ordinary_pool):,} n={n}", flush=True)
+
+        # Seeded off --seed alone => identical frames AND identical noise for every arm.
+        rng = np.random.default_rng(args.seed)
+        splits = {
+            "commit": rng.choice(commit_pool, n, replace=False),
+            "ordinary": rng.choice(ordinary_pool, n, replace=False),
+        }
+        r = {"n_per_split": int(n)}
+        for name, idx in splits.items():
+            loader = dl.DataLoaderImpl(
+                dc,
+                dl.TorchDataLoader(
+                    dataset,
+                    local_batch_size=args.batch_size,
+                    sampler=_FixedSampler(np.sort(idx)),
+                    num_batches=max(1, n // args.batch_size),
+                    num_workers=4,
+                    seed=args.seed,
+                ),
+            )
+            r[name] = _score(model, loader, args.seed)
+            print(f"[{label}] {name}: {r[name]:.5f}", flush=True)
+        # Headline: lower means the checkpoint is relatively better on contact frames.
+        r["commit_minus_ordinary"] = r["commit"] - r["ordinary"]
+        results["strata"][label] = r
+
     json.dump(results, open(args.out, "w"), indent=1)
     print(json.dumps(results, indent=1), flush=True)
 

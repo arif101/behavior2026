@@ -45,15 +45,22 @@ class CaptureWrapper(DefaultWrapper):
         os.makedirs(OUT_DIR, exist_ok=True)
 
         # DefaultWrapper set modalities to {"rgb"} only; we need depth for back-projection.
+        # CRITICAL: the new sensor space must be written back into env.observation_space, exactly
+        # as DefaultWrapper does. Calling load_observation_space() and discarding the return value
+        # leaves the env's declared space stale, and env_base then raises
+        #   "Observation space does not match returned observations!"
+        # with MISSING (rgb) / EXTRA (depth_linear) keys -- which killed the first capture run.
         for sensor_name, sensor in self._robot.sensors.items():
             if not hasattr(sensor, "image_height"):
                 continue
             try:
                 set_sensor_modalities(sensor, {"rgb", "depth_linear"})
-                sensor.load_observation_space()
+                sensor_space = sensor.load_observation_space()
+                if env.observation_space is not None:
+                    env.observation_space.spaces[self._robot.name].spaces[sensor_name] = sensor_space
             except Exception as e:
                 logger.warning(f"CaptureWrapper: depth enable failed on {sensor_name} ({e})")
-        logger.info("CaptureWrapper: depth enabled")
+        logger.info("CaptureWrapper: depth enabled and observation space updated")
 
         self._targets = []
         try:

@@ -27,6 +27,8 @@ def main():
     ap.add_argument("--stride", type=int, default=25, help="sample every Nth frame per episode")
     ap.add_argument("--horizon", type=int, default=16)
     ap.add_argument("--out", default="/workspace/probe_data")
+    ap.add_argument("--dataset-root", default=None, help="override root (e.g. a labelled slice)")
+    ap.add_argument("--episodes-json", default=None, help="JSON list of episode indices")
     args = ap.parse_args()
 
     import os
@@ -42,6 +44,12 @@ def main():
     # Dataset: reuse the training loader path (episode_filter etc.)
     from openpi.training import data_loader as _dl
     data_cfg = cfg.data.create(cfg.assets_dirs, cfg.model)
+    if args.dataset_root:
+        import dataclasses as _dc, json as _json
+        _eps = _json.load(open(args.episodes_json)) if args.episodes_json else None
+        data_cfg = _dc.replace(data_cfg, dataset_root=args.dataset_root,
+                               dataset_kwargs={"tolerance_s": 5e-4, **({"episodes": _eps} if _eps else {})})
+        print(f"slice mode: {args.dataset_root} ({len(_eps) if _eps else 'all'} eps)", flush=True)
     dataset = _dl.create_b1k_dataset(data_cfg, cfg.model.action_horizon)
     # Training-side transform stack (mirrors create_b1k_dataloader + model transforms):
     # raw items feed labels; transformed items feed the model.

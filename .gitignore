@@ -1,7 +1,38 @@
+# openpi_fork/ is its OWN git repo (230 commits, independently versioned).
+# Keep it ignored here so it doesn't become a confusing gitlink. Note that
+# box-side edits to its configs do NOT propagate automatically — the
+# authoritative copies rescued from a rented box on 2026-07-26 live in
+# box_config_authoritative/ and still need reconciling back into it.
 openpi_fork/
-mainbox_rescue/
+
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+
+# Model weights and large binaries — these live on HF
+# (arif101/behavior2026-artifacts), never in git.
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.npz
+*.tgz
 *.tar.gz
 *.mp4
-__pycache__/
-*.pyc
-.DS_Store
+*.png
+*.jpg
+
+# Training / eval outputs
+outputs/
+checkpoints/
+wandb/
+*.log
+
+# Datasets (LeRobot conversions, raw demos, sim assets)
+data/
+demos_meta/
+b1k_datasets/
+mainbox_rescue/

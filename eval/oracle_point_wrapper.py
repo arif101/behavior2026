@@ -61,6 +61,8 @@ class OraclePointWrapper(DefaultWrapper):
         self._targets = self._resolve_targets(env)
         self._n_inject = 0
         self._last = None
+        self._obs_keys = None
+        self._src = None
         logger.info(f"OraclePointWrapper: tracking {len(self._targets)} target object(s)")
         # The eval kit logs nothing about wrapper instantiation and this module's logger does not
         # reach the run log, so "did conditioning actually happen?" is otherwise unanswerable
@@ -76,6 +78,8 @@ class OraclePointWrapper(DefaultWrapper):
                     "target_names": [getattr(o, "name", "?") for o in self._targets][:4],
                     "n_injections": self._n_inject,
                     "last_points": None if self._last is None else np.asarray(self._last).tolist(),
+                    "proprio_source": self._src,
+                    "obs_keys_seen": self._obs_keys,
                 },
                 open(STATS_PATH, "w"),
                 indent=1,
@@ -119,11 +123,28 @@ class OraclePointWrapper(DefaultWrapper):
         if not self._targets or not isinstance(obs, dict):
             return obs
         try:
-            key = f"{self._robot.name}::proprio"
-            if key not in obs:
+            # The wrapper sits BEFORE Evaluator._preprocess_obs, so obs is still NESTED:
+            # obs[robot][proprio]. The "robot_r1::proprio" spelling only exists after
+            # flatten_obs_dict runs downstream. Looking up the flattened name here silently
+            # returned early on every step -- the wrapper loaded, found the radio, and injected
+            # NOTHING (n_injections=0), which is why three "conditioned" runs were unconditioned.
+            # Injecting at top level is still correct: flatten_obs_dict leaves top-level
+            # non-dict values untouched, and _preprocess_obs only adds keys.
+            name = self._robot.name
+            prop = None
+            src = None
+            node = obs.get(name)
+            if isinstance(node, dict) and "proprio" in node:
+                prop, src = node["proprio"], "nested"
+            elif f"{name}::proprio" in obs:
+                prop, src = obs[f"{name}::proprio"], "flat"
+            if prop is None:
+                self._obs_keys = [str(k) for k in list(obs)[:12]]
+                self._dump()
                 return obs
-            prop = np.asarray(obs[key], dtype=np.float64)
-            if prop.ndim != 1 or prop.shape[0] < 45:
+            self._src = src
+            prop = np.asarray(prop, dtype=np.float64).reshape(-1)
+            if prop.shape[0] < 45:
                 return obs
 
             base_pos, base_quat = self._robot.get_position_orientation()

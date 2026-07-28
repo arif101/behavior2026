@@ -29,8 +29,12 @@ printf "int pthread_mutexattr_setprotocol(void *a, int p) { return 0; }\n" > /ro
 gcc -shared -fPIC -o /root/nopi.so /root/nopi.c && echo STAGE_NOPI_OK
 
 # --- 2. light stage-pipeline deps (system python; v3 pipeline ran on these)
-python3 -c "import torch" 2>/dev/null || pip3 install -q torch --index-url https://download.pytorch.org/whl/cu124
-pip3 install -q pandas pyarrow scipy pillow huggingface_hub && echo STAGE_PYDEPS_OK
+# Ubuntu 24.04 enforces PEP 668 -- system pip refuses to install without
+# --break-system-packages (silently skips the &&-guarded marker otherwise).
+export PIP_BREAK_SYSTEM_PACKAGES=1
+python3 -c "import torch" 2>/dev/null || pip3 install --break-system-packages -q torch torchvision --index-url https://download.pytorch.org/whl/cu124
+pip3 install --break-system-packages -q pandas pyarrow scipy pillow huggingface_hub hf_transfer \
+  && python3 -c "import torch,pandas,scipy,pyarrow,PIL" && echo STAGE_PYDEPS_OK
 
 # --- 3. conda + BEHAVIOR-1K clone ------------------------------------------
 wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/mc.sh \

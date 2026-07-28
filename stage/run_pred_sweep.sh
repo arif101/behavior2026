@@ -20,7 +20,7 @@ export LD_PRELOAD=/root/nopi.so
 export PATH=/root/miniconda3/bin:$PATH
 PY=/root/miniconda3/envs/behavior/bin/python
 SYSPY=/root/miniconda3/envs/behavior/bin/python   # conda env carries hf_hub etc. (24.04 system py has no pip)
-MANIFEST=/root/data/manifest.json
+MANIFEST="${MANIFEST:-/root/data/manifest.json}"   # override to sweep a subset
 export OMP_NUM_THREADS=16 MKL_NUM_THREADS=16
 
 # --- 1. fetch the rawdata HDF5s this manifest needs -------------------------

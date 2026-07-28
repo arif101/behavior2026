@@ -31,6 +31,8 @@ import sys
 
 import numpy as np
 
+import aabb_predicates
+
 REPLAY_OBS_DIR = os.environ.get("REPLAY_OBS_DIR",
                                 "/root/BEHAVIOR-1K/OmniGibson/scripts/learning")
 sys.path.insert(0, REPLAY_OBS_DIR)
@@ -112,25 +114,64 @@ def state_value(obj, state_name, other=None):
         return None
 
 
+def obj_aabb(o):
+    """(center[3], half_extent[3]) world AABB as numpy, or None if unavailable."""
+    try:
+        c = o.aabb_center
+        c = c.numpy() if hasattr(c, "numpy") else np.asarray(c)
+        e = o.aabb_extent
+        e = e.numpy() if hasattr(e, "numpy") else np.asarray(e)
+        return np.asarray(c, float), np.asarray(e, float) / 2.0
+    except Exception:
+        try:
+            lo, hi = o.aabb
+            lo = lo.numpy() if hasattr(lo, "numpy") else np.asarray(lo)
+            hi = hi.numpy() if hasattr(hi, "numpy") else np.asarray(hi)
+            return (lo + hi) / 2.0, (hi - lo) / 2.0
+        except Exception:
+            return None
+
+
 class LiteralEvaluator:
     """One goal literal bound to scene instances; sat() per call."""
 
     def __init__(self, spec, scene):
         self.spec = spec
+        self.pred = spec["predicate"]
+        # v4 fix: kinematic relations (ontop/inside/nextto/under/touching) via
+        # AABB geometry -- object_states returns all-zero for these under
+        # playback (they lean on contact data we don't populate). Logical/joint
+        # states (toggled_on/open/cooked/...) keep the object_states path, which
+        # works (radio ledger F1 0.95).
+        self.kinematic = aabb_predicates.is_kinematic(self.pred)
         self.state_name, self.negate, self.binary = STATE_MAP.get(
-            spec["predicate"], (None, False, True))
+            self.pred, (None, False, True))
         self.tgts = bind_instances(scene, spec.get("target_cats") or [])
         self.refs = (bind_instances(scene, spec.get("reference_cats") or [])
-                     if self.binary else [])
-        # particle-system references (covered dust / filled water) are not scene
-        # objects -- resolve them through the target's state args instead
-        self.evaluable = bool(self.state_name and self.tgts
-                              and (not self.binary or self.refs
-                                   or spec["predicate"] in ("covered", "filled",
-                                                            "saturated")))
+                     if (self.binary or self.kinematic) else [])
+        if self.kinematic:
+            self.evaluable = bool(self.tgts and self.refs)
+        else:
+            # particle-system references (covered dust / filled water) are not
+            # scene objects -- resolve them through the target's state args
+            self.evaluable = bool(self.state_name and self.tgts
+                                  and (not self.binary or self.refs
+                                       or self.pred in ("covered", "filled",
+                                                        "saturated")))
 
     def _one(self, t):
-        if not self.binary:
+        if self.kinematic:
+            ta = obj_aabb(t)
+            if ta is None:
+                return None
+            vals = []
+            for r in self.refs:
+                ra = obj_aabb(r)
+                if ra is not None:
+                    vals.append(aabb_predicates.evaluate(
+                        self.pred, ta[0], ta[1], ra[0], ra[1]))
+            v = (any(vals) if vals else None)
+        elif not self.binary:
             v = state_value(t, self.state_name)
         elif self.refs:
             vals = [state_value(t, self.state_name, r) for r in self.refs]
@@ -228,7 +269,8 @@ def run_episode(task, file_idx, task_id, demo_id, lits_spec, args):
     for j, ev in enumerate(evals):
         print(f"LIT {j} {ev.spec['predicate']}({ev.spec['target']}"
               f"{',' + ev.spec['reference'] if ev.spec.get('reference') else ''}) "
-              f"tgts={len(ev.tgts)} refs={len(ev.refs)} evaluable={ev.evaluable}",
+              f"tgts={len(ev.tgts)} refs={len(ev.refs)} evaluable={ev.evaluable} "
+              f"method={'aabb' if ev.kinematic else 'object_states'}",
               flush=True)
 
     # label objects for the extractor pass: union of literal instances,

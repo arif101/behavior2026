@@ -86,6 +86,84 @@ def main():
 
     if not a.parquet_root:
         print("\n(no --parquet_root given: dead-reckoning comparison skipped)")
+        return
+
+    # ---- the half that was previously a stub -------------------------------
+    # WHY TWO HYPOTHESES: robot.py:1601 returns base_qvel as JOINT velocities, not a body twist.
+    # For a holonomic 3-DoF base the x/y/yaw joint velocities could be expressed either in the
+    # BODY frame (needs rotating by yaw before integrating) or already in the WORLD frame (integrate
+    # directly). Guessing wrong yields a trajectory that is wrong by exactly a rotation, which is
+    # what produced the unresolved 42-52% command-vs-achieved disagreement. Ground truth now
+    # arbitrates: whichever hypothesis tracks truth IS the convention.
+    import pyarrow.parquet as pq
+
+    ep_meta = sorted(glob.glob(os.path.join(a.parquet_root, "meta/episodes/**/*.parquet"), recursive=True))
+    if not ep_meta:
+        print(f"no episode metadata under {a.parquet_root}/meta/episodes")
+        return
+    meta = pq.read_table(ep_meta[0]).to_pandas()
+    # demo_id (pose filename) <-> episode_index (parquet row block)
+    raw_col = "raw_episode_id" if "raw_episode_id" in meta.columns else None
+    if raw_col is None:
+        print("episode metadata has no raw_episode_id; cannot map poses to parquet")
+        return
+    demo2ep = {int(r[raw_col]): int(r["episode_index"]) for _, r in meta.iterrows()}
+
+    data_files = sorted(glob.glob(os.path.join(a.parquet_root, "data/**/*.parquet"), recursive=True))
+    tbl = pq.read_table(data_files, columns=["observation.state", "episode_index"]).to_pandas()
+
+    rows = []
+    for f in files:
+        d = json.load(open(f))
+        demo = int(d["demo_id"])
+        if demo not in demo2ep:
+            continue
+        sub = tbl[tbl["episode_index"] == demo2ep[demo]]
+        if not len(sub):
+            continue
+        state = np.stack(sub["observation.state"].to_numpy())
+        vel = state[:, 0:3].astype(np.float64)          # b1k.py R1Pro: dims 0:3 = base_qvel
+
+        F = d["frames"]
+        B = np.array([fr["base_pos"] for fr in F])[:, :2]
+        yaw0 = quat_to_yaw(np.array(F[0]["base_quat"], dtype=float))
+        n = min(len(B) - 1, len(vel))
+        if n < 30:
+            continue
+        truth = B[: n + 1] - B[0]
+
+        body = integrate(vel[:n], yaw0, a.dt)                       # hypothesis A: body frame
+        world = np.cumsum(np.vstack([[0, 0], vel[:n, :2] * a.dt]), 0)  # hypothesis B: world frame
+        rows.append((
+            demo, n,
+            float(np.linalg.norm(truth[-1])),
+            float(np.linalg.norm(body[-1] - truth[-1])),
+            float(np.linalg.norm(world[-1] - truth[-1])),
+            float(np.abs(np.linalg.norm(body - truth, axis=1)).max()),
+            float(np.abs(np.linalg.norm(world - truth, axis=1)).max()),
+        ))
+
+    if not rows:
+        print("\nno episodes could be joined to the parquet")
+        return
+
+    # R columns, in the order appended above:
+    #   0 true net displacement | 1 body final | 2 world final | 3 body max | 4 world max
+    R = np.array([r[2:] for r in rows], dtype=float)
+    COLS = {"BODY": (1, 3), "WORLD": (2, 4)}
+    print(f"\ndead reckoning vs truth over {len(rows)} episodes (dt={a.dt}):")
+    print(f"{'':<22}{'final drift':>13}{'max drift':>12}")
+    for name, (fi, mi) in COLS.items():
+        print(f"  {name+'-frame integ.':<20} {np.median(R[:, fi]):>10.3f} m {np.median(R[:, mi]):>10.3f} m")
+    print(f"  (true net displacement median {np.median(R[:, 0]):.3f} m)")
+
+    best_name = min(COLS, key=lambda k: np.median(R[:, COLS[k][0]]))
+    drift = float(np.median(R[:, COLS[best_name][0]]))
+    print(f"\nbest hypothesis: {best_name}-frame, median final drift {drift:.3f} m")
+    verdict = ("velocity integration SUFFICES for the map" if drift < 0.05 else
+               "needs periodic relocalisation against the map" if drift < 0.20 else
+               "FULL VISUAL ODOMETRY + loop closure required -- dead reckoning is not viable")
+    print(f"VERDICT: {verdict}")
 
 
 if __name__ == "__main__":

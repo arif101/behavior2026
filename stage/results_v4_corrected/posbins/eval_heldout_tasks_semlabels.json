@@ -1,0 +1,22 @@
+{
+ "putting_away_toys": {
+  "stage_acc": 0.1903,
+  "boundary_median_frames": 26.0,
+  "boundary_recall": 0.484,
+  "ledger_f1": 0.5692,
+  "progress_mae": 0.2494,
+  "monotonicity_violation_rate": 0.0609,
+  "entropy_boundary": 0.3773,
+  "entropy_midsegment": 0.3341
+ },
+ "tidying_living_room": {
+  "stage_acc": 0.1313,
+  "boundary_median_frames": 26.0,
+  "boundary_recall": 0.3438,
+  "ledger_f1": 0.2396,
+  "progress_mae": 0.2545,
+  "monotonicity_violation_rate": 0.0297,
+  "entropy_boundary": 0.4004,
+  "entropy_midsegment": 0.4045
+ }
+}

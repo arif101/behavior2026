@@ -166,6 +166,10 @@ class LiteralEvaluator:
                 return None
             vals = []
             for r in self.refs:
+                if r is t:
+                    continue          # never compare an object to itself:
+                                      # same-category literals (nextto(sandal,
+                                      # sandal)) are trivially True otherwise
                 ra = obj_aabb(r)
                 if ra is not None:
                     vals.append(aabb_predicates.evaluate(

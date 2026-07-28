@@ -104,6 +104,18 @@ def main():
         print(f"fetching {len(vids)} video shards (~32 GB)…")
         fetch(vids, a.src, tok)
 
+    # episode_index -> demo_id. NOT demo_id = 10*(episode_index+1): radio's demo_ids are SPARSE
+    # (10, 20, ... 3000 with gaps), while episode_index is dense. Assuming a dense mapping joined
+    # only 9 of 200 episodes with frame skews from -2766 to +2544 — i.e. it was pairing unrelated
+    # episodes. The correct mapping is positional: the k-th radio episode_index corresponds to the
+    # k-th radio demo_id, both in sorted order.
+    ep_idx_sorted = sorted(int(x) for x in task_eps["episode_index"].unique())
+    demo_sorted = sorted(have)
+    if len(ep_idx_sorted) != len(demo_sorted):
+        print(f"  NOTE: {len(ep_idx_sorted)} episodes in meta vs {len(demo_sorted)} replayed; "
+              f"pairing the first {min(len(ep_idx_sorted), len(demo_sorted))}")
+    idx2demo = dict(zip(ep_idx_sorted, demo_sorted))
+
     os.makedirs(a.out, exist_ok=True)
     report = {"episodes": [], "dropped": [], "skew": {}}
     n_frames = n_masked = 0
@@ -117,7 +129,9 @@ def main():
         for e in sorted(df["episode_index"].unique()):
             sel = df["episode_index"].values == e
             n_par = int(sel.sum())
-            demo = int(e) * 10 + 10          # episode_index k -> demo_id 10*(k+1)
+            demo = idx2demo.get(int(e))
+            if demo is None:
+                continue          # episode_index not part of this task
             key = f"ep{demo}_pts"
             if key not in pts:
                 report["dropped"].append({"episode": int(e), "why": "no replayed points"})

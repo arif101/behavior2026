@@ -19,12 +19,11 @@ export VK_DRIVER_FILES=/etc/vulkan/icd.d/nvidia_icd.json
 export LD_PRELOAD=/root/nopi.so
 export PATH=/root/miniconda3/bin:$PATH
 PY=/root/miniconda3/envs/behavior/bin/python
-SYSPY=/usr/bin/python3   # miniconda shadows python3; hf deps live in system python
+SYSPY=/root/miniconda3/envs/behavior/bin/python   # conda env carries hf_hub etc. (24.04 system py has no pip)
 MANIFEST=/root/data/manifest.json
 export OMP_NUM_THREADS=16 MKL_NUM_THREADS=16
 
 # --- 1. fetch the rawdata HDF5s this manifest needs -------------------------
-/usr/bin/pip3 install -q hf_transfer 2>/dev/null
 $SYSPY - <<'EOF'
 import json, os, re
 os.environ["HF_HUB_DISABLE_XET"] = "1"

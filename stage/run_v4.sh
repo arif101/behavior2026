@@ -6,6 +6,10 @@
 # Run detached:  setsid nohup bash run_v4.sh > /root/run_v4.log 2>&1 < /dev/null &
 set -euo pipefail
 cd /root/stage
+# Run the whole pipeline through the conda behavior env: it has torch+CUDA,
+# pandas, pyarrow, scipy, PIL, hf_hub. On Ubuntu 24.04 system python3 has no
+# pip and no deps (PEP 668), so `python3` must resolve to conda python here.
+export PATH=/root/miniconda3/envs/behavior/bin:$PATH
 export B2026_CACHE=/root/cache_v4
 export B2026_TASK_TARGETS=/root/task_targets.json
 export B2026_TASK_LITERALS=/root/task_literals.json

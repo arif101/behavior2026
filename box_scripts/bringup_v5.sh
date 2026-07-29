@@ -12,7 +12,8 @@
 # Carries FIXES 1-6 from bringup_v4 (all still required):
 #   1. apt-get update BEFORE install, else every package fails silently.
 #   2. unzip is needed for the asset zips.
-#   3. NO aria2 — authenticated hf_transfer ~700 MB/s vs anonymous aria2 138 KiB/s.
+#   3. NO aria2 — HF throttles ANONYMOUS traffic to ~138 KiB/s; authenticate instead. (The old
+#      "~700 MB/s via hf_transfer" figure is superseded by FIX 11 below — that mechanism is gone.)
 #   4. Robot assets must live in datasets/omnigibson-robot-assets/ (VERSION is read from there).
 #   5. omnigibson.key must be downloaded — assets are encrypted and Isaac SEGFAULTS without it.
 #   6. Task instances go in TWO places: merged into behavior-1k-assets/ AND standalone.
@@ -32,9 +33,18 @@
 #  10. Blackwell is sm_120 and needs CUDA >= 12.8. The cu128 wheels below are already correct;
 #      do NOT downgrade them. Verified: Isaac's bundled torch is 2.7.0+cu128 with sm_120 and
 #      compute_120 in its arch list.
+#  11. HF TRANSFER, MEASURED 2026-07-28 ON THIS BOX — this is worth ~1 hour per bring-up.
+#      v4 carried `HF_HUB_DISABLE_XET=1` plus HF_HUB_ENABLE_HF_TRANSFER. On huggingface_hub >= 1.x
+#      the hf_transfer flag is DEPRECATED AND IGNORED (it emits a FutureWarning and does nothing),
+#      so disabling Xet leaves you on plain unaccelerated HTTP. Measured on the same box, same
+#      link, same session:
+#          HF_HUB_DISABLE_XET=1 + hf_transfer   ->   8.2 MB/s   (31.5 GB assets ~ 1 hour)
+#          HF_XET_HIGH_PERFORMANCE=1, Xet on    -> ~390 MB/s    (12.4 GB checkpoint in 32 s)
+#      ~48x. Do NOT disable Xet. Note this CORRECTS the banked "authenticated hf_transfer
+#      ~700 MB/s" note, whose mechanism no longer exists on hub >= 1.x.
 set -x
 export DEBIAN_FRONTEND=noninteractive
-export HF_HUB_DISABLE_XET=1
+export HF_XET_HIGH_PERFORMANCE=1                   # FIX 11 — was HF_HUB_DISABLE_XET=1, ~48x slower
 export OMNI_KIT_ALLOW_ROOT=1                       # FIX 7
 W=/root/bw                                          # FIX 8: 200 GB local root, no MooseFS
 mkdir -p $W
@@ -75,11 +85,11 @@ cd $W/BEHAVIOR-1K
 PY=/root/miniconda3/envs/behavior/bin/python
 $PY -m pip install -q hf_transfer && echo STAGE_HFTRANSFER_OK
 
-# --- 4. assets via authenticated hf_transfer (FIX 3) ----------------------
+# --- 4. assets via authenticated Xet transfer (FIX 3 + FIX 11) ------------
 mkdir -p $W/zips
 cat > /root/_fetch.py <<'PY'
 import os
-os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+os.environ["HF_XET_HIGH_PERFORMANCE"] = "1"   # FIX 11: hf_transfer is a no-op on hub>=1.x
 from huggingface_hub import hf_hub_download
 tok = open("/root/.hf_token").read().strip()
 for f in ["omnigibson-robot-assets-3.8.2.zip", "behavior-1k-assets-3.9.0.zip",

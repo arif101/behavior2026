@@ -28,8 +28,10 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
 FX, FY, CX, CY = 238.9, 315.8, 364.7, 356.2   # zed @ 720
-IN = 518                                       # 37 * 14
-P = 37
+import os as _os
+IN = int(_os.environ.get("AFF_RES", 518))      # must be a multiple of 14
+P = IN // 14
+OUT = _os.environ.get("AFF_OUT", "/root/aff_out")
 IMNET_M = np.array([0.485, 0.456, 0.406], np.float32)
 IMNET_S = np.array([0.229, 0.224, 0.225], np.float32)
 
@@ -54,8 +56,9 @@ class AffDataset(Dataset):
         x = np.asarray(img, np.float32) / 255.0
         x = (x - IMNET_M) / IMNET_S
         u, v, z, vis = r[1] * IN / 720.0, r[2] * IN / 720.0, r[3], r[4]
+        gap = r[22] if len(r) > 22 else 99.0     # z_label - surface depth (relabel pass)
         return (torch.from_numpy(x.transpose(2, 0, 1)),
-                torch.tensor([u, v, z, vis], dtype=torch.float32),
+                torch.tensor([u, v, z, vis, gap], dtype=torch.float32),
                 torch.tensor([d, t], dtype=torch.int64))
 
 
@@ -66,6 +69,7 @@ class AffHead(nn.Module):
                                    nn.Conv2d(256, 256, 3, padding=1), nn.GELU())
         self.heat = nn.Conv2d(256, 1, 1)
         self.off = nn.Conv2d(256, 2, 1)
+        self.dz = nn.Conv2d(256, 1, 1)           # label-depth minus surface-depth, per patch
         self.conf = nn.Sequential(nn.Linear(256, 64), nn.GELU(), nn.Linear(64, 1))
 
     def forward(self, feats):                  # (B, P*P, dim)
@@ -74,11 +78,12 @@ class AffHead(nn.Module):
         h = self.trunk(f)
         return (self.heat(h).reshape(B, -1),   # (B, P*P) logits
                 self.off(h),                   # (B, 2, P, P) sub-patch offsets in [0,1] units
+                self.dz(h),                    # (B, 1, P, P) depth correction (m)
                 self.conf(h.mean((2, 3))).squeeze(-1))
 
 
-def losses(heat, off, conf, lab):
-    u, v, vis = lab[:, 0], lab[:, 1], lab[:, 3]
+def losses(heat, off, dz, conf, lab):
+    u, v, vis, gap = lab[:, 0], lab[:, 1], lab[:, 3], lab[:, 4]
     pu, pv = (u / 14).long().clamp(0, P - 1), (v / 14).long().clamp(0, P - 1)
     tgt = pv * P + pu
     m = vis > 0.5
@@ -88,10 +93,13 @@ def losses(heat, off, conf, lab):
         po = off[b, :, pv[m], pu[m]]
         frac = torch.stack([(u[m] / 14 - pu[m].float()), (v[m] / 14 - pv[m].float())], 1)
         l_off = F.l1_loss(torch.sigmoid(po), frac)
+        pd = dz[b, 0, pv[m], pu[m]]
+        l_dz = F.l1_loss(pd, gap[m])
     else:
         l_off = off.sum() * 0
+        l_dz = dz.sum() * 0
     l_conf = F.binary_cross_entropy_with_logits(conf, vis)
-    return l_heat, l_off, l_conf
+    return l_heat, l_off, l_dz, l_conf
 
 
 @torch.no_grad()
@@ -103,12 +111,13 @@ def evaluate(dino, head, loader, dev, dump_dir=None):
     for x, lab, ids in loader:
         x = x.to(dev, non_blocking=True)
         feats = dino.forward_features(x)["x_norm_patchtokens"]
-        heat, off, conf = head(feats)
+        heat, off, dz, conf = head(feats)
         prob = heat.softmax(-1)
         idx = prob.argmax(-1)
         pu, pv = (idx % P), (idx // P)
         b = torch.arange(len(idx), device=dev)
         frac = torch.sigmoid(off[b, :, pv, pu])
+        dzp = dz[b, 0, pv, pu]
         u518 = (pu.float() + frac[:, 0]) * 14
         v518 = (pv.float() + frac[:, 1]) * 14
         u720, v720 = u518 * 720 / IN, v518 * 720 / IN
@@ -124,9 +133,10 @@ def evaluate(dino, head, loader, dev, dump_dir=None):
             meas = dep[min(int(vv / 4), 179), min(int(uu / 4), 179)]
             if not np.isfinite(meas) or meas < 0.05:
                 continue
-            xc = (uu - CX) / FX * meas
-            yc = (vv - CY) / FY * meas
-            p_pred_cam = np.array([xc, -yc, -meas])
+            zp = meas + float(dzp[k])            # surface depth + learned interior correction
+            xc = (uu - CX) / FX * zp
+            yc = (vv - CY) / FY * zp
+            p_pred_cam = np.array([xc, -yc, -zp])
             zl = float(lab[k, 2])
             ul, vl = float(lab[k, 0]) * 720 / IN, float(lab[k, 1]) * 720 / IN
             p_lab_cam = np.array([(ul - CX) / FX * zl, -(vl - CY) / FY * zl, -zl])
@@ -193,26 +203,26 @@ def main():
             with torch.autocast("cuda", torch.bfloat16):
                 with torch.no_grad():
                     feats = dino.forward_features(x)["x_norm_patchtokens"]
-                heat, off, conf = head(feats)
-                lh, lo, lc = losses(heat, off, conf, lab)
-                loss = lh + lo + 0.5 * lc
+                heat, off, dz, conf = head(feats)
+                lh, lo, ld, lc = losses(heat, off, dz, conf, lab)
+                loss = lh + lo + 2.0 * ld + 0.5 * lc
             opt.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
             scaler.step(opt)
             scaler.update()
             if step % 100 == 0:
                 print(f"ep{ep} step{step} heat={lh.item():.3f} off={lo.item():.3f} "
-                      f"conf={lc.item():.3f}", flush=True)
+                      f"dz={ld.item():.3f} conf={lc.item():.3f}", flush=True)
             step += 1
         import os
-        os.makedirs("/root/aff_out/preds", exist_ok=True)
+        os.makedirs(f"{OUT}/preds", exist_ok=True)
         metrics = evaluate(dino, head, dl_ev, dev,
-                           dump_dir="/root/aff_out/preds" if ep == a.epochs - 1 else None)
+                           dump_dir=f"{OUT}/preds" if ep == a.epochs - 1 else None)
         print(f"EVAL epoch {ep}: {json.dumps(metrics)}", flush=True)
-        torch.save(head.state_dict(), "/root/aff_out/aff_head.pt")
-    with open("/root/aff_out/metrics.json", "w") as f:
+        torch.save(head.state_dict(), f"{OUT}/aff_head.pt")
+    with open(f"{OUT}/metrics.json", "w") as f:
         json.dump(metrics, f, indent=1)
-    print("DONE -> /root/aff_out/")
+    print(f"DONE -> {OUT}/")
 
 
 if __name__ == "__main__":

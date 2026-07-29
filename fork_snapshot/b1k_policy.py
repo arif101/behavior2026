@@ -135,6 +135,10 @@ class B1KInputs(transforms.DataTransformFn):
                 _key = "map_tokens_blind" if np.random.random() < self.map_blind_prob else "map_tokens_full"
                 inputs["map_tokens"] = np.asarray(data[_key], np.float32).reshape(
                     self.map_tokens_k, -1)
+            if data.get("stage") is not None:
+                inputs["stage"] = np.int32(np.asarray(data["stage"]).reshape(-1)[0])
+            if data.get("aux_pixels") is not None:
+                inputs["aux_pixels"] = np.asarray(data["aux_pixels"], np.float32).reshape(9)
         if self.stage_conditioning:
             if data.get("stage_tokens") is not None:
                 stage_tokens = np.asarray(data["stage_tokens"], dtype=np.int32).reshape(n_arms)

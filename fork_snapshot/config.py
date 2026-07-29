@@ -472,6 +472,8 @@ class LeRobotB1KDataConfig(DataConfigFactory):
         if map_tokens_k > 0:
             repack_mapping["map_tokens_full"] = "map_tokens_full"
             repack_mapping["map_tokens_blind"] = "map_tokens_blind"
+            repack_mapping["stage"] = "stage"
+            repack_mapping["aux_pixels"] = "aux_pixels"
 
         repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(repack_mapping)])
 

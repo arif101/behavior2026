@@ -43,7 +43,9 @@ print("PASS k8 aux params exist")
 obs = cfg.fake_obs()
 tok = jnp.ones((1, 8, 72), jnp.float32)
 tp = jnp.ones((1, 2, 3), jnp.float32) * 0.5
-kw = {"map_tokens": tok, "target_points": tp}
+kw = {"map_tokens": tok, "target_points": tp,
+      "stage": jnp.array([2], jnp.int32),
+      "aux_pixels": jnp.array([[0.5, 0.5, 1.0, 0.2, 0.3, 1.0, 0.0, 0.0, 0.0]], jnp.float32)}
 if hasattr(obs, "target_points_mask"):
     kw["target_points_mask"] = jnp.ones((1, 2), bool)
 obs_full = dataclasses.replace(obs, **kw)
@@ -58,6 +60,12 @@ l_blind = m.compute_loss(jax.random.key(7), dataclasses.replace(obs_full, map_to
                          train=False)
 assert not jnp.array_equal(l_full, l_blind), "blind gating must change the aux contribution"
 print("PASS blind-stream gating changes loss:", float(l_full.mean()) - float(l_blind.mean()))
+
+l_nostage = m.compute_loss(jax.random.key(7),
+                           dataclasses.replace(obs_full, stage=None, aux_pixels=None), acts,
+                           train=False)
+assert not jnp.array_equal(l_full, l_nostage), "stage/heat aux must contribute when labels present"
+print("PASS stage+heat aux contribute:", float(l_full.mean()) - float(l_nostage.mean()))
 
 m.aux_img_head_out.kernel.value = m.aux_img_head_out.kernel.value + 3.0
 l_scaled = m.compute_loss(jax.random.key(7), obs_full, acts, train=False)

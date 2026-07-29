@@ -113,6 +113,9 @@ class Pi0(_model.BaseModel):
             self.aux_map_head_out = nnx.Linear(64, 6, rngs=rngs)
             self.aux_img_head_in = nnx.Linear(paligemma_config.width, 64, rngs=rngs)
             self.aux_img_head_out = nnx.Linear(64, 6, rngs=rngs)
+            self.aux_stage_in = nnx.Linear(paligemma_config.width, 64, rngs=rngs)
+            self.aux_stage_out = nnx.Linear(64, 4, rngs=rngs)
+            self.aux_heat = nnx.Linear(paligemma_config.width, 1, rngs=rngs)
 
         self.action_out_proj = nnx.Linear(action_expert_config.width, config.action_dim, rngs=rngs)
 
@@ -336,6 +339,31 @@ class Pi0(_model.BaseModel):
             e_map = (jnp.abs(pred_map.astype(jnp.float32) - tp) * w).mean(-1) * not_blind
             e_img = (jnp.abs(pred_img.astype(jnp.float32) - tp) * w).mean(-1)
             loss = loss + (0.1 * (e_map + e_img)).astype(loss.dtype)[:, None]
+            # aux-v2 (patch_aux_v2.py): stage CE + per-camera patch-heatmap CE
+            if observation.stage is not None:
+                sl = self.aux_stage_out(nnx.swish(self.aux_stage_in(
+                    prefix_out[:, : 3 * 256, :].mean(axis=1)))).astype(jnp.float32)
+                lse = jax.nn.log_softmax(sl, axis=-1)
+                st = jnp.clip(observation.stage.reshape(-1), 0, 3)
+                e_stage = -jnp.take_along_axis(lse, st[:, None], axis=-1)[:, 0]
+                loss = loss + (0.05 * e_stage).astype(loss.dtype)[:, None]
+            if observation.aux_pixels is not None:
+                ap = observation.aux_pixels.astype(jnp.float32)
+                e_heat = 0.0
+                n_vis = 0.0
+                for ci in range(3):  # camera order: base_0(head), left wrist, right wrist
+                    logits = self.aux_heat(prefix_out[:, ci * 256 : (ci + 1) * 256, :])
+                    logits = logits[..., 0].astype(jnp.float32)
+                    u, v, vis = ap[:, 3 * ci], ap[:, 3 * ci + 1], ap[:, 3 * ci + 2]
+                    pu = jnp.clip((u * 16).astype(jnp.int32), 0, 15)
+                    pv = jnp.clip((v * 16).astype(jnp.int32), 0, 15)
+                    tgt = pv * 16 + pu
+                    lsm = jax.nn.log_softmax(logits, axis=-1)
+                    ce = -jnp.take_along_axis(lsm, tgt[:, None], axis=-1)[:, 0]
+                    e_heat = e_heat + ce * vis
+                    n_vis = n_vis + vis
+                e_heat = e_heat / jnp.maximum(n_vis, 1.0)
+                loss = loss + (0.1 * e_heat).astype(loss.dtype)[:, None]
         return loss
 
     @override

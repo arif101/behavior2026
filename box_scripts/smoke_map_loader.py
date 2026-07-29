@@ -37,6 +37,12 @@ assert mt.shape == (B, 8, 72), mt.shape
 
 tp = np.asarray(obs.target_points) if getattr(obs, "target_points", None) is not None else None
 print("target_points:", None if tp is None else tp.shape)
+st = getattr(obs, "stage", None)
+ap = getattr(obs, "aux_pixels", None)
+assert st is not None and ap is not None, "stage/aux_pixels must flow through the loader"
+st, ap = np.asarray(st), np.asarray(ap)
+assert st.min() >= 0 and st.max() <= 3 and ap.shape[-1] == 9
+print("stage:", st.tolist(), "| aux_pixels head-vis:", ap[:, 2].tolist())
 
 full = np.load("/root/map_tokens/ep10.npz")["tokens_full"].astype(np.float32)
 blind = np.load("/root/map_tokens/ep10.npz")["tokens_notarget"].astype(np.float32)

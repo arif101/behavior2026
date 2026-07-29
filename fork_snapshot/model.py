@@ -116,6 +116,9 @@ class Observation(Generic[ArrayT]):
 
     # FOVEATED MEMORY: map soft-token features (K, D) from FoveatedMap.query().
     map_tokens: at.Float[ArrayT, "*b k d"] | None = None
+    # Aux-v2 labels: 4-way stage id + [head_u,v,vis, wl_u,v,vis, wr_u,v,vis] (normalized).
+    stage: at.Int[ArrayT, "*b"] | None = None
+    aux_pixels: at.Float[ArrayT, "*b 9"] | None = None
 
     @classmethod
     def from_dict(cls, data: at.PyTree[ArrayT]) -> "Observation[ArrayT]":
@@ -144,6 +147,8 @@ class Observation(Generic[ArrayT]):
             token_ar_mask=data.get("token_ar_mask"),
             token_loss_mask=data.get("token_loss_mask"),
             map_tokens=data.get("map_tokens"),
+            stage=data.get("stage"),
+            aux_pixels=data.get("aux_pixels"),
         )
 
     def to_dict(self) -> at.PyTree[ArrayT]:
@@ -227,6 +232,8 @@ def preprocess_observation(
         token_ar_mask=observation.token_ar_mask,
         token_loss_mask=observation.token_loss_mask,
         map_tokens=observation.map_tokens,
+        stage=observation.stage,
+        aux_pixels=observation.aux_pixels,
     )
 
 

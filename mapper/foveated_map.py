@@ -43,17 +43,29 @@ def q2r(q):
     ])
 
 
-class MapFrame:
-    """One observation: head RGB-D + poses. Intrinsics at the SUPPLIED resolution."""
+class CamView:
+    """One posed RGB-D view. Any camera; N-camera fusion is just a list of these."""
 
-    def __init__(self, rgb, depth, cam_pose_world, base_pose_world, wrist_poses_world,
-                 intrinsics, frame_idx):
+    def __init__(self, rgb, depth, cam_pose_world, intrinsics, stride=4, d_max=7.0):
         self.rgb = rgb                      # (H,W,3) uint8
         self.depth = depth                  # (H,W) float32 meters
         self.cam_pose_world = cam_pose_world
+        self.intrinsics = intrinsics        # (fx, fy, cx, cy) at THIS resolution
+        self.stride = stride
+        self.d_max = d_max
+
+
+class MapFrame:
+    """One time step: a LIST of posed views (head + wrists + future cams) + robot poses.
+
+    views[0] is the PRIMARY (head) view — it drives see-through carving. Wrist views are
+    near-field sources (tight d_max): they contribute exactly where the head is occluded by
+    the robot's own arms — the contact-range picture."""
+
+    def __init__(self, views, base_pose_world, wrist_poses_world, frame_idx):
+        self.views = views                  # list[CamView]
         self.base_pose_world = base_pose_world
         self.wrist_poses_world = wrist_poses_world  # {"left": (7,), "right": (7,)}
-        self.intrinsics = intrinsics        # (fx, fy, cx, cy)
         self.frame_idx = frame_idx
 
 
@@ -109,7 +121,15 @@ class FoveatedMap:
             self.l0_origin = np.array([bp[0] - self.L0_HALF_XY, bp[1] - self.L0_HALF_XY, 0.0])
 
         t0 = tick()
-        pts, cols, cam_R, cam_t, d_cam = self._unproject(fr)
+        P, C, D = [], [], []
+        for view in fr.views:
+            p_, c_, d_ = self._unproject(view)
+            P.append(p_)
+            C.append(c_)
+            D.append(d_)
+        pts = np.concatenate(P)
+        cols = np.concatenate(C)
+        d_cam = np.concatenate(D)
         self.prof["unproject"] = tick() - t0
         t0 = tick()
         self._scroll_l1(fr.base_pose_world[:3])
@@ -120,7 +140,7 @@ class FoveatedMap:
         self.prof["write"] = tick() - t0
         t0 = tick()
         if self.t % 2 == 0:
-            self._carve(fr, cam_R, cam_t)
+            self._carve(fr.views[0])           # head view drives carving
         self.prof["carve"] = tick() - t0
         t0 = tick()
         close = d_cam < 1.5
@@ -147,24 +167,25 @@ class FoveatedMap:
 
     _GRID_CACHE = {}
 
-    def _unproject(self, fr):
-        fx, fy, cx, cy = fr.intrinsics
-        d = fr.depth[::self.STRIDE, ::self.STRIDE]
+    def _unproject(self, view):
+        fx, fy, cx, cy = view.intrinsics
+        st = view.stride
+        d = view.depth[::st, ::st]
         H, W = d.shape
-        if (H, W) not in self._GRID_CACHE:
+        key = (H, W, st)
+        if key not in self._GRID_CACHE:
             vv, uu = np.mgrid[:H, :W]
-            self._GRID_CACHE[(H, W)] = (uu * self.STRIDE, vv * self.STRIDE)
-        u, v = self._GRID_CACHE[(H, W)]
-        ok = np.isfinite(d) & (d > 0.05) & (d < self.D_MAX)
+            self._GRID_CACHE[key] = (uu * st, vv * st)
+        u, v = self._GRID_CACHE[key]
+        ok = np.isfinite(d) & (d > 0.05) & (d < view.d_max)
         d, u, v = d[ok], u[ok], v[ok]
         xc = (u - cx) / fx * d
         yc = (v - cy) / fy * d
         p_cam = np.stack([xc, -yc, -d], 1)               # USD: -Z forward, +Y up
-        cam_R = q2r(fr.cam_pose_world[3:7])
-        cam_t = fr.cam_pose_world[:3]
-        pts = p_cam @ cam_R.T + cam_t
-        cols = fr.rgb[::self.STRIDE, ::self.STRIDE].reshape(-1, 3)[ok.ravel()].astype(np.float32)
-        return pts, cols, cam_R, cam_t, d
+        cam_R = q2r(view.cam_pose_world[3:7])
+        pts = p_cam @ cam_R.T + view.cam_pose_world[:3]
+        cols = view.rgb[::st, ::st].reshape(-1, 3)[ok.ravel()].astype(np.float32)
+        return pts, cols, d
 
     def _write_level(self, pts, cols, lvl, origin, res, shape):
         occ = getattr(self, f"{lvl}_occ")
@@ -185,10 +206,12 @@ class FoveatedMap:
         rf[uf] = (1 - self.EMA) * rf[uf] + self.EMA * cmean
         sf[uf] = self.t
 
-    def _carve(self, fr, cam_R, cam_t):
+    def _carve(self, view):
         """Decay occupancy of cells we can currently see THROUGH (object moved away)."""
-        fx, fy, cx, cy = fr.intrinsics
-        H, W = fr.depth.shape
+        fx, fy, cx, cy = view.intrinsics
+        cam_R = q2r(view.cam_pose_world[3:7])
+        cam_t = view.cam_pose_world[:3]
+        H, W = view.depth.shape
         for lvl, origin, res, shape in (("l0", self.l0_origin, self.L0_RES, self._l0_shape),
                                         ("l1", self._l1_origin_world(), self.L1_RES, self._l1_shape)):
             occ = getattr(self, f"{lvl}_occ")
@@ -206,7 +229,7 @@ class FoveatedMap:
             ok &= (u >= 0) & (u < W) & (v >= 0) & (v < H)
             if not ok.any():
                 continue
-            meas = fr.depth[v[ok].astype(int), u[ok].astype(int)]
+            meas = view.depth[v[ok].astype(int), u[ok].astype(int)]
             through = np.isfinite(meas) & (d[ok] < meas - 2 * res)
             sel = cells[ok][through]
             occ[sel[:, 0], sel[:, 1], sel[:, 2]] *= self.CARVE

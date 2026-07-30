@@ -21,12 +21,18 @@ import numpy as np
 
 import sys
 sys.path.insert(0, "/root")
-from foveated_map import FoveatedMap, MapFrame, q2r  # noqa: E402
+from foveated_map import CamView, FoveatedMap, MapFrame, q2r  # noqa: E402
 
 ROOT = "/root/b1k_radio2"
 FX, FY, CX, CY = 238.9, 315.8, 364.7, 356.2  # zed @ 720
+WFX = WFY = 874.494                          # realsense @ 1080 (extract_intrinsics.py)
+WCX = WCY = 540.0
 K_RGB = "observation.rgb.zed_link_camera_0"
 K_DEP = "observation.depth_linear.zed_link_camera_0"
+K_WL_RGB = "observation.rgb.left_realsense_link_camera_0"
+K_WL_DEP = "observation.depth_linear.left_realsense_link_camera_0"
+K_WR_RGB = "observation.rgb.right_realsense_link_camera_0"
+K_WR_DEP = "observation.depth_linear.right_realsense_link_camera_0"
 CAMS = {"head": "observation.robot2cam_pose.zed_link_camera_0",
         "left": "observation.robot2cam_pose.left_realsense_link_camera_0",
         "right": "observation.robot2cam_pose.right_realsense_link_camera_0"}
@@ -136,8 +142,15 @@ def run_episode(demo, emap, smoke=False):
     run_episode._scale = scale
 
     rp, rts = vpath(K_RGB)
-    rgb_it = decode_video(rp, rts, T, fps)
-    dep_it = decode_video(dp, dts, T, fps, to_float_depth=scale)
+    streams = {
+        "rgb": decode_video(rp, rts, T, fps),
+        "dep": decode_video(dp, dts, T, fps, to_float_depth=scale),
+    }
+    # wrist near-field streams (the contact-range picture; head is arm-occluded up close)
+    for name, key, is_dep in (("wl_rgb", K_WL_RGB, False), ("wl_dep", K_WL_DEP, True),
+                              ("wr_rgb", K_WR_RGB, False), ("wr_dep", K_WR_DEP, True)):
+        pth, ts = vpath(key)
+        streams[name] = decode_video(pth, ts, T, fps, to_float_depth=scale if is_dep else None)
 
     m_full = FoveatedMap()
     toks_f = np.zeros((T, 8, FoveatedMap.TOK_D), np.float16)
@@ -145,22 +158,31 @@ def run_episode(demo, emap, smoke=False):
     times, snaps, prof_acc = [], {}, {}
     snap_at = {int(T * f) for f in (0.05, 0.4, 0.7, 0.97)} if smoke else set()
 
-    rgb_buf, dep_buf = dict(rgb_it.__next__() for _ in range(0)), {}
-    ri, di = iter(rgb_it), iter(dep_it)
+    bufs = {k: {} for k in streams}
+    its = {k: iter(v) for k, v in streams.items()}
+
+    def fetch(name, t):
+        while t not in bufs[name]:
+            k, v = next(its[name])
+            bufs[name][k] = v
+        return bufs[name].pop(t)
+
     for t in range(T):
-        while t not in rgb_buf:
-            k, v = next(ri)
-            rgb_buf[k] = v
-        while t not in dep_buf:
-            k, v = next(di)
-            dep_buf[k] = v
-        rgb, dep = rgb_buf.pop(t), dep_buf.pop(t)
+        rgb, dep = fetch("rgb", t), fetch("dep", t)
         H = rgb.shape[0]
-        s = H / 720.0
-        intr = (FX * s, FY * s, CX * s, CY * s)
+        sc = H / 720.0
         cam_w = pose7_compose(base[t], cam["head"][t])
         wrists = {sd: pose7_compose(base[t], cam[sd][t]) for sd in ("left", "right")}
-        fr = MapFrame(rgb, dep, cam_w, base[t], wrists, intr, t)
+        views = [CamView(rgb, dep, cam_w, (FX * sc, FY * sc, CX * sc, CY * sc),
+                         stride=4, d_max=7.0)]
+        for sd, rk, dk in (("left", "wl_rgb", "wl_dep"), ("right", "wr_rgb", "wr_dep")):
+            wr = fetch(rk, t)
+            wd = fetch(dk, t)
+            ws = wr.shape[0] / 1080.0
+            views.append(CamView(wr, wd, wrists[sd],
+                                 (WFX * ws, WFY * ws, WCX * ws, WCY * ws),
+                                 stride=8, d_max=1.5))
+        fr = MapFrame(views, base[t], wrists, t)
 
         t0 = time.perf_counter()
         m_full.update(fr)

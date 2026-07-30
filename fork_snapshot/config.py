@@ -950,6 +950,7 @@ _CONFIGS = [
             point_conditioning=True,
             point_noise_std=0.02,
             map_tokens_k=8,
+            anti_shortcut=True,
         ),
         data=LeRobotB1KDataConfig(
             repo_id="b1k_radio",

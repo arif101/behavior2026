@@ -41,6 +41,9 @@ class Pi0Config(_model.BaseModelConfig):
     # the K=0 path creates no params and is bit-identical to baseline).
     map_tokens_k: int = 0
     map_token_dim: int = 72
+    # Anti-shortcut input-channel dropout in compute_loss (train-only): P(drop point)=0.4,
+    # P(drop each wrist cam)=0.2. See patch_antishortcut.py.
+    anti_shortcut: bool = False
 
     # AdaLN 3D-point conditioning (arXiv 2606.27663 interface). When enabled, per-arm gripper-relative 3D
     # target points are embedded (sinusoidal + MLP, zero-init output layer) and added to the SAME adaRMS

@@ -100,6 +100,7 @@ class Pi0(_model.BaseModel):
         # FOVEATED MEMORY: zero-init out-proj => warm-start tokens EQUAL the 0.02
         # registers exactly; map_tokens_k == 0 creates no params (bit-parity).
         self.map_k = getattr(config, "map_tokens_k", 0)
+        self.anti_shortcut = getattr(config, "anti_shortcut", False)
         if self.map_k > 0:
             self.map_proj_in = nnx.Linear(config.map_token_dim, 256, rngs=rngs)
             self.map_proj_out = nnx.Linear(
@@ -291,8 +292,26 @@ class Pi0(_model.BaseModel):
     def compute_loss(
         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
     ) -> at.Float[at.Array, "*b ah"]:
-        preprocess_rng, noise_rng, time_rng = jax.random.split(rng, 3)
+        preprocess_rng, noise_rng, time_rng, _as_drop, _as_wl, _as_wr = jax.random.split(rng, 6)
         observation = _model.preprocess_observation(preprocess_rng, observation, train=train)
+
+        # ANTI-SHORTCUT (patch_antishortcut.py): train-only input-channel dropout.
+        if self.anti_shortcut and train:
+            import dataclasses as _dc
+            _b = observation.state.shape[0]
+            if getattr(observation, "target_points", None) is not None:
+                _keep = jax.random.bernoulli(_as_drop, 0.6, (_b,))
+                _tp = observation.target_points * _keep[:, None, None].astype(observation.target_points.dtype)
+                _tpm = observation.target_points_mask
+                if _tpm is not None:
+                    _tpm = jnp.logical_and(_tpm, _keep[:, None])
+                observation = _dc.replace(observation, target_points=_tp, target_points_mask=_tpm)
+            _masks = dict(observation.image_masks)
+            for _r, _nm in ((_as_wl, "left_wrist_0_rgb"), (_as_wr, "right_wrist_0_rgb")):
+                if _nm in _masks:
+                    _kc = jax.random.bernoulli(_r, 0.8, _masks[_nm].shape)
+                    _masks[_nm] = jnp.logical_and(_masks[_nm], _kc)
+            observation = _dc.replace(observation, image_masks=_masks)
 
         if self.point_conditioning and train and self.point_noise_std > 0 and observation.target_points is not None:
             # Anti-brittleness: train-time Gaussian noise on target points. Derived via fold_in so the

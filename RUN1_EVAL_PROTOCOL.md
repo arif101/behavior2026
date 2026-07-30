@@ -14,7 +14,7 @@ validity check per run, wrapper stats verified per run (n_inject > 0, skips == {
 
 | arm | map tokens | target record | kick | n (initial) | question |
 |-----|-----------|---------------|------|-------------|----------|
-| A   | ABSENT (key omitted → injection branch skipped) | ON | off | 15 | no-map control on identical weights |
+| A   | ALL-ZERO tokens (8 tokens present, all 72 dims zero) | ON | off | 15 | no-map-info control, IN-distribution |
 | B   | FULL | ON | off | 15 | the architecture as designed |
 | B0  | BLIND (blind_view at serve: geometry kept, target fields zeroed) | ON | off | 10 | is the map's value geometry or target persistence? |
 | C   | FULL | ON | ON | 10 | how much does the serving-side stall-kick add? |
@@ -49,6 +49,16 @@ Extension rule: whichever of {A vs B} is ambiguous at n=15 gets +10 before any o
 - **Failure of G1 does NOT kill the program**: the pre-committed fallback ordering is
   scaffold/RaC corrective data (Run 2) > critic-selection at serve > aux rebalance. Oversampling
   and prefix-injection get re-examined only after those.
+
+### AMENDMENT 1 (2026-07-30, pre-launch, before any result)
+G0 preflight measured that appending 8 tokens perturbs the pretrained policy via attention-
+denominator dilution (action delta 39% with visible zero-content tokens; 0.09% invisible —
+discriminator-verified). Training always presents 8 tokens (full/blind streams), so the trained
+model's in-distribution condition INCLUDES token presence. Therefore: arm A changes from
+token-ABSENCE to ALL-ZERO tokens (presence preserved, content nulled). Decomposition:
+B vs B0 = target-channel value; B0 vs A = geometry-channel value; B vs A = total map value.
+Token-absence remains a diagnostic curiosity only. ReZero gate (map_alpha=0 init) + position-
+transparent tokens (pos_weight) added to the model pre-launch; both in fork + snapshot.
 
 ## Instrumentation before the campaign (I-items)
 - I1: wrapper logs wrist off-axis angles per step (extend the dist-series patch).

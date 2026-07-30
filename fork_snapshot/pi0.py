@@ -109,6 +109,10 @@ class Pi0(_model.BaseModel):
             self.map_registers = nnx.Param(
                 nnx.initializers.normal(0.02)(rngs.params(), (self.map_k, paligemma_config.width))
             )
+            # ReZero gate: tokens start EXACTLY zero (RMSNorm scales any nonzero token to full
+            # magnitude — measured 20x warm-start perturbation without this). Gradient flows
+            # through alpha first; the pathway unlocks as training finds it useful.
+            self.map_alpha = nnx.Param(jnp.zeros(()))
             # Run-1 aux decode heads (training-only; see patch_aux_losses.py)
             self.aux_map_head_in = nnx.Linear(paligemma_config.width, 64, rngs=rngs)
             self.aux_map_head_out = nnx.Linear(64, 6, rngs=rngs)
@@ -159,7 +163,7 @@ class Pi0(_model.BaseModel):
     @at.typecheck
     def embed_prefix(
         self, obs: _model.Observation
-    ) -> tuple[at.Float[at.Array, "b s emb"], at.Bool[at.Array, "b s"], at.Bool[at.Array, " s"]]:
+    ) -> tuple[at.Float[at.Array, "b s emb"], at.Bool[at.Array, "b s"], at.Bool[at.Array, " s"], at.Bool[at.Array, "b s"]]:
         input_mask = []
         ar_mask = []
         tokens = []
@@ -190,14 +194,25 @@ class Pi0(_model.BaseModel):
         # attention — perception CAN see the map), tail position = RoPE-safe.
         if getattr(self, "map_k", 0) > 0 and obs.map_tokens is not None:
             _mt = nnx.swish(self.map_proj_in(obs.map_tokens))
-            _mt = self.map_proj_out(_mt) + self.map_registers
+            _mt = self.map_alpha * (self.map_proj_out(_mt) + self.map_registers)
             tokens.append(_mt)
-            input_mask.append(jnp.ones(_mt.shape[:2], dtype=jnp.bool_))
+            import os as _os
+            _viz = _os.environ.get("MAP_TOKENS_INVISIBLE", "0") != "1"
+            input_mask.append(jnp.full(_mt.shape[:2], _viz, dtype=jnp.bool_))
             ar_mask += [False] * _mt.shape[1]
+            _n_map = _mt.shape[1]
+        else:
+            _n_map = 0
         tokens = jnp.concatenate(tokens, axis=1)
         input_mask = jnp.concatenate(input_mask, axis=1)
         ar_mask = jnp.array(ar_mask)
-        return tokens, input_mask, ar_mask
+        # POSITION-TRANSPARENT map tokens: they contribute 0 to the RoPE position cumsum, so
+        # suffix (and nothing else) keeps IDENTICAL positions with or without them. Measured:
+        # naive appending shifted every suffix position by K -> 3x warm-start loss perturbation.
+        pos_weight = input_mask
+        if _n_map:
+            pos_weight = input_mask.at[:, -_n_map:].set(False)
+        return tokens, input_mask, ar_mask, pos_weight
 
     def _embed_cond_extras(self, obs: _model.Observation, batch_size: int) -> at.Float[at.Array, "b emb"] | None:
         """Embeds target points (and reserved stage tokens) into an additive term for the adaRMS conditioning
@@ -330,12 +345,12 @@ class Pi0(_model.BaseModel):
         u_t = noise - actions
 
         # one big forward pass of prefix + suffix at once
-        prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
+        prefix_tokens, prefix_mask, prefix_ar_mask, prefix_posw = self.embed_prefix(observation)
         suffix_tokens, suffix_mask, suffix_ar_mask, adarms_cond = self.embed_suffix(observation, x_t, time)
         input_mask = jnp.concatenate([prefix_mask, suffix_mask], axis=1)
         ar_mask = jnp.concatenate([prefix_ar_mask, suffix_ar_mask], axis=0)
         attn_mask = make_attn_mask(input_mask, ar_mask)
-        positions = jnp.cumsum(input_mask, axis=1) - 1
+        positions = jnp.cumsum(jnp.concatenate([prefix_posw, suffix_mask], axis=1), axis=1) - 1
         (prefix_out, suffix_out), _ = self.PaliGemma.llm(
             [prefix_tokens, suffix_tokens], mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond]
         )
@@ -403,9 +418,9 @@ class Pi0(_model.BaseModel):
             noise = jax.random.normal(rng, (batch_size, self.action_horizon, self.action_dim))
 
         # first fill KV cache with a forward pass of the prefix
-        prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
+        prefix_tokens, prefix_mask, prefix_ar_mask, prefix_posw = self.embed_prefix(observation)
         prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
-        positions = jnp.cumsum(prefix_mask, axis=1) - 1
+        positions = jnp.cumsum(prefix_posw, axis=1) - 1
         _, kv_cache = self.PaliGemma.llm([prefix_tokens, None], mask=prefix_attn_mask, positions=positions)
 
         def step(carry):
@@ -428,7 +443,7 @@ class Pi0(_model.BaseModel):
                 prefix_tokens.shape[1] + suffix_tokens.shape[1],
             )
             # `positions` is shape (b, suffix_len) indicating the positions of the suffix tokens
-            positions = jnp.sum(prefix_mask, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
+            positions = jnp.sum(prefix_posw, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
 
             (prefix_out, suffix_out), _ = self.PaliGemma.llm(
                 [None, suffix_tokens],

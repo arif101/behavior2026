@@ -113,6 +113,14 @@ class Pi0(_model.BaseModel):
             # magnitude — measured 20x warm-start perturbation without this). Gradient flows
             # through alpha first; the pathway unlocks as training finds it useful.
             self.map_alpha = nnx.Param(jnp.zeros(()))
+            # RECONSTRUCTION ANTI-SINK (run1b fix): decode the map tokens OWN raw input from
+            # the LLM outputs at their positions. With alpha=0 those outputs carry ZERO input
+            # information (content-zero + position-transparent, proven), so this loss sits at
+            # chance and its gradient DEMANDS the gate open. Map-exclusive by construction —
+            # the aux_map/target decode was satisfiable from image context (measured alpha
+            # stall at ~3e-4 through 13.4k steps); exact voxel values are not.
+            self.map_recon_in = nnx.Linear(paligemma_config.width, 128, rngs=rngs)
+            self.map_recon_out = nnx.Linear(128, config.map_token_dim, rngs=rngs)
             # Run-1 aux decode heads (training-only; see patch_aux_losses.py)
             self.aux_map_head_in = nnx.Linear(paligemma_config.width, 64, rngs=rngs)
             self.aux_map_head_out = nnx.Linear(64, 6, rngs=rngs)
@@ -372,7 +380,13 @@ class Pi0(_model.BaseModel):
             not_blind = (jnp.abs(observation.map_tokens[:, 0, :]).sum(-1) > 0).astype(jnp.float32)
             e_map = (jnp.abs(pred_map.astype(jnp.float32) - tp) * w).mean(-1) * not_blind
             e_img = (jnp.abs(pred_img.astype(jnp.float32) - tp) * w).mean(-1)
-            loss = loss + (0.1 * (e_map + e_img)).astype(loss.dtype)[:, None]
+            # reconstruction anti-sink: predict tanh(x/4) of the raw 72-d inputs from the
+            # outputs at the map positions (bounded target balances mixed feature scales)
+            recon = self.map_recon_out(nnx.swish(self.map_recon_in(
+                prefix_out[:, -self.map_k :, :])))
+            tgt_n = jnp.tanh(observation.map_tokens.astype(jnp.float32) / 4.0)
+            e_recon = jnp.abs(recon.astype(jnp.float32) - tgt_n).mean((-1, -2))
+            loss = loss + (0.1 * (e_map + e_img) + 0.1 * e_recon).astype(loss.dtype)[:, None]
             # aux-v2 (patch_aux_v2.py): stage CE + per-camera patch-heatmap CE
             if observation.stage is not None:
                 sl = self.aux_stage_out(nnx.swish(self.aux_stage_in(

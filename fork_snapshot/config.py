@@ -966,8 +966,8 @@ _CONFIGS = [
             extra_delta_transform=False,
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
-            "/root/warmstart_49999/params",
-            missing_regex=".*lora.*|.*map_.*",  # fresh zero-init map params
+            "/root/warmstart_run1b/params",
+            missing_regex=".*lora.*|.*map_.*|.*aux_.*",  # fresh init: map slot + aux heads
         ),
         batch_size=32,
         num_train_steps=50_000,

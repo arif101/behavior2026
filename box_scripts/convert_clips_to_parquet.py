@@ -12,15 +12,27 @@ Field provenance (exact / approximated / zeros -- see also the printed conversio
   target_points               EXACT REPLICATION of box_scripts/add_map_labels.py:
                               tp[:3] = meta_base - state[17:20]; tp[3:] = meta_base - state[42:45]
                               meta_world = radio_pos + R(radio_quat) @ P_OFF   (build_metalink_labels.py)
-                              meta_base  = W2B(meta_world), where W2B (world->base, base static
-                              during the splice) is Kabsch-fit from the banked per-demo label
-                              pairs /root/metalink_labels/ep{demo}.npz (meta_world, meta_base)
-                              over the demo frames >= start_frame. Fit residual + conditioning
-                              printed; EE-proximity physical check printed (spot_check_metalink
-                              convention: closest-arm min over last 40% expected ~0.05-0.15 m).
-                              Clips WITHOUT objpose_radio_89 (early collector version) fall back
-                              to the DEMO-TIMELINE meta_base[start_frame+t] (clamped) -- radio
-                              pose diverges from the demo after the policy lifts it: APPROX+WARN.
+                              meta_base via the world->base transform of the CLIP's (static) base
+                              = the demo base at start_frame (splice base cmds are exactly 0 --
+                              measured actions[:, 0:3] == 0 in all clips checked). Base-pose
+                              source priority, logged per clip:
+                                1. /root/poses_x/turning_on_radio/ep{demo}.json per-frame
+                                   base_pos/base_quat (build_metalink_labels.py math) -- used
+                                   automatically if a poses_x restore ever lands on the box.
+                                2. STATIC-PREFIX KABSCH (operative today, poses_x not in any
+                                   backup): W2B fit on banked label pairs
+                                   /root/metalink_labels/ep{demo}.npz over demo frames
+                                   [start_frame : first sustained |base_qvel| > 0.02) -- the
+                                   base-motion gate comes from the reference parquet
+                                   observation.state[:, 0:3]. Validated: demo 10 resid 0.02 mm,
+                                   demo 60 resid 0.01 mm, rc_10_1 EE->metalink converges to
+                                   0.030 m at the press.
+                              EE-proximity physical check printed per episode
+                              (spot_check_metalink convention).
+                              Clips WITHOUT objpose_radio_89 (early collector version) use the
+                              DEMO-TIMELINE radio (metalink world at start_frame+t, clamped) --
+                              radio pose diverges from the demo after the policy lifts it:
+                              APPROX+WARN. Clips WITH objpose use their own world (exact).
   target_points_mask          [True, True] every frame (add_map_labels.py convention).
   stage                       1 (pick) until radio z rises > 0.03 m above the clip's first frame,
                               then 2 (press) to the last frame. z source: clip objpose_radio_89
@@ -46,7 +58,10 @@ Field provenance (exact / approximated / zeros -- see also the printed conversio
                               embeds all-zero tokens as the learned null token
                               (fork_snapshot/b1k_policy.py lines 64-65 / 124-126), and arm-A
                               (all-zero tokens) is the serving configuration that won.
-  next.reward/terminated      0 / False everywhere except each episode's final row: 1.0 / True.
+  next.terminated             False everywhere except each episode's final row: True.
+  next.reward                 0.0 everywhere INCLUDING the final row (matches the reference
+                              dataset: its episode-final rows are terminated=True, reward=0.0).
+                              Override with --success-reward if a success signal is wanted.
   next.truncated              False everywhere.
   timestamp                   frame_index / fps (f32).
   videos                      RGB: clip JPEG 1080 -> LANCZOS resize to native res (zed 720,
@@ -161,9 +176,62 @@ def fit_world_to_base(meta_w, meta_b):
 
 
 # ---------------------------------------------------------------------------------------------
+# Base-pose resolution (world -> base transform for the clip's static base)
+# ---------------------------------------------------------------------------------------------
+def resolve_base_pose(demo, start, ref_ctx, mw_demo, mb_demo, poses_dir):
+    """Returns (kind, payload, note).
+
+    kind "json":   payload = (base_pos (Td,3), base_quat (Td,4)) per DEMO frame -- exact,
+                   per-frame (build_metalink_labels.py math). Priority 1.
+    kind "kabsch": payload = (R, t) world->base of the demo base AT start_frame, fit over the
+                   static prefix [start : first sustained |base_qvel| > 0.02) gated by the
+                   reference parquet. Priority 2 (operative; poses_x not restorable from HF).
+    kind "none":   no trustworthy transform (fit failed validation).
+    """
+    pj = pathlib.Path(poses_dir) / f"ep{demo}.json"
+    if pj.exists():
+        d = json.loads(pj.read_text())
+        bp = np.array([f["base_pos"] for f in d["frames"]], np.float64)
+        bq = np.array([f["base_quat"] for f in d["frames"]], np.float64)
+        return "json", (bp, bq), f"base-pose source: poses_x JSON ({len(bp)} frames, per-frame)"
+
+    qv = ref_ctx.base_qvel(demo)  # |base_qvel| per reference-parquet frame of this demo
+    T = min(len(mw_demo), len(qv))
+    s_end, run = T, 0
+    for s in range(min(start, T - 1), T):
+        run = run + 1 if qv[s] > 0.02 else 0
+        if run >= 5:
+            s_end = s - 4
+            break
+    if s_end - start < 30:
+        return "none", None, (f"base-pose source: NONE (static prefix [{start}:{s_end}] too "
+                              "short for a fit)")
+    R, t, resid, sv = fit_world_to_base(mw_demo[start:s_end], mb_demo[start:s_end])
+    note = (f"base-pose source: static-prefix Kabsch [{start}:{s_end}] "
+            f"(resid {resid * 1000:.2f} mm, SVs {np.round(sv, 3)})")
+    if resid > 0.01 or sv[1] < 1e-3:
+        return "none", None, note + " -- FAILED validation (resid>10mm or near-collinear)"
+    return "kabsch", (R, t), note
+
+
+def world_to_base(points, kind, payload, demo_frames):
+    """Map world points (n,3) to base frame. For "json", demo_frames (n,) selects the per-frame
+    base pose; for "kabsch" the fitted static transform applies to every point."""
+    if kind == "json":
+        bp, bq = payload
+        out = np.zeros_like(points)
+        for i, (pt, s) in enumerate(zip(points, demo_frames)):
+            s = min(int(s), len(bp) - 1)
+            out[i] = q2r(bq[s]).T @ (pt - bp[s])
+        return out
+    R, t = payload
+    return points @ R.T + t
+
+
+# ---------------------------------------------------------------------------------------------
 # Per-clip label derivation
 # ---------------------------------------------------------------------------------------------
-def derive_labels(clip, demo, n, p_off, labels_dir):
+def derive_labels(clip, demo, n, p_off, labels_dir, ref_ctx, poses_dir):
     """Returns (meta_base (n,3), radio_z (n,), notes list)."""
     notes = []
     lab_p = pathlib.Path(labels_dir) / f"ep{demo}.npz"
@@ -173,39 +241,42 @@ def derive_labels(clip, demo, n, p_off, labels_dir):
     mw_demo, mb_demo = lab["meta_world"].astype(np.float64), lab["meta_base"].astype(np.float64)
     start = int(clip["start_frame"])
 
+    kind, payload, base_note = resolve_base_pose(demo, start, ref_ctx, mw_demo, mb_demo,
+                                                 poses_dir)
+    notes.append(base_note)
+
     if "objpose_radio_89" in clip.files:
-        # W2B fit is only needed on this path. The base can drift mid-demo (demo 60: 16 cm
-        # residual from start_frame), so retry the fit window sliding right and keep the best.
-        T = len(mw_demo)
-        best = None
-        for s0 in range(min(start, T - 30), min(start + 301, T - 30) + 1, 50):
-            R, t, resid, sv = fit_world_to_base(mw_demo[s0:], mb_demo[s0:])
-            if best is None or resid < best[2]:
-                best = (R, t, resid, sv, s0)
-            if resid < 0.01:
-                break
-        R, t, resid, sv, s0 = best
-        notes.append(f"W2B Kabsch over demo frames [{s0}:{T}]: max resid {resid * 1000:.1f} mm, "
-                     f"centered-world SVs {np.round(sv, 4)}")
-        if resid > 0.01:
-            warn(f"demo {demo}: W2B fit residual {resid * 1000:.1f} mm > 10 mm even after "
-                 "window sliding -- base moves during manipulation; target_points frame suspect")
-        if sv[1] < 1e-3:
-            warn(f"demo {demo}: metalink motion near-collinear (sv={sv}) -- W2B rotation "
-                 "ill-pinned")
         op = np.asarray(clip["objpose_radio_89"], np.float64)  # (n,7) pos+quat, clip's own world
         mw_clip = np.stack([op[i, :3] + q2r(op[i, 3:7]) @ p_off for i in range(n)])
-        meta_base = mw_clip @ R.T + t
+        # The clip's base is STATIC at the demo's start_frame pose (splice base cmds are 0),
+        # so the base pose at demo frame start_frame applies to every clip frame.
+        if kind == "none":
+            warn(f"demo {demo}: no base-pose source validated -- cannot map the clip's own "
+                 "radio poses to base frame; falling back to demo-timeline meta_base")
+            idx = np.minimum(start + np.arange(n), len(mb_demo) - 1)
+            meta_base = mb_demo[idx]
+        else:
+            meta_base = world_to_base(mw_clip, kind, payload, np.full(n, start))
+            notes.append("radio source: clip objpose_radio_89 (own world, exact); base held at "
+                         "demo frame start_frame (clip base cmds are 0)")
         d0 = np.linalg.norm(mw_clip[0] - mw_demo[min(start, len(mw_demo) - 1)])
-        notes.append(f"objpose_radio_89 PRESENT (exact path); restore check "
-                     f"|meta_clip(0)-meta_demo(start)| = {d0 * 1000:.1f} mm")
+        notes.append(f"restore check |meta_clip(0)-meta_demo(start)| = {d0 * 1000:.1f} mm")
         if d0 > 0.02:
             warn(f"demo {demo}: clip frame-0 metalink is {d0 * 1000:.0f} mm from the demo's "
                  f"start_frame metalink -- restore/offset mismatch?")
         radio_z = op[:, 2]
     else:
         idx = np.minimum(start + np.arange(n), len(mb_demo) - 1)
-        meta_base = mb_demo[idx]
+        if kind == "json":
+            meta_base = world_to_base(mw_demo[idx], kind, payload, idx)
+            notes.append("radio source: DEMO-TIMELINE metalink (per-frame JSON base)")
+        elif kind == "kabsch":
+            # clip-consistent static base (demo base at start_frame) applied to demo radio
+            meta_base = world_to_base(mw_demo[idx], kind, payload, idx)
+            notes.append("radio source: DEMO-TIMELINE metalink (static-prefix base)")
+        else:
+            meta_base = mb_demo[idx]
+            notes.append("radio source: DEMO-TIMELINE meta_base verbatim (no base transform)")
         radio_z = mw_demo[idx, 2]  # metalink z as radio-z proxy (rigid attachment)
         moved = float(np.linalg.norm(mw_demo[idx] - mw_demo[idx[0]], axis=1).max())
         clamped = int((start + np.arange(n) >= len(mb_demo)).sum())
@@ -213,7 +284,6 @@ def derive_labels(clip, demo, n, p_off, labels_dir):
              f"DEMO-TIMELINE metalink labels; radio pose diverges from the demo once the policy "
              f"lifts it (demo-label motion in window: {moved * 100:.1f} cm; {clamped} frames "
              "clamped past demo end). Recollect with RC_TRACK_OBJECTS for exact labels.")
-        notes.append("objpose ABSENT -> demo-timeline fallback (APPROXIMATE)")
     return meta_base.astype(np.float64), np.asarray(radio_z, np.float64), notes
 
 
@@ -283,14 +353,37 @@ def median_cam_poses(ref_root):
     return out
 
 
-def load_ref_episode_row(ref_root, demo):
-    """Original episodes-meta row for this raw demo id (task_instance_id etc.)."""
-    fp = sorted(glob.glob(str(ref_root / "meta" / "episodes" / "**" / "*.parquet"),
-                          recursive=True))[0]
-    t = pq.read_table(fp, columns=["raw_episode_id", "task_instance_id"])
-    raws = t["raw_episode_id"].to_numpy()
-    hit = np.where(raws == demo)[0]
-    return int(t["task_instance_id"][int(hit[0])].as_py()) if len(hit) else -1
+class RefContext:
+    """Reference-dataset lookups: raw demo id -> episodes-meta row, per-demo |base_qvel|."""
+
+    def __init__(self, ref_root):
+        self.ref_root = ref_root
+        fp = sorted(glob.glob(str(ref_root / "meta" / "episodes" / "**" / "*.parquet"),
+                              recursive=True))[0]
+        t = pq.read_table(fp, columns=["raw_episode_id", "task_instance_id", "episode_index",
+                                       "data/chunk_index", "data/file_index"])
+        d = t.to_pydict()
+        self.by_demo = {int(r): {"task_instance_id": int(i), "episode_index": int(e),
+                                 "chunk": int(c), "file": int(f)}
+                        for r, i, e, c, f in zip(d["raw_episode_id"], d["task_instance_id"],
+                                                 d["episode_index"], d["data/chunk_index"],
+                                                 d["data/file_index"])}
+        self._qvel_cache = {}
+
+    def task_instance_id(self, demo):
+        return self.by_demo.get(demo, {}).get("task_instance_id", -1)
+
+    def base_qvel(self, demo):
+        """|base_qvel| per reference-parquet frame of this demo's episode (base-motion gate)."""
+        if demo not in self._qvel_cache:
+            rec = self.by_demo[demo]
+            fp = (self.ref_root / "data" / f"chunk-{rec['chunk']:03d}"
+                  / f"file-{rec['file']:03d}.parquet")
+            t = pq.read_table(fp, columns=["episode_index", "observation.state"])
+            m = t["episode_index"].to_numpy() == rec["episode_index"]
+            st = np.stack(t["observation.state"].to_numpy()[m])
+            self._qvel_cache[demo] = np.linalg.norm(st[:, 0:3], axis=1)
+        return self._qvel_cache[demo]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -300,6 +393,10 @@ def main():
     ap.add_argument("--ref", default="/root/b1k_radio_map", help="reference dataset (read-only)")
     ap.add_argument("--out", default="/root/b1k_radio_corrective")
     ap.add_argument("--labels", default="/root/metalink_labels")
+    ap.add_argument("--poses", default="/root/poses_x/turning_on_radio",
+                    help="rescue pose JSONs (per-frame base pose; used automatically if present)")
+    ap.add_argument("--success-reward", type=float, default=0.0,
+                    help="next.reward on each episode's final row (reference convention: 0.0)")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--skip-videos", action="store_true")
     a = ap.parse_args()
@@ -323,10 +420,14 @@ def main():
                                                  recursive=True))[0]).schema_arrow
     print("computing reference median robot2cam poses...")
     cam_med = median_cam_poses(ref)
+    ref_ctx = RefContext(ref)
 
     # ---- select clips ----------------------------------------------------------------------
     clips = []
     for fp in sorted(glob.glob(a.clips)):
+        if not re.match(r"rc_\d+_\d+\.npz$", os.path.basename(fp)):
+            warn(f"skipping {os.path.basename(fp)}: name does not match rc_{{demo}}_{{att}}.npz")
+            continue
         d = np.load(fp, allow_pickle=True)
         ok = bool(d["success"]) and "head_rgb" in d.files and len(d["head_rgb"]) > 0
         print(f"{os.path.basename(fp)}: success={bool(d['success'])} "
@@ -351,7 +452,7 @@ def main():
         for k in ("head_rgb", "left_rgb", "right_rgb"):
             assert len(d[k]) == n, f"{k} has {len(d[k])} frames, expected {n}"
 
-        meta_base, radio_z, notes = derive_labels(d, demo, n, p_off, a.labels)
+        meta_base, radio_z, notes = derive_labels(d, demo, n, p_off, a.labels, ref_ctx, a.poses)
         for msg in notes:
             print(f"  ep{ep_i} (demo {demo}): {msg}")
 
@@ -383,7 +484,7 @@ def main():
         rows["observation.state"] += list(prop)
         for short, col in CAM_COLS.items():
             rows[col] += [cam_med[short]] * n
-        rows["next.reward"] += [0.0] * (n - 1) + [1.0]
+        rows["next.reward"] += [0.0] * (n - 1) + [float(a.success_reward)]
         rows["next.terminated"] += [False] * (n - 1) + [True]
         rows["next.truncated"] += [False] * n
         rows["timestamp"] += (np.arange(n) / FPS).astype(np.float32).tolist()
@@ -482,7 +583,7 @@ def main():
     erows["demo_index_within_task"] = np.arange(len(ep_meta), dtype=np.int64)
     erows["raw_episode_id"] = np.array([m["demo"] for m in ep_meta], np.int64)
     erows["task_instance_id"] = np.array(
-        [load_ref_episode_row(ref, m["demo"]) for m in ep_meta], np.int64)
+        [ref_ctx.task_instance_id(m["demo"]) for m in ep_meta], np.int64)
     erows["annotation_path"] = [f"annotations/task-0000/episode_{m['demo']:08d}.json"
                                 for m in ep_meta]
     # column order must match the reference episodes meta

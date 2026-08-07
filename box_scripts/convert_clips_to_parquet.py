@@ -1,5 +1,13 @@
 """Convert reverse-curriculum splice clips (rc_clips/*.npz) into a LeRobot-v3 training dataset.
 
+v3 ADDITION (2026-08-06): also converts LIVE RaC recovery clips (rac_<epid>_<k>.npz from
+eval/scaffold_collect_v2.py). Family is auto-detected per clip via the `base_pose` key; it
+routes label derivation to an exact per-frame world->base branch (live episodes move the
+base -- the splice path's static-base assumptions are invalid there), a 0/1/2 geometric
+stage rule anchored on radio_rest_z, and per-frame robot2cam/aux-head labels from the
+collector's base-relative camera poses. The validated splice path is untouched.
+For RaC conversion pass:  --clips "/root/rac2_clips/*.npz" --out /root/b1k_radio_rac
+
 Produces a NEW dataset directory (default /root/b1k_radio_corrective) with the SAME layout and
 schema as /root/b1k_radio_map (meta/ + data/ + videos/) so it can be merged or mixed at training
 time. Only clips with success=True AND captured head_rgb become episodes (obs_t -> action_t,
@@ -234,6 +242,21 @@ def world_to_base(points, kind, payload, demo_frames):
 def derive_labels(clip, demo, n, p_off, labels_dir, ref_ctx, poses_dir):
     """Returns (meta_base (n,3), radio_z (n,), notes list)."""
     notes = []
+    if "base_pose" in clip.files:
+        # LIVE RaC clip (scaffold_collect_v2): per-step base pose + own-world radio pose ->
+        # exact per-frame world->base labels. No demo timeline, no metalink_labels file, no
+        # Kabsch (the base MOVES in live episodes; the static-prefix fit is invalid there).
+        assert "objpose_radio_89" in clip.files, \
+            "RaC clip carries base_pose but no objpose_radio_89 -- collector bug"
+        op = np.asarray(clip["objpose_radio_89"], np.float64)
+        bp7 = np.asarray(clip["base_pose"], np.float64)
+        assert len(op) == n and len(bp7) == n, (len(op), len(bp7), n)
+        mw_clip = np.stack([op[i, :3] + q2r(op[i, 3:7]) @ p_off for i in range(n)])
+        meta_base = np.stack([q2r(bp7[i, 3:7]).T @ (mw_clip[i] - bp7[i, :3])
+                              for i in range(n)])
+        notes.append("labels: LIVE RaC branch -- per-step base_pose + objpose_radio_89 "
+                     "(exact per-frame world->base; no demo timeline)")
+        return meta_base, np.asarray(op[:, 2], np.float64), notes
     lab_p = pathlib.Path(labels_dir) / f"ep{demo}.npz"
     if not lab_p.exists():
         raise FileNotFoundError(f"{lab_p} missing -- metalink labels are required")
@@ -425,10 +448,17 @@ def main():
     # ---- select clips ----------------------------------------------------------------------
     clips = []
     for fp in sorted(glob.glob(a.clips)):
-        if not re.match(r"rc_\d+_\d+\.npz$", os.path.basename(fp)):
-            warn(f"skipping {os.path.basename(fp)}: name does not match rc_{{demo}}_{{att}}.npz")
+        b = os.path.basename(fp)
+        # rc_<demo>_<att>.npz = splice family; rac_<epid>_<k>.npz = live RaC recovery family
+        # (scaffold_collect_v2; success=True means "outcome-filtered keeper" there).
+        if not (re.match(r"rc_\d+_\d+\.npz$", b) or re.match(r"rac_\d+_\d+\.npz$", b)):
+            warn(f"skipping {b}: name matches neither rc_* nor rac_* clip pattern")
             continue
         d = np.load(fp, allow_pickle=True)
+        if b.startswith("rac_") and "base_pose" not in d.files:
+            warn(f"skipping {b}: rac_* clip without base_pose (pre-v2 collector) -- "
+                 "unconvertible (no demo timeline to fall back to)")
+            continue
         ok = bool(d["success"]) and "head_rgb" in d.files and len(d["head_rgb"]) > 0
         print(f"{os.path.basename(fp)}: success={bool(d['success'])} "
               f"head_rgb={'head_rgb' in d.files} -> {'EPISODE' if ok else 'skip'}")
@@ -443,7 +473,9 @@ def main():
     vid_frames = {key: [] for _, key, _, _ in VIDEO_STREAMS}
     global_idx = 0
     for ep_i, (fp, d) in enumerate(clips):
-        demo = int(re.match(r"rc_(\d+)_\d+", os.path.basename(fp)).group(1))
+        m_rc = re.match(r"rc_(\d+)_\d+", os.path.basename(fp))
+        demo = int(m_rc.group(1)) if m_rc else -1   # -1 = live RaC clip (no source demo)
+        is_rac = "base_pose" in d.files
         act = np.asarray(d["actions"], np.float32)
         prop = np.asarray(d["proprio"], np.float32)
         n = len(act)
@@ -456,13 +488,34 @@ def main():
         for msg in notes:
             print(f"  ep{ep_i} (demo {demo}): {msg}")
 
-        # stage: 1 until radio z rises > 0.03 above the clip's first frame, then 2 to the end
-        lifted = np.where(radio_z - radio_z[0] > 0.03)[0]
-        t_lift = int(lifted[0]) if len(lifted) else n  # never lifted -> all stage 1
-        stage = np.ones(n, np.int32)
-        stage[t_lift:] = 2
-        if not len(lifted):
-            warn(f"ep{ep_i} (demo {demo}): radio z never rose >0.03 -- whole clip stage=1")
+        if is_rac:
+            # LIVE RaC stage rule (add_stage_pixel_labels geometry, 0/1/2 only -- stage 3
+            # END never applies to recovery clips): 0 APPROACH while the base is > 1.2 m
+            # from the metalink in xy; 2 MANIPULATE once the closest EE is within 0.12 m or
+            # the radio is > 0.03 m above its REST height (radio_rest_z from the collector:
+            # clip frame 0 is NOT at rest for mid-recovery clips); else 1 ACQUIRE.
+            bp7_s = np.asarray(d["base_pose"], np.float64)
+            op_s = np.asarray(d["objpose_radio_89"], np.float64)
+            mw_s = np.stack([op_s[i, :3] + q2r(op_s[i, 3:7]) @ p_off for i in range(n)])
+            rest_z = (float(d["radio_rest_z"]) if "radio_rest_z" in d.files
+                      else float(np.min(radio_z)))
+            ee_l = np.linalg.norm(meta_base - prop[:, EE_L].astype(np.float64), axis=1)
+            ee_r = np.linalg.norm(meta_base - prop[:, EE_R].astype(np.float64), axis=1)
+            base_far = np.linalg.norm(bp7_s[:, :2] - mw_s[:, :2], axis=1) > 1.2
+            manip = (np.minimum(ee_l, ee_r) <= 0.12) | ((radio_z - rest_z) > 0.03)
+            stage = np.ones(n, np.int32)
+            stage[base_far] = 0
+            stage[manip] = 2
+            t_lift = int(manip.argmax()) if manip.any() else n
+        else:
+            # stage: 1 until radio z rises > 0.03 above the clip's first frame, then 2 to
+            # the end
+            lifted = np.where(radio_z - radio_z[0] > 0.03)[0]
+            t_lift = int(lifted[0]) if len(lifted) else n  # never lifted -> all stage 1
+            stage = np.ones(n, np.int32)
+            stage[t_lift:] = 2
+            if not len(lifted):
+                warn(f"ep{ep_i} (demo {demo}): radio z never rose >0.03 -- whole clip stage=1")
 
         tp = np.zeros((n, 6), np.float32)
         tp[:, :3] = meta_base - prop[:, EE_L]
@@ -477,13 +530,26 @@ def main():
                  f"({tail.min():.2f} m) -- label frame suspect")
 
         aux = np.zeros((n, 9), np.float32)  # wrists stay (0,0,0)=invalid by design
-        for r in range(n):
-            aux[r, 0:3] = project(meta_base[r], cam_med["head"].astype(np.float64), HEAD_K)
+        cam_seq = None
+        if is_rac and all(f"campose_{s}" in d.files for s in CAM_COLS):
+            # per-frame robot2cam from the collector's base-relative camera poses (exact;
+            # supersedes the stage>=2 median for this family). The aux head channel projects
+            # through the per-frame head pose; wrist aux stays (0,0,0)=invalid (only HEAD_K
+            # intrinsics are banked).
+            cam_seq = {s: np.asarray(d[f"campose_{s}"], np.float64) for s in CAM_COLS}
+            for r in range(n):
+                aux[r, 0:3] = project(meta_base[r], cam_seq["head"][r], HEAD_K)
+        else:
+            for r in range(n):
+                aux[r, 0:3] = project(meta_base[r], cam_med["head"].astype(np.float64), HEAD_K)
 
         rows["action"] += list(act)
         rows["observation.state"] += list(prop)
         for short, col in CAM_COLS.items():
-            rows[col] += [cam_med[short]] * n
+            if cam_seq is not None:
+                rows[col] += [cam_seq[short][r].astype(np.float32) for r in range(n)]
+            else:
+                rows[col] += [cam_med[short]] * n
         rows["next.reward"] += [0.0] * (n - 1) + [float(a.success_reward)]
         rows["next.terminated"] += [False] * (n - 1) + [True]
         rows["next.truncated"] += [False] * n
@@ -501,7 +567,11 @@ def main():
 
         for npz_key, vkey, _, is_dep in VIDEO_STREAMS:
             vid_frames[vkey].append(list(d[npz_key]) if npz_key in d.files else [])
-        ep_meta.append({"ep": ep_i, "demo": demo, "n": n, "start": global_idx})
+        if is_rac:
+            tid = int(d["task_instance_id"]) if "task_instance_id" in d.files else -1
+        else:
+            tid = ref_ctx.task_instance_id(demo)
+        ep_meta.append({"ep": ep_i, "demo": demo, "n": n, "start": global_idx, "tid": tid})
         global_idx += n
 
     warn("TODO map_tokens_full/blind are ZEROS (FoveatedMap offline_driver not runnable from "
@@ -582,9 +652,11 @@ def main():
     erows["task_index"] = np.zeros(len(ep_meta), np.int64)
     erows["demo_index_within_task"] = np.arange(len(ep_meta), dtype=np.int64)
     erows["raw_episode_id"] = np.array([m["demo"] for m in ep_meta], np.int64)
-    erows["task_instance_id"] = np.array(
-        [ref_ctx.task_instance_id(m["demo"]) for m in ep_meta], np.int64)
-    erows["annotation_path"] = [f"annotations/task-0000/episode_{m['demo']:08d}.json"
+    erows["task_instance_id"] = np.array([m["tid"] for m in ep_meta], np.int64)
+    # raw_episode_id -1 / empty annotation_path mark live RaC episodes (no source demo;
+    # avoids false joins against real demo ids 10..3000 by add_map_labels-style tooling)
+    erows["annotation_path"] = [("" if m["demo"] < 0
+                                 else f"annotations/task-0000/episode_{m['demo']:08d}.json")
                                 for m in ep_meta]
     # column order must match the reference episodes meta
     ref_ep_schema = pq.ParquetFile(sorted(glob.glob(

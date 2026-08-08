@@ -150,6 +150,15 @@ def main():
     vf = float(np.mean(stats["valid_frac"])) if stats["valid_frac"] else 0.0
     print(json.dumps({"rows": stats["rows"], "mean_valid_frac": round(vf, 4),
                       "frames_decoded": stats["decoded"], "streams_missing": stats["missing"]}))
+
+    ip = root / "meta" / "info.json"
+    info = json.loads(ip.read_text())
+    if "gt_depth_ds" not in info["features"]:
+        ref = info["features"].get("map_tokens_full", {"dtype": "float32", "names": None})
+        info["features"]["gt_depth_ds"] = {"dtype": ref["dtype"], "shape": [3 * PATCH * PATCH],
+                                           "names": ref.get("names")}
+        ip.write_text(json.dumps(info, indent=4))
+        print("registered gt_depth_ds in meta/info.json features", flush=True)
     if vf < 0.5:
         print("WARNING: mean valid fraction < 0.5 -- decode path or depth videos suspect")
 

@@ -187,6 +187,15 @@ def main():
         print(f"wrote {dfp} (+gt_depth_ds, {t.num_rows} rows, valid_frac {vf:.4f})", flush=True)
     print(json.dumps({"frames_decoded": stats["decoded"],
                       "frames_expected": stats["expected"]}), flush=True)
+
+    ip = root / "meta" / "info.json"
+    info = json.loads(ip.read_text())
+    if "gt_depth_ds" not in info["features"]:
+        ref = info["features"].get("map_tokens_full", {"dtype": "float32", "names": None})
+        info["features"]["gt_depth_ds"] = {"dtype": ref["dtype"], "shape": [3 * PATCH * PATCH],
+                                           "names": ref.get("names")}
+        ip.write_text(json.dumps(info, indent=4))
+        print("registered gt_depth_ds in meta/info.json features", flush=True)
     print("MAP_DEPTH_LABELS_DONE", flush=True)
 
 

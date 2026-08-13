@@ -23,6 +23,18 @@ check (§4), holdout split rule + gate-fire interpretation precondition + curric
 kill clause (§5). Probe evidence: box_artifacts/contact_skill_probes/ (restore mm-accurate;
 AG constraint does NOT survive og.sim.load_state; held radio slips ~1.2 cm/s).
 
+> **OPEN DESIGN QUESTION [Arif/Claude 2026-08-12, for Suhas, MUST RESOLVE PRE-FREEZE]:**
+> gate-stage pin (=2 MANIPULATE) vs skill scope (acquire→manipulate composite). Stage 2
+> begins POST-lift in the label taxonomy, but the commit probe's 0.00 mass is measured at
+> the PRE-lift band (f1100, gripper-close initiation) — i.e. acquire initiation is the
+> missing mode. A stage-2-only gate can only fire after the VLA has grasped+lifted, which
+> the campaign says it never does (gripper never closed at 2-3 cm). Proposals: gate on
+> stage ∈ {1,2} (ACQUIRE-or-MANIPULATE), or geometry-primary (7 cm shell) with stage ∈
+> {1,2} as confirmation. Also reconcile: §1 budget still reads ≤300 while the scope
+> correction sets 600 (grasp+lift+toggle span) — one number must win, measured from demo
+> segment lengths. Your gate-fire ≥20% precondition already covers the failure mode;
+> this note is about not walking into it knowingly.
+
 ## 1. System contract (serving)
 - Base VLA: **radio_run2@49999** (ours; frozen). Drives episodes at h=32 chunks.
 - GATE (per-step, in wrapper): stage_head=terminal ∧ dist(EE, affordance_pt) < 0.07 m ∧

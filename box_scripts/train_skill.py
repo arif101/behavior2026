@@ -38,6 +38,10 @@ def main():
                          "used 0.5; curriculum chunks want 0 or ~0.95)")
     ap.add_argument("--resume", default=None, help="checkpoint to resume from")
     ap.add_argument("--out", default="/root/skill_ckpts")
+    ap.add_argument("--buffer-path", default="/root/online_buffer.npz",
+                    help="persist the online buffer across chunks (2026-08-13: per-chunk "
+                         "fresh buffers made every new scene start from zero — only "
+                         "weights carried; empty string disables)")
     a = ap.parse_args()
 
     import omnigibson as og  # noqa: F401
@@ -83,6 +87,14 @@ def main():
         agent.load(a.resume)
         print(f"resumed from {a.resume}")
     online = ReplayBuffer(obs_dim, act_dim, capacity=200_000)
+    if a.buffer_path and os.path.exists(a.buffer_path):
+        z = np.load(a.buffer_path)
+        n = int(z["n"])
+        online.obs[:n], online.act[:n] = z["obs"][:n], z["act"][:n]
+        online.rew[:n], online.nobs[:n] = z["rew"][:n], z["nobs"][:n]
+        online.done[:n] = z["done"][:n]
+        online.idx, online.full = n % online.capacity, n == online.capacity
+        print(f"online buffer restored: {n} transitions", flush=True)
     prior = ReplayBuffer.from_prior_npz("/root/skill_buffer_prior/prior_buffer.npz",
                                         scale, hold_out_demos=held_out)
     print(f"prior buffer: {len(prior)} tuples (held out {held_out})")
@@ -123,6 +135,12 @@ def main():
                   f"({time.time() - t0:.0f}s)", flush=True)
             agent.save(f"{a.out}/skill_d{a.demo_id}_s{a.stage}_smoke.pt")
             break
+    if a.buffer_path:
+        n = len(online)
+        np.savez_compressed(a.buffer_path, n=np.int64(n), obs=online.obs[:n],
+                            act=online.act[:n], rew=online.rew[:n],
+                            nobs=online.nobs[:n], done=online.done[:n])
+        print(f"online buffer saved: {n} transitions", flush=True)
     final_roll = float(np.mean(results[-20:])) if results else 0.0
     if results and final_roll < 0.3:
         # quarantine: a failure-dominated chunk must not become the next chunk's resume

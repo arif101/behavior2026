@@ -139,6 +139,9 @@ class SkillCommitEnv:
                 dz = abs(float(_np(self.target.get_position_orientation()[0])[2]) - z0)
                 ok = self._ag_ok(e["holding_arm"]) and dz < 0.001
                 if not ok:
+                    print(f"DISCARD demo={e['demo']} f={e['frame']} stage={e['stage']}: "
+                          f"AG={self._ag_ok(e['holding_arm'])} dz={dz * 1000:.1f}mm",
+                          flush=True)
                     e["invalid"] = True
                     self.bank = [b for b in self.bank if not b.get("invalid")]
                     if not self.bank:

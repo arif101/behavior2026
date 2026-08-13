@@ -35,7 +35,28 @@ import pyarrow.parquet as pq
 
 REF = "/root/b1k_radio_map"
 GRIP_L, GRIP_R = slice(24, 26), slice(49, 51)
-OFFSETS = {0: 5, 1: 25, 2: 100}
+# Curriculum rungs (stage -> nominal steps before press). Stages >= 1 are re-anchored to
+# the nearest QUASI-STATIC frame (metalink motion < 2 mm/frame over 5 frames) at or
+# before the nominal offset: fixed offsets landed in the mid-lift band on 2 of the first
+# 4 demos (radio restored IN MOTION -> AG validity discard, 2026-08-13 stage-1 pass), and
+# dynamic starts are off the previous rung's visited distribution. press-10 rung added to
+# bridge the -5 -> -25 gap (0/20 on the fixed-offset pass).
+OFFSETS = {0: 5, 1: 10, 2: 25, 3: 100}
+QS_WINDOW = 5
+QS_THRESH = 0.002
+
+
+def quasi_static_anchor(mw, press, k_nominal):
+    """Latest frame f in [press - k_nominal - 15, press - k_nominal] whose trailing
+    QS_WINDOW metalink displacements are all < QS_THRESH; falls back to the nominal."""
+    motion = np.linalg.norm(np.diff(mw, axis=0), axis=1)
+    lo = max(press - k_nominal - 15, QS_WINDOW + 1)
+    for f in range(press - k_nominal, lo - 1, -1):
+        if f < QS_WINDOW + 1:
+            break
+        if motion[f - QS_WINDOW:f].max() < QS_THRESH:
+            return f
+    return max(press - k_nominal, 1)
 
 
 def main():
@@ -81,9 +102,10 @@ def main():
             other = "right" if active == "left" else "left"
             return other if other in held else held[0]
 
+        mw = np.load(f"/root/metalink_labels/ep{rec['demo']}.npz")["meta_world"]
         for stg, k in OFFSETS.items():
-            f0 = press - k
-            if f0 > 0:
+            f0 = press - k if stg == 0 else quasi_static_anchor(mw, press, k)
+            if 0 < f0 < len(st):
                 bank.append(dict(demo=int(rec["demo"]), frame=int(f0), stage=stg,
                                  active_arm=active, holding_arm=holding_at(f0),
                                  press_frame=press))
@@ -92,8 +114,10 @@ def main():
             acts = f[f"data/{key}/action"][:]
         gcol = 21 if active == "left" else 22
         grip_vals.append([float(acts[:, gcol].min()), float(acts[:, gcol].max())])
+        anchors = {s: (press - k if s == 0 else quasi_static_anchor(mw, press, k))
+                   for s, k in OFFSETS.items()}
         print(f"demo {rec['demo']}: press f{press} (d={dmin[press]:.3f}) active={active} "
-              f"holding@press-5/25/100={[holding_at(max(press - k, 0)) for k in (5, 25, 100)]}")
+              f"anchors={anchors} holding={[holding_at(f) for f in anchors.values()]}")
 
     meta = json.load(open("/root/skill_buffer_prior/skill_buffer_meta.json"))
     p99 = np.asarray(meta["action_abs_p99"][:11])

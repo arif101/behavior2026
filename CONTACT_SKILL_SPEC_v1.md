@@ -7,10 +7,21 @@ method on the board that manufactures commit behavior instead of reweighting it.
 Design discipline: ambitious-design-first (feedback 2026-07-15); learned, not scripted
 (feedback 2026-06-16).
 
+AMENDED 2026-08-13 (pre-launch — bars not yet frozen; operator takeover spec review +
+restore-fidelity probe findings). Amendments marked [A-2026-08-13] inline: gate stage id +
+τ pinned (§1), L2-geometry v1 decision (§2), start-state source pinned + restore validity
+check (§4), holdout split rule + gate-fire interpretation precondition + curriculum-stall
+kill clause (§5). Probe evidence: box_artifacts/contact_skill_probes/ (restore mm-accurate;
+AG constraint does NOT survive og.sim.load_state; held radio slips ~1.2 cm/s).
+
 ## 1. System contract (serving)
 - Base VLA: **radio_run2@49999** (ours; frozen). Drives episodes at h=32 chunks.
 - GATE (per-step, in wrapper): stage_head=terminal ∧ dist(EE, affordance_pt) < 0.07 m ∧
   approach-axis alignment < 20° ∧ aff_conf > τ. Fires → control handoff.
+  [A-2026-08-13] "terminal" PINNED = stage class 2 (MANIPULATE) of the 0/1/2/3 vocabulary
+  (add_stage_pixel_labels.py). NOT 3 (END): 3 is a post-success proxy (last 4% of frames)
+  and would never fire pre-press. τ PINNED = 0.5 (Run-2 telemetry: conf_p50 ran 0.68-0.82
+  on live points; 0.5 admits the working band with margin, rejects junk).
 - SKILL: per-step control at 30 Hz, budget ≤300 steps/attempt.
 - Exit: success-detected | budget-out → rewind 15 cm along approach normal → return
   control to VLA → re-approach; max 3 attempts/episode. Never downgrade mid-attempt.
@@ -27,6 +38,10 @@ Obs (per step, all eval-legal):
 - L2 wrist-local geometry: pooled occupancy+staleness features from the 0.02 m cube
   (~64-dim pool; exact pooling in impl doc) — wrist depth path legal per 08-09
   adjudication if L2 pooling underperforms
+  [A-2026-08-13] v1 DECISION: the 64-dim L2 slot is RESERVED but fed ZEROS both in prior
+  data (not derivable from stored clips) and online — identical prior/online distribution,
+  no mismatch. Enabling real L2 features later is a single-variable change on a reserved
+  slot (no obs-shape change, no buffer rebuild).
 Action: joint-velocity deltas, active arm (7) + torso (4) + gripper (1) = 12-dim,
 tanh-squashed, same limits as serving contract.
 
@@ -49,6 +64,18 @@ tanh-squashed, same limits as serving contract.
   advance when rolling success ≥70% → 25 → 100 steps pre-press → the 7 cm gate boundary.
   Start-state sources: demo terminal states (train demos) + OUR campaign near-commit
   states (policy-visited distribution — primary) — **NEVER instance 301 restores.**
+  [A-2026-08-13] "campaign near-commit states" PINNED: states harvested by running the
+  frozen VLA from TRAIN-demo restores (the state-harvest pass), snapshotting in the 10 cm
+  shell. EXPLICITLY EXCLUDED: any state from the Run-2 eval campaign — that campaign ran
+  on instance 301 (public_test index 0), so its states are 301 states and using them
+  violates the held-out rule even though they are "ours".
+  [A-2026-08-13] RESTORE VALIDITY CHECK (required; probe finding): og.sim.load_state does
+  NOT re-create assisted-grasp constraints — a held object slips ~1.2 cm/s on friction
+  alone, and a held-closed gripper never re-engages AG. The env wrapper must, at every
+  restore: re-establish AG for the holding arm (constraint rebuild or open→close
+  re-trigger), then verify AG engaged ∧ |Δ target-object z| < 1 mm over 30 settle steps.
+  States failing the check are DISCARDED (collector outcome-filter pattern). This is
+  training-infrastructure repair, not part of the learned-vs-scripted boundary.
 - Domain randomization: target pose jitter (±2 cm, ±10°), initial EE offset (±3 cm),
   perturbation forces mid-attempt (recovery emerges), affordance-point noise ~ measured
   head error (σ≈2.6 cm ∧ conf-conditioned), physics (friction ±20%).
@@ -57,12 +84,24 @@ tanh-squashed, same limits as serving contract.
 ## 5. Pre-registered bars (FROZEN at first training launch)
 - SIM GATE: ≥80% press success from the full 7 cm-boundary curriculum stage, randomized
   poses, sparse-reward eval mode, ≥200 eval episodes, held-out restore states.
+  [A-2026-08-13] "held-out" PINNED: split BY SOURCE DEMO/EPISODE, never by state/tuple —
+  states from one demo are near-duplicates; a state-level split leaks and inflates the bar.
+  (The prior-buffer converter stores raw_episode_id per tuple to enforce this.)
 - ARM-C (integrated, instance 301, n=25, default timeout, same serving stack + gate):
   conversion bands identical to RUN2_EVAL_PREREG for comparability —
   STRONG ≥5/25, WEAK 3–4, FAIL ≤2. Secondary: gate-fire rate, attempts/episode,
   skill-window success rate, rewind counts.
+  [A-2026-08-13] INTERPRETATION PRECONDITION (pre-registered): if the gate fires in <20%
+  of arm-C episodes, the conversion verdict is diagnostic of the GATE (stage head /
+  affordance conf at eval), NOT of the skill — it triggers gate diagnosis, not the kill
+  path. Conversion bands stand as a skill verdict only when gate-fire ≥ 20%. (Motivation:
+  stage-head held-out accuracy is still PENDING from Run-2 secondaries; an unmeasured
+  gate must not silently convert into a skill kill.)
 - Kill criterion: sim gate unmet after 3 curriculum-stage-0 redesigns → STOP, escalate
   to data-side rethink (the skill premise itself would then be falsified).
+  [A-2026-08-13] ADDED CLAUSE: independent of stage-0, if the curriculum advances no
+  stage for 3 consecutive training days, same STOP + escalation (closes the gap where
+  stage-0 learns but a middle stage stalls forever with no stop rule).
 
 ## 6. The flywheel (weight-level VLA integration path)
 Skill successes = on-policy commit demos → converted to LeRobot episodes → Run-3 BC mix.

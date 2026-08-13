@@ -138,6 +138,18 @@ class SkillCommitEnv:
                     self.env.step(hold_act)
                 dz = abs(float(_np(self.target.get_position_orientation()[0])[2]) - z0)
                 ok = self._ag_ok(e["holding_arm"]) and dz < 0.001
+                if not ok and self._ag_ok(e["holding_arm"]) and dz < 0.004:
+                    # marginal dz = slow snap-transient decay (demos 30/50: 1.7-1.8 mm) —
+                    # one extra settle+re-measure before giving up
+                    for _ in range(30):
+                        self.env.step(hold_act)
+                    z0 = float(_np(self.target.get_position_orientation()[0])[2])
+                    for _ in range(30):
+                        self.env.step(hold_act)
+                    dz = abs(float(_np(self.target.get_position_orientation()[0])[2]) - z0)
+                    ok = dz < 0.001
+                    print(f"SETTLE_RETRY demo={e['demo']} f={e['frame']}: "
+                          f"dz={dz * 1000:.1f}mm -> {'OK' if ok else 'discard'}", flush=True)
                 if not ok:
                     print(f"DISCARD demo={e['demo']} f={e['frame']} stage={e['stage']}: "
                           f"AG={self._ag_ok(e['holding_arm'])} dz={dz * 1000:.1f}mm",

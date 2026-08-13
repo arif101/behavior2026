@@ -72,10 +72,14 @@ tanh-squashed, same limits as serving contract.
   [A-2026-08-13] RESTORE VALIDITY CHECK (required; probe finding): og.sim.load_state does
   NOT re-create assisted-grasp constraints — a held object slips ~1.2 cm/s on friction
   alone, and a held-closed gripper never re-engages AG. The env wrapper must, at every
-  restore: re-establish AG for the holding arm (constraint rebuild or open→close
-  re-trigger), then verify AG engaged ∧ |Δ target-object z| < 1 mm over 30 settle steps.
-  States failing the check are DISCARDED (collector outcome-filter pattern). This is
-  training-infrastructure repair, not part of the learned-vs-scripted boundary.
+  restore: re-establish AG for the holding arm via robot._establish_grasp (probe-verified
+  2026-08-13: post-restore PhysX contact reporting is EMPTY, so the auto-AG path can never
+  see a candidate; direct establish holds the object flat at ±0.1 mm), then verify
+  AG engaged ∧ |Δ target-object z| < 1 mm over a 30-step window AFTER a 60-step settle
+  (a ~3-7 mm attachment-snap transient in the first ~2 s is expected and acceptable —
+  probe log probe_ag_fix). States failing the check are DISCARDED (collector
+  outcome-filter pattern). This is training-infrastructure repair, not part of the
+  learned-vs-scripted boundary.
 - Domain randomization: target pose jitter (±2 cm, ±10°), initial EE offset (±3 cm),
   perturbation forces mid-attempt (recovery emerges), affordance-point noise ~ measured
   head error (σ≈2.6 cm ∧ conf-conditioned), physics (friction ±20%).

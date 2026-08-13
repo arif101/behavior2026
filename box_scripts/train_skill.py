@@ -1,0 +1,121 @@
+"""Contact-skill training driver (spec §4/§7): one demo per process (Isaac env-reuse leaks;
+chunk like the collector), cycled by an outer loop. Stage-0 smoke: `--demo-id 10 --stage 0
+--max-env-steps 40000` — smoke bar (§7): rolling success ≥50% in ≤2 h.
+
+Per env step: 1 RLPD update round (UTD critic updates inside). Online episodes go to the
+online buffer; prior buffer = converter output MINUS held-out demos (bank json). Rolling
+success over the last 20 episodes prints every episode; checkpoints + stats every 25
+episodes to /root/skill_ckpts/ (push to HF at milestones — checkpoints never live only on
+a rented box).
+
+Run INSIDE the behavior env:
+  PYTHONPATH=/root OMNI_KIT_ALLOW_ROOT=1 OMNIGIBSON_HEADLESS=1 \
+    python -u train_skill.py --demo-id 10 --stage 0
+"""
+
+import argparse
+import json
+import os
+import time
+
+import numpy as np
+
+os.environ.setdefault("OMNI_KIT_ALLOW_ROOT", "1")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--demo-id", type=int, required=True)
+    ap.add_argument("--stage", type=int, default=0)
+    ap.add_argument("--max-env-steps", type=int, default=40000)
+    ap.add_argument("--batch", type=int, default=256)
+    ap.add_argument("--utd", type=int, default=8)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--no-shaping", action="store_true",
+                    help="sparse-only arm (§4: report primary at sparse too)")
+    ap.add_argument("--resume", default=None, help="checkpoint to resume from")
+    ap.add_argument("--out", default="/root/skill_ckpts")
+    a = ap.parse_args()
+
+    import omnigibson as og  # noqa: F401
+    from omnigibson.macros import gm
+    gm.HEADLESS = True
+    gm.ENABLE_TRANSITION_RULES = False
+    from omnigibson.envs.hdf5_data_wrapper import HDF5PlaybackWrapper
+
+    from reverse_curriculum_collect import EVAL_PROPRIO_KEYS  # noqa: F401
+    from rlpd_sac import RLPD, ReplayBuffer, load_meta
+    from skill_env_wrapper import SkillCommitEnv, STACK, PER_FRAME  # noqa: F401
+
+    bank_all = json.load(open("/root/skill_start_bank.json"))
+    entries = [e for e in bank_all["entries"]
+               if e["demo"] == a.demo_id and e["stage"] == a.stage]
+    assert entries, f"no bank entries for demo {a.demo_id} stage {a.stage}"
+    held_out = bank_all["held_out_demos"]
+    assert a.demo_id not in held_out, \
+        f"demo {a.demo_id} is HELD OUT (sim-gate eval only) -- refusing to train on it"
+
+    h5 = f"/root/rawdemos/task-0000/episode_{a.demo_id:08d}.hdf5"
+    wrapper = HDF5PlaybackWrapper.create_from_hdf5(
+        input_path=h5, output_path=f"/root/skill_tmp_{a.demo_id}.hdf5",
+        robot_obs_modalities=("rgb", "proprio"),
+        robot_proprio_keys=EVAL_PROPRIO_KEYS,
+    )
+    env = SkillCommitEnv(wrapper, entries, shaping=not a.no_shaping, seed=a.seed)
+
+    meta = load_meta()
+    obs_dim = meta["obs_layout"]["l2_geometry"][1]
+    act_dim = 12
+    scale = np.asarray(json.load(open("/root/skill_wrapper_scale.json"))["scale"], np.float32)
+    agent = RLPD(obs_dim, act_dim, utd=a.utd, seed=a.seed)
+    if a.resume:
+        agent.load(a.resume)
+        print(f"resumed from {a.resume}")
+    online = ReplayBuffer(obs_dim, act_dim, capacity=200_000)
+    prior = ReplayBuffer.from_prior_npz("/root/skill_buffer_prior/prior_buffer.npz",
+                                        scale, hold_out_demos=held_out)
+    print(f"prior buffer: {len(prior)} tuples (held out {held_out})")
+
+    os.makedirs(a.out, exist_ok=True)
+    results, env_steps, ep = [], 0, 0
+    t0 = time.time()
+    while env_steps < a.max_env_steps:
+        try:
+            obs = env.reset()
+        except RuntimeError as e:
+            print(f"RESET_EXHAUSTED: {e}")
+            break
+        done, ep_r = False, 0.0
+        while not done:
+            act = agent.act(obs)
+            nobs, r, done, info = env.step(act)
+            online.add(obs, act, r, nobs, float(info["success"]))
+            obs = nobs
+            ep_r += r
+            env_steps += 1
+            if len(online) > 1000:
+                stats = agent.update(online, prior, a.batch)
+        results.append(bool(info["success"]))
+        ep += 1
+        roll = float(np.mean(results[-20:]))
+        print(f"EP {ep} steps={info['steps']} success={info['success']} "
+              f"dist={info['dist']:.3f} ep_r={ep_r:.2f} rolling20={roll:.2f} "
+              f"env_steps={env_steps} elapsed={time.time() - t0:.0f}s", flush=True)
+        if ep % 25 == 0 or env_steps >= a.max_env_steps:
+            agent.save(f"{a.out}/skill_d{a.demo_id}_s{a.stage}_ep{ep}.pt")
+            json.dump({"demo": a.demo_id, "stage": a.stage, "episodes": ep,
+                       "env_steps": env_steps, "results": results,
+                       "rolling20": roll, "elapsed_s": time.time() - t0},
+                      open(f"{a.out}/stats_d{a.demo_id}_s{a.stage}.json", "w"))
+        if roll >= 0.5 and len(results) >= 20:
+            print(f"SMOKE_BAR_MET rolling20={roll:.2f} at ep {ep} "
+                  f"({time.time() - t0:.0f}s)", flush=True)
+            agent.save(f"{a.out}/skill_d{a.demo_id}_s{a.stage}_smoke.pt")
+            break
+    print(f"TRAIN_CHUNK_DONE ep={ep} env_steps={env_steps} "
+          f"rolling20={float(np.mean(results[-20:])) if results else 0:.2f}", flush=True)
+    os._exit(0)
+
+
+if __name__ == "__main__":
+    main()

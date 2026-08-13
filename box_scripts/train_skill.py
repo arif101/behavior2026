@@ -51,9 +51,17 @@ def main():
     from skill_env_wrapper import SkillCommitEnv, STACK, PER_FRAME  # noqa: F401
 
     bank_all = json.load(open("/root/skill_start_bank.json"))
-    entries = [e for e in bank_all["entries"]
-               if e["demo"] == a.demo_id and e["stage"] == a.stage]
-    assert entries, f"no bank entries for demo {a.demo_id} stage {a.stage}"
+    # Reverse-curriculum start mixing (2026-08-13, after the press-10 cliff): the frontier
+    # rung alone both over-specializes and forgets mastered rungs (exclusive -25 training
+    # degraded the actor below its mastered -5 rung; exclusive -10 then failed 0/3 from a
+    # clean ckpt). Sample ~50% frontier (stage == S) / 50% mastered (stage < S) via
+    # duplication (the wrapper picks uniformly from the list).
+    frontier = [e for e in bank_all["entries"]
+                if e["demo"] == a.demo_id and e["stage"] == a.stage]
+    mastered = [e for e in bank_all["entries"]
+                if e["demo"] == a.demo_id and e["stage"] < a.stage]
+    entries = frontier * max(1, len(mastered)) + mastered
+    assert frontier, f"no bank entries for demo {a.demo_id} stage {a.stage}"
     held_out = bank_all["held_out_demos"]
     assert a.demo_id not in held_out, \
         f"demo {a.demo_id} is HELD OUT (sim-gate eval only) -- refusing to train on it"

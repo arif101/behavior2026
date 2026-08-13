@@ -34,15 +34,30 @@ AG constraint does NOT survive og.sim.load_state; held radio slips ~1.2 cm/s).
 > correction sets 600 (grasp+lift+toggle span) — one number must win, measured from demo
 > segment lengths. Your gate-fire ≥20% precondition already covers the failure mode;
 > this note is about not walking into it knowingly.
+>
+> **RESOLVED 2026-08-13 (Suhas, on measurement — stage-head held-out validation, eps
+> 180-199, 3,148 frames, box_artifacts/contact_skill_probes/stage_head_valid.json):**
+> head accuracy 0.998; near-field (dmin ≤ 0.12 m) P(pred=2)=1.000 (n=140) — the head
+> fires MANIPULATE on geometry alone, no lift needed; approach-shell (0.07–0.20 m)
+> predictions 100% in {1,2}. DECISION: **gate stage condition = stage ∈ {1, 2}**
+> (first-class, alongside geometry + conf). 2-only measured safe on demo distribution;
+> {1,2} chosen as free insurance against the one unmeasurable residual (VLA hover states
+> vs demo distribution — only arm-C sees those). BUDGET: measured shell(7cm)→press spans
+> p50=50 / p95=141 / max=178 steps over 40 demos → scope-correction rule p95×1.5 = 211 →
+> **original ≤300 stands** (2.1× p95 headroom); the 600 raise is struck. CAVEAT logged:
+> validation used the training-style forward (demo action chunks, sampled flow time);
+> spot-check the serving-path readout at d7-d8 integration.
 
 ## 1. System contract (serving)
 - Base VLA: **radio_run2@49999** (ours; frozen). Drives episodes at h=32 chunks.
 - GATE (per-step, in wrapper): stage_head=terminal ∧ dist(EE, affordance_pt) < 0.07 m ∧
   approach-axis alignment < 20° ∧ aff_conf > τ. Fires → control handoff.
-  [A-2026-08-13] "terminal" PINNED = stage class 2 (MANIPULATE) of the 0/1/2/3 vocabulary
-  (add_stage_pixel_labels.py). NOT 3 (END): 3 is a post-success proxy (last 4% of frames)
-  and would never fire pre-press. τ PINNED = 0.5 (Run-2 telemetry: conf_p50 ran 0.68-0.82
-  on live points; 0.5 admits the working band with margin, rejects junk).
+  [A-2026-08-13, rev 2 per the RESOLVED note above] "terminal" PINNED = **stage ∈ {1, 2}**
+  (ACQUIRE or MANIPULATE) of the 0/1/2/3 vocabulary (add_stage_pixel_labels.py) — widened
+  from 2-only on held-out validation evidence (acc 0.998; near-field P(pred=2)=1.000;
+  shell preds 100% in {1,2}). NOT 3 (END): post-success proxy, never fires pre-press.
+  τ PINNED = 0.5 (Run-2 telemetry: conf_p50 ran 0.68-0.82 on live points; 0.5 admits the
+  working band with margin, rejects junk).
 - SKILL: per-step control at 30 Hz, budget ≤300 steps/attempt.
 - Exit: success-detected | budget-out → rewind 15 cm along approach normal → return
   control to VLA → re-approach; max 3 attempts/episode. Never downgrade mid-attempt.

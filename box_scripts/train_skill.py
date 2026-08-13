@@ -33,6 +33,9 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--no-shaping", action="store_true",
                     help="sparse-only arm (§4: report primary at sparse too)")
+    ap.add_argument("--stop-at", type=float, default=0.5,
+                    help="early-stop when rolling20 >= this (0 disables; stage-0 smoke "
+                         "used 0.5; curriculum chunks want 0 or ~0.95)")
     ap.add_argument("--resume", default=None, help="checkpoint to resume from")
     ap.add_argument("--out", default="/root/skill_ckpts")
     a = ap.parse_args()
@@ -107,7 +110,7 @@ def main():
                        "env_steps": env_steps, "results": results,
                        "rolling20": roll, "elapsed_s": time.time() - t0},
                       open(f"{a.out}/stats_d{a.demo_id}_s{a.stage}.json", "w"))
-        if roll >= 0.5 and len(results) >= 20:
+        if a.stop_at > 0 and roll >= a.stop_at and len(results) >= 20:
             print(f"SMOKE_BAR_MET rolling20={roll:.2f} at ep {ep} "
                   f"({time.time() - t0:.0f}s)", flush=True)
             agent.save(f"{a.out}/skill_d{a.demo_id}_s{a.stage}_smoke.pt")

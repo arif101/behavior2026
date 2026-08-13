@@ -161,6 +161,26 @@ class SkillCommitEnv:
                     entry = None
                     continue
 
+            # Pre-press states can restore with ToggledOn ALREADY TRUE (the demo's toggle
+            # precedes the distance-minimum press anchor, or the EE restores inside the
+            # toggle zone) -> 1-step false successes that poison training. Clear it and
+            # verify it stays cleared; a re-latch means the state is past the press —
+            # discard the entry.
+            try:
+                from omnigibson.object_states import ToggledOn
+                if self.target.states[ToggledOn].get_value():
+                    self.target.states[ToggledOn].set_value(False)
+                    self.env.step(hold_act)
+                if self.target.states[ToggledOn].get_value():
+                    e["invalid"] = True
+                    self.bank = [b for b in self.bank if not b.get("invalid")]
+                    if not self.bank:
+                        raise RuntimeError("start bank exhausted: all entries re-latch ToggledOn")
+                    entry = None
+                    continue
+            except KeyError:
+                pass  # object has no ToggledOn state; reward path will report success=False
+
             self.active_arm = e["active_arm"]
             self.hold_act = hold_act
             obs61 = self._proprio61()

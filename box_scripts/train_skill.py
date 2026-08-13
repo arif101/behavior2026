@@ -84,8 +84,8 @@ def main():
     scale = np.asarray(json.load(open("/root/skill_wrapper_scale.json"))["scale"], np.float32)
     agent = RLPD(obs_dim, act_dim, utd=a.utd, seed=a.seed)
     if a.resume:
-        agent.load(a.resume)
-        print(f"resumed from {a.resume}")
+        agent.load(a.resume, reset_alpha=True)
+        print(f"resumed from {a.resume} (alpha reset)")
     online = ReplayBuffer(obs_dim, act_dim, capacity=200_000)
     if a.buffer_path and os.path.exists(a.buffer_path):
         z = np.load(a.buffer_path)

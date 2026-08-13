@@ -180,13 +180,20 @@ class RLPD:
                     "critic_tgt": self.critic_tgt.state_dict(),
                     "log_alpha": self.log_alpha.detach().cpu()}, path)
 
-    def load(self, path):
+    def load(self, path, reset_alpha=False):
         ck = torch.load(path, map_location=DEVICE, weights_only=False)
         self.actor.load_state_dict(ck["actor"])
         self.critic.load_state_dict(ck["critic"])
         self.critic_tgt.load_state_dict(ck["critic_tgt"])
         with torch.no_grad():
-            self.log_alpha.copy_(ck["log_alpha"].to(DEVICE))
+            if reset_alpha:
+                # fresh exploration temperature per chunk: a mastered scene tunes alpha
+                # down, and resuming that collapsed alpha on a NEW scene freezes
+                # exploration (2026-08-13: fresh-init cracked demo 20 in ~10 eps while
+                # the resumed policy went 1/21 on demos 40/70)
+                self.log_alpha.copy_(torch.tensor(np.log(0.1), device=DEVICE))
+            else:
+                self.log_alpha.copy_(ck["log_alpha"].to(DEVICE))
 
 
 def load_meta(path="/root/skill_buffer_prior/skill_buffer_meta.json"):

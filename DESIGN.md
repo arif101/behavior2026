@@ -65,3 +65,20 @@ Correlated-noise flow matching; multi-sample FM (15/step); delta actions + per-t
 3. **No warm-start = no free carryover q**: our first leaderboard number arrives ~2–3 weeks later than a warm-started banker would. Accepted trade for ownership.
 4. **Sim throughput** for corrective rounds + self-eval (~350–450 GPU-h per full eval) — jobqueue fleet is a first-class deliverable, not an afterthought.
 5. Metric mechanics must be enforced in the director from day one (parking, cheapest-option) — free points, easy to forget.
+
+## Eval observation legality — ADJUDICATED 2026-08-09
+
+Raised by SPATIAL_INTEL_RESEARCH_2026_08_09.md §2.1 (apparent contradiction between this
+doc's "RGBD is given at eval" and the depth-illegal premise circulating since the 08-08
+survey). Verified against behavior.stanford.edu/challenge/evaluation.html on 2026-08-09:
+
+- **Allowed at eval: "RGB + depth + proprioception."** Depth images ARE legal policy inputs.
+- **Prohibited: "ground-truth segmentation, object state, target object pose, full-scene
+  point cloud, robot global pose, or other simulator-only privileged information."**
+
+Consequences: the live map + affordance point consuming eval depth are fully legal
+(Run-1b "all-legal serving" claim stands). The 2026-08-08 survey's blanket
+"depth/point-cloud policy inputs illegal" premise is WRONG for sensor depth (right for
+GT/full-scene point clouds); its discard reasoning for depth-input methods (PointVLA,
+3D Diffuser Actor, BridgeVLA, SpatialVLA, QDepth-style depth experts on real depth, etc.)
+is void on the legality axis and those items stand or fall on cost/evidence only.

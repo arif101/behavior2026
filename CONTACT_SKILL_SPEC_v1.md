@@ -4,6 +4,15 @@ Provenance: RUN2_EVAL_REPORT.md (0/25 FAIL; commit-probe mass 0.00, diversity co
 MODE ABSENT; selection-class levers support-dead). This is the funded main line: a small
 LEARNED policy owning the final ~7cm, trained by sim RL from restore states — the only
 method on the board that manufactures commit behavior instead of reweighting it.
+
+SCOPE CORRECTION (2026-08-12): the radio terminal window is the ACQUIRE→MANIPULATE
+composite (stage taxonomy: grasp closes ~f1110-1160, lift f1125+, then toggle), NOT a
+bare press. The skill's scope = everything from the 7 cm shell to ToggledOn: grasp,
+lift, toggle — learned as ONE behavior because the reward (ToggledOn) is terminal and
+the splice clips demonstrate the composite. We do NOT hand-decompose it; RL discovers
+the sequence. "Press skill" naming retired → COMMIT SKILL. Attempt budget raised
+300→600 steps (must cover the demo's acquire+manipulate span; measure exact demo
+segment lengths in day-0 and set budget = p95 span × 1.5).
 Design discipline: ambitious-design-first (feedback 2026-07-15); learned, not scripted
 (feedback 2026-06-16).
 

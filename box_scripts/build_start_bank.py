@@ -68,14 +68,24 @@ def main():
         lo = dmin[s2].min()
         press = int(s2[np.argmax(dmin[s2] <= lo + 0.005)])
         active = "left" if dL[press] < dR[press] else "right"
-        other = "right" if active == "left" else "left"
-        og = st[press, GRIP_L if other == "left" else GRIP_R].sum()
-        holding = other if og < 0.02 else None
+
+        def holding_at(f):
+            """Arm(s) holding the radio AT frame f: gripper closed (sum<0.02) AND EE near
+            the metalink (<0.25 m). Evaluated per entry frame — press-k frames can be
+            mid-carry even when the press frame itself has the radio resting."""
+            held = [arm for arm, (gs, d) in
+                    (("left", (GRIP_L, dL[f])), ("right", (GRIP_R, dR[f])))
+                    if st[f, gs].sum() < 0.02 and d < 0.25]
+            if not held:
+                return None
+            other = "right" if active == "left" else "left"
+            return other if other in held else held[0]
+
         for stg, k in OFFSETS.items():
             f0 = press - k
             if f0 > 0:
                 bank.append(dict(demo=int(rec["demo"]), frame=int(f0), stage=stg,
-                                 active_arm=active, holding_arm=holding,
+                                 active_arm=active, holding_arm=holding_at(f0),
                                  press_frame=press))
         with h5py.File(f"/root/rawdemos/task-0000/episode_{rec['demo']:08d}.hdf5") as f:
             key = sorted(k for k in f["data"].keys() if k.startswith("demo_"))[0]
@@ -83,7 +93,7 @@ def main():
         gcol = 21 if active == "left" else 22
         grip_vals.append([float(acts[:, gcol].min()), float(acts[:, gcol].max())])
         print(f"demo {rec['demo']}: press f{press} (d={dmin[press]:.3f}) active={active} "
-              f"holding={holding}")
+              f"holding@press-5/25/100={[holding_at(max(press - k, 0)) for k in (5, 25, 100)]}")
 
     meta = json.load(open("/root/skill_buffer_prior/skill_buffer_meta.json"))
     p99 = np.asarray(meta["action_abs_p99"][:11])

@@ -146,8 +146,20 @@ class SkillCommitEnv:
                     entry = None
                     continue
             else:
-                for _ in range(10):
+                # no holding arm expected — still verify the target is actually supported
+                # (a missed mid-carry state would free-fall here): 30-step settle,
+                # |Δz| < 5 mm or the entry is discarded
+                z0 = float(_np(self.target.get_position_orientation()[0])[2])
+                for _ in range(30):
                     self.env.step(hold_act)
+                dz = abs(float(_np(self.target.get_position_orientation()[0])[2]) - z0)
+                if dz > 0.005:
+                    e["invalid"] = True
+                    self.bank = [b for b in self.bank if not b.get("invalid")]
+                    if not self.bank:
+                        raise RuntimeError("start bank exhausted: all entries failed validity")
+                    entry = None
+                    continue
 
             self.active_arm = e["active_arm"]
             self.hold_act = hold_act

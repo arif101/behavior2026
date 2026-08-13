@@ -115,8 +115,19 @@ def main():
                   f"({time.time() - t0:.0f}s)", flush=True)
             agent.save(f"{a.out}/skill_d{a.demo_id}_s{a.stage}_smoke.pt")
             break
+    final_roll = float(np.mean(results[-20:])) if results else 0.0
+    if results and final_roll < 0.3:
+        # quarantine: a failure-dominated chunk must not become the next chunk's resume
+        # source (2026-08-13: 20 failure-only episodes degraded the actor enough to lose
+        # the already-mastered press-5 rung)
+        import glob as _g
+        import shutil
+        os.makedirs(f"{a.out}/lowperf", exist_ok=True)
+        for p in _g.glob(f"{a.out}/skill_d{a.demo_id}_s{a.stage}_*.pt"):
+            shutil.move(p, f"{a.out}/lowperf/{os.path.basename(p)}")
+        print(f"CHUNK_QUARANTINED rolling20={final_roll:.2f} -> {a.out}/lowperf/", flush=True)
     print(f"TRAIN_CHUNK_DONE ep={ep} env_steps={env_steps} "
-          f"rolling20={float(np.mean(results[-20:])) if results else 0:.2f}", flush=True)
+          f"rolling20={final_roll:.2f}", flush=True)
     os._exit(0)
 
 

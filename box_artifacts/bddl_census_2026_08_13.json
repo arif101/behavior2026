@@ -1,0 +1,350 @@
+{
+ "task_families": {
+  "picking_up_trash": [
+   "pick&place"
+  ],
+  "putting_away_Halloween_decorations": [
+   "pick&place"
+  ],
+  "setting_mousetraps": [
+   "UNMAPPED:onfloor",
+   "pick&place"
+  ],
+  "putting_up_Christmas_decorations_inside": [
+   "pick&place"
+  ],
+  "putting_dishes_away_after_cleaning": [
+   "pick&place"
+  ],
+  "bringing_in_wood": [
+   "UNMAPPED:onfloor"
+  ],
+  "moving_boxes_to_storage": [
+   "UNMAPPED:onfloor",
+   "pick&place"
+  ],
+  "boxing_books_up_for_storage": [
+   "pick&place"
+  ],
+  "storing_food": [
+   "pick&place"
+  ],
+  "assembling_gift_baskets": [
+   "pick&place"
+  ],
+  "putting_away_toys": [
+   "pick&place"
+  ],
+  "vacuuming_floors": [
+   "UNMAPPED:dusty"
+  ],
+  "thawing_frozen_food": [
+   "pick&place"
+  ],
+  "organizing_school_stuff": [
+   "pick&place"
+  ],
+  "installing_a_modem": [
+   "pick&place",
+   "press/toggle"
+  ],
+  "polishing_shoes": [
+   "UNMAPPED:stained",
+   "coat/wipe/spread",
+   "pick&place"
+  ],
+  "collecting_aluminum_cans": [
+   "pick&place"
+  ],
+  "installing_a_fax_machine": [
+   "pick&place",
+   "press/toggle"
+  ],
+  "installing_a_scanner": [
+   "pick&place",
+   "press/toggle"
+  ],
+  "laying_tile_floors": [
+   "UNMAPPED:onfloor"
+  ],
+  "turning_on_radio": [
+   "press/toggle"
+  ],
+  "cleaning_up_plates_and_food": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "can_meat": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "hiding_Easter_eggs": [
+   "pick&place"
+  ],
+  "picking_up_toys": [
+   "pick&place"
+  ],
+  "rearranging_kitchen_furniture": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "set_up_a_coffee_station_in_your_kitchen": [
+   "pick&place"
+  ],
+  "preparing_lunch_box": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "loading_the_car": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "carrying_in_groceries": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "bringing_water": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "tidying_bedroom": [
+   "pick&place"
+  ],
+  "outfit_a_basic_toolbox": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "sorting_vegetables": [
+   "pick&place"
+  ],
+  "collecting_childrens_toys": [
+   "pick&place"
+  ],
+  "putting_shoes_on_rack": [
+   "pick&place"
+  ],
+  "clearing_food_from_table_into_fridge": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "sorting_household_items": [
+   "pick&place"
+  ],
+  "getting_organized_for_work": [
+   "pick&place"
+  ],
+  "clean_up_your_desk": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "setting_the_fire": [
+   "cook (appliance)",
+   "pick&place",
+   "press/toggle"
+  ],
+  "clean_boxing_gloves": [
+   "coat/wipe/spread"
+  ],
+  "wash_a_baseball_cap": [
+   "coat/wipe/spread"
+  ],
+  "wash_dog_toys": [
+   "coat/wipe/spread"
+  ],
+  "hanging_pictures": [
+   "attach/insert"
+  ],
+  "attach_a_camera_to_a_tripod": [
+   "attach/insert"
+  ],
+  "clean_a_patio": [
+   "coat/wipe/spread"
+  ],
+  "clean_a_trumpet": [
+   "coat/wipe/spread"
+  ],
+  "spraying_for_bugs": [
+   "coat/wipe/spread"
+  ],
+  "spraying_fruit_trees": [
+   "coat/wipe/spread"
+  ],
+  "make_microwave_popcorn": [
+   "pour"
+  ],
+  "cook_cabbage": [
+   "pour"
+  ],
+  "chop_an_onion": [
+   "pick&place",
+   "pour"
+  ],
+  "slicing_vegetables": [
+   "articulated open/close"
+  ],
+  "chopping_wood": [],
+  "cook_hot_dogs": [
+   "cook (appliance)"
+  ],
+  "cook_bacon": [
+   "articulated open/close",
+   "cook (appliance)"
+  ],
+  "freeze_pies": [
+   "articulated open/close",
+   "cook (appliance)",
+   "pick&place"
+  ],
+  "canning_food": [
+   "articulated open/close",
+   "pick&place",
+   "pour"
+  ],
+  "make_pizza": [
+   "pick&place"
+  ],
+  "freeze_fruit": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "cook_a_brisket": [
+   "cook (appliance)",
+   "pick&place"
+  ],
+  "sorting_bottles_cans_and_paper": [
+   "pick&place"
+  ],
+  "tidying_living_room": [
+   "pick&place"
+  ],
+  "re_shelving_library_books": [
+   "pick&place"
+  ],
+  "make_rose_centerpieces": [
+   "pick&place"
+  ],
+  "sweeping_garage": [
+   "coat/wipe/spread"
+  ],
+  "stacking_wood": [
+   "pick&place"
+  ],
+  "organizing_art_supplies": [
+   "pick&place"
+  ],
+  "scrubbing_bathroom_floor": [
+   "coat/wipe/spread"
+  ],
+  "bringing_paper_to_recycling": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "halve_an_egg": [
+   "pick&place"
+  ],
+  "installing_smoke_detectors": [
+   "attach/insert"
+  ],
+  "setting_the_table": [
+   "pick&place"
+  ],
+  "unloading_the_car": [
+   "pick&place"
+  ],
+  "turning_out_all_lights_before_sleep": [
+   "press/toggle"
+  ],
+  "boxing_food_after_dinner": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "cleaning_up_branches_and_twigs": [
+   "pick&place"
+  ],
+  "clean_your_rusty_garden_tools": [
+   "articulated open/close",
+   "coat/wipe/spread",
+   "pick&place"
+  ],
+  "cook_a_frozen_pie": [
+   "cook (appliance)",
+   "pick&place"
+  ],
+  "carrying_out_garden_furniture": [
+   "pick&place"
+  ],
+  "put_together_a_basic_pruning_kit": [
+   "articulated open/close",
+   "pick&place"
+  ],
+  "dispose_of_glass": [
+   "pick&place"
+  ],
+  "make_cabinet_doors": [
+   "attach/insert"
+  ],
+  "clean_up_broken_glass": [
+   "pick&place"
+  ],
+  "packing_meal_for_delivery": [
+   "pick&place"
+  ],
+  "store_batteries": [
+   "pick&place"
+  ],
+  "store_honey": [
+   "pick&place"
+  ],
+  "tidying_bathroom": [
+   "pick&place"
+  ],
+  "putting_dirty_dishes_in_sink": [
+   "pick&place"
+  ],
+  "make_gift_bags_for_baby_showers": [
+   "pick&place"
+  ],
+  "rearrange_your_room": [
+   "pick&place"
+  ],
+  "composting_waste": [
+   "pick&place"
+  ],
+  "store_produce": [
+   "pick&place"
+  ],
+  "clean_a_keyboard": [
+   "coat/wipe/spread"
+  ],
+  "dispose_of_batteries": [
+   "pick&place"
+  ],
+  "cook_brussels_sprouts": [
+   "articulated open/close",
+   "cook (appliance)",
+   "pick&place"
+  ],
+  "cook_broccolini": [
+   "cook (appliance)",
+   "pick&place"
+  ],
+  "setup_a_bar_for_a_cocktail_party": [
+   "pick&place"
+  ],
+  "sorting_books_on_shelf": [
+   "pick&place"
+  ]
+ },
+ "family_counts": {
+  "pick&place": 75,
+  "UNMAPPED:onfloor": 4,
+  "UNMAPPED:dusty": 1,
+  "press/toggle": 6,
+  "UNMAPPED:stained": 1,
+  "coat/wipe/spread": 12,
+  "articulated open/close": 20,
+  "cook (appliance)": 8,
+  "attach/insert": 4,
+  "pour": 4
+ }
+}

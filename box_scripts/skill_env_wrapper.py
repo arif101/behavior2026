@@ -225,6 +225,7 @@ class SkillCommitEnv:
             self._hist = [self._frame_feat(obs61)] * STACK
             self.steps = 0
             self.dwell = 0
+            self.dwell_bonus = 0.0
             self.contact_made = False
             return self._obs()
         raise RuntimeError("reset failed after max_tries")
@@ -253,8 +254,17 @@ class SkillCommitEnv:
             if contact and not self.contact_made:
                 r += 0.1
                 self.contact_made = True
-            self.dwell = self.dwell + 1 if contact else 0
-            r += 0.02 * min(self.dwell, 5)
+            # dwell shaping = bounded PROGRESS bonus (0.02 per new consecutive-contact
+            # step, ≤5 steps, ≤0.3/episode). The original per-step form paid +0.1/step
+            # for parked contact — a failed episode earned +29.58 (demo 210, 2026-08-14),
+            # out-earning success 30:1. Reward hacking, caught before buffer save.
+            if contact:
+                self.dwell += 1
+                if self.dwell <= 5 and self.dwell_bonus < 0.299:
+                    r += 0.02
+                    self.dwell_bonus += 0.02
+            else:
+                self.dwell = 0
         if toggled:
             r += 1.0
         done = toggled or self.steps >= BUDGET

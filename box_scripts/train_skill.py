@@ -28,6 +28,10 @@ def main():
     ap.add_argument("--demo-id", type=int, required=True)
     ap.add_argument("--stage", type=int, default=0)
     ap.add_argument("--max-env-steps", type=int, default=40000)
+    ap.add_argument("--max-episodes", type=int, default=0,
+                    help="also cap the chunk by episode count (0 = steps only). Step-only "
+                         "caps starve cold scenes: failures burn 300 steps so cold chunks "
+                         "got ~10 episodes while healthy ones got 30-55 (stage-1 pass)")
     ap.add_argument("--batch", type=int, default=256)
     ap.add_argument("--utd", type=int, default=8)
     ap.add_argument("--seed", type=int, default=0)
@@ -102,7 +106,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     results, env_steps, ep = [], 0, 0
     t0 = time.time()
-    while env_steps < a.max_env_steps:
+    while env_steps < a.max_env_steps and (a.max_episodes == 0 or ep < a.max_episodes):
         try:
             obs = env.reset()
         except RuntimeError as e:

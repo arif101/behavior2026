@@ -1,0 +1,90 @@
+{
+ "robot_r1:left_realsense_link:Camera:0": {
+  "class": "VisionSensor",
+  "image_width": 1080,
+  "image_height": 1080,
+  "focal_length": 17.0,
+  "horizontal_aperture": 20.9950008392334,
+  "vertical_aperture": "ERR 'VisionSensor' object has no attribute '",
+  "clipping_range": [
+   0.0010000000474974513,
+   10000000.0
+  ],
+  "K": [
+   [
+    874.4938921693507,
+    0,
+    540.0
+   ],
+   [
+    0,
+    874.4938921693507,
+    540.0
+   ],
+   [
+    0,
+    0,
+    1
+   ]
+  ],
+  "K_derived": true
+ },
+ "robot_r1:right_realsense_link:Camera:0": {
+  "class": "VisionSensor",
+  "image_width": 1080,
+  "image_height": 1080,
+  "focal_length": 17.0,
+  "horizontal_aperture": 20.9950008392334,
+  "vertical_aperture": "ERR 'VisionSensor' object has no attribute '",
+  "clipping_range": [
+   0.0010000000474974513,
+   10000000.0
+  ],
+  "K": [
+   [
+    874.4938769753423,
+    0.0,
+    540.0
+   ],
+   [
+    0.0,
+    874.4938769753423,
+    540.0
+   ],
+   [
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ },
+ "robot_r1:zed_link:Camera:0": {
+  "class": "VisionSensor",
+  "image_width": 1080,
+  "image_height": 1080,
+  "focal_length": 17.0,
+  "horizontal_aperture": 20.9950008392334,
+  "vertical_aperture": "ERR 'VisionSensor' object has no attribute '",
+  "clipping_range": [
+   0.0010000000474974513,
+   10000000.0
+  ],
+  "K": [
+   [
+    874.4938769753423,
+    0.0,
+    540.0
+   ],
+   [
+    0.0,
+    874.4938769753423,
+    540.0
+   ],
+   [
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ }
+}

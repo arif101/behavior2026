@@ -1,0 +1,11 @@
+{
+ "ckpt": "/root/ckpt_run2",
+ "n": 64,
+ "displace_m": 0.2,
+ "mean_action_norm": 26.694292217493057,
+ "A_vs_C_conditioned_vs_not": 0.17770644859410822,
+ "A_vs_B_right_vs_wrong_point": 0.13390027137938887,
+ "rel_A_vs_C": 0.006657095350055967,
+ "rel_A_vs_B": 0.0050160637445799214,
+ "verdict": "DEAD (point ignored)"
+}

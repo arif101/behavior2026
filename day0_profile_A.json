@@ -1,0 +1,42 @@
+{
+ "demo": 20,
+ "modalities": "rgb,proprio",
+ "errors": [],
+ "boot_s": 221.0,
+ "vram_after_boot_mb": 7710,
+ "v1_reset_s": [
+  70.82,
+  45.02,
+  46.28
+ ],
+ "bare_restore_s": [
+  10.47,
+  9.22,
+  9.39
+ ],
+ "dump_state_s": 0.04,
+ "snap_load_s": [
+  0.622,
+  1.08,
+  0.99,
+  0.887,
+  0.941
+ ],
+ "snap_dz_mm": [
+  0.33,
+  0.33,
+  0.33,
+  0.33,
+  0.33
+ ],
+ "snap_ag_ok": [
+  true,
+  true,
+  true,
+  true,
+  true
+ ],
+ "step_rate_hz": 2.3,
+ "s_per_step": 0.435,
+ "vram_end_mb": 11603
+}

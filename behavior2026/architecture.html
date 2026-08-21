@@ -1,0 +1,192 @@
+<title>B1K-2026 — System Architecture (detailed)</title>
+<style>
+:root{
+  --bg:#FAFAF7; --surface:#F1F0EA; --ink:#1C2430; --ink-2:#4A5568; --muted:#8A93A3;
+  --accent:#B4530A; --sensor:#2E5FA3; --ok:#2E7D4F; --run:#8A6A12; --line:#DDDACF; --chipbg:#EDEBE2; --codebg:#EFEDE4;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#12161D; --surface:#1A202B; --ink:#E8EAE6; --ink-2:#AEB6C2; --muted:#6B7686;
+  --accent:#E8A13D; --sensor:#6FA0DC; --ok:#5FBF8A; --run:#D9B54A; --line:#2A3240; --chipbg:#20293a; --codebg:#1D2530;
+}}
+:root[data-theme="dark"]{--bg:#12161D; --surface:#1A202B; --ink:#E8EAE6; --ink-2:#AEB6C2; --muted:#6B7686; --accent:#E8A13D; --sensor:#6FA0DC; --ok:#5FBF8A; --run:#D9B54A; --line:#2A3240; --chipbg:#20293a; --codebg:#1D2530;}
+:root[data-theme="light"]{--bg:#FAFAF7; --surface:#F1F0EA; --ink:#1C2430; --ink-2:#4A5568; --muted:#8A93A3; --accent:#B4530A; --sensor:#2E5FA3; --ok:#2E7D4F; --run:#8A6A12; --line:#DDDACF; --chipbg:#EDEBE2; --codebg:#EFEDE4;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Charter,"Bitstream Charter",Cambria,Georgia,serif;font-size:15.5px;line-height:1.5;}
+.wrap{max-width:1150px;margin:0 auto;padding:32px 24px 80px;}
+.eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 6px;}
+h1{font-size:26px;margin:0 0 4px;text-wrap:balance;}
+h2{font-size:20px;margin:44px 0 4px;}
+.meta{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--muted);margin-bottom:14px;}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;font-weight:700;letter-spacing:.04em;
+  padding:1px 8px;border-radius:3px;background:var(--chipbg);border:1.5px solid;white-space:nowrap;}
+.sensor{color:var(--sensor);border-color:var(--sensor);}
+.signal{color:var(--accent);border-color:var(--accent);}
+.siglegend{border:1px solid var(--line);background:var(--surface);padding:10px 14px;margin-bottom:20px;
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink-2);display:flex;gap:22px;flex-wrap:wrap;}
+.blk{border:1.5px solid var(--line);background:var(--surface);padding:14px 18px;margin-bottom:0;}
+.core{border-color:var(--accent);border-width:2px;}
+.blk h3{margin:0 0 2px;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.st{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.06em;padding:1px 7px;border-radius:10px;border:1px solid;}
+.st.ok{color:var(--ok);border-color:var(--ok);} .st.run{color:var(--run);border-color:var(--run);} .st.des{color:var(--muted);border-color:var(--muted);}
+.what{margin:2px 0 8px;font-size:13.5px;color:var(--ink-2);max-width:75ch;}
+.steps{margin:0;padding:0;list-style:none;counter-reset:step;}
+.steps li{position:relative;padding:5px 0 5px 26px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-2);}
+.steps li::before{counter-increment:step;content:counter(step, lower-alpha);position:absolute;left:4px;top:6px;
+  font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--accent);font-size:12px;}
+.steps b{color:var(--ink);}
+.steps code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:var(--codebg);padding:0 4px;border-radius:3px;white-space:nowrap;}
+.io{display:grid;grid-template-columns:52px 1fr;gap:3px 10px;margin-top:9px;padding-top:7px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--ink-2);align-items:baseline;}
+.io .k{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);}
+.rate{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);margin-left:auto;}
+.arrow{text-align:center;color:var(--accent);font-size:14px;padding:2px 0;font-family:ui-monospace,monospace;}
+.timeline{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--codebg);border:1px solid var(--line);
+  padding:10px 14px;margin-top:8px;overflow-x:auto;white-space:pre;line-height:1.7;color:var(--ink-2);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:860px){.grid2{grid-template-columns:1fr;}}
+.panel{border:1px solid var(--line);background:var(--surface);padding:12px 16px;}
+.panel h3{margin:0 0 8px;font-size:13px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);}
+.panel ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--ink-2);}
+.panel li{margin-bottom:6px;}
+.panel li b{color:var(--ink);}
+.foot{margin-top:44px;padding-top:12px;border-top:1px solid var(--line);font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);}
+</style>
+<div class="wrap">
+<p class="eyebrow">BEHAVIOR-2026 · Our-Model Entry · v6 detailed</p>
+<h1>System architecture — every stage opened up</h1>
+<p class="meta">2026-07-08 · numbered stages (1–6) = the eval-time loop inside the scored Docker (one 24GB GPU) · stage 0 = training (makes the weights, never runs at eval) · lettered sub-steps show internal pipelines with shapes and rates</p>
+
+<div class="siglegend">
+  <span><span class="chip sensor">SENSOR</span> raw test-time data (blue = the robot could sense this in the real world)</span>
+  <span><span class="chip signal">COMPUTED</span> everything derived by our stack (amber)</span>
+  <span style="color:var(--muted)">two colors only — category, not identity</span>
+</div>
+
+<!-- ============ STAGE 0: TRAINING ============ -->
+<div class="blk">
+  <h3>0 · Training pipeline — produces the weights for stages 3–4 <span class="st run">SFT validated · engine gated Sep</span><span class="rate">offline, H100 + sim fleet</span></h3>
+  <p class="what">Never present in the Docker. Output = one checkpoint (policy + heads) and one pointer model. Privileged sim access is legal here and used aggressively.</p>
+  <ol class="steps">
+    <li><b>Sources:</b> 20k teleop demos (200/task; RGB video + <code>proprio(T,61)</code> + <code>action(T,23)</code>) + raw sim-state HDF5s (<code>state(T,623)</code> per episode) + our own rollouts (later rounds).</li>
+    <li><b>Label factory</b> (validated ✓): official playback restores each recorded state into live sim → registry reads → <code>pose_obj(T,7)</code> per object → <b>POINT3D labels</b> (project into each camera for pointer supervision; keep 3D for the policy's point token), <b>STAGE labels</b> (BDDL predicate flips, in q-units), EE poses, failure labels for metacog.</li>
+    <li><b>Pointer training</b> (separate small model): frozen DINOv2-class features + heatmap head; loss = cross-entropy on label pixel; benchmark = held-out frames, % within object mask + 3D error. Gate Aug 4.</li>
+    <li><b>Policy SFT</b> = flow-matching regression on demo chunks. Losses: FM loss (correlated noise from action-covariance Cholesky; 15 samples/step) + FAST aux ×0.05 + stage-CE aux + <b>point-noise augmentation</b> (train points jittered to match the pointer's measured error, so eval-time estimates don't surprise the policy). <b>LoRA</b> variant for cheap validation runs; <b>full fine-tune</b> for the G4 base (~90 tasks, ~1150 H100-h).</li>
+    <li><b>RFT round-0:</b> collect rollouts with the base → keep successes → re-train with AWR weights (advantage = predicate delta, applied as loader sampling weights). No new infrastructure.</li>
+    <li><b>Corrective rounds (the distillation):</b> harvest failure states from fleet rollouts → <b>mid-episode restore</b> (validated ✓) → scripted <b>privileged teachers</b> execute recovery in physics (retreat-reapproach, brace, regrasp) → episodes in demo schema → DAgger + AWR retrain <b>vs matched-budget success-replay control arm</b>. Teacher gate Sep 1; kill-check vs control Sep 15.</li>
+    <li><b>Metacog calibration:</b> P(fail|stage) head fit on fleet rollouts (sim truth gives labels), conformal threshold set for a target false-alarm rate on held-out rollouts. Never calibrated on leaderboard instances.</li>
+  </ol>
+  <div class="io"><span class="k">EMITS</span><span>policy checkpoint (trunk+expert+aux heads) → stage 4 · pointer model → stage 3 · calibration thresholds → stage 5</span></div>
+</div>
+<div class="arrow">▼ weights ▼</div>
+
+<!-- ============ STAGE 1 ============ -->
+<div class="blk">
+  <h3>1 · Observations <span class="st ok">validated</span><span class="rate">every tick · 30 Hz</span></h3>
+  <p class="what">The complete test-time interface. Nothing privileged: no object poses, no contacts, no sim internals.</p>
+  <ol class="steps">
+    <li><span class="chip sensor">RGB</span> head <code>720×720×3</code> + left/right wrist <code>480×480×3</code>.</li>
+    <li><span class="chip sensor">DEPTH</span> aligned per-pixel range images, same three cameras. Consumed <b>only</b> by stage 3e.</li>
+    <li><span class="chip sensor">PROPRIO</span> <code>61-D</code>: base velocity 3 · trunk 4+4 · arm q/q̇ 7+7 ×2 · grippers 2+2 ×2 · EE poses 7×2.</li>
+    <li><span class="chip signal">GOAL</span> the task's BDDL definition (legal at eval): goal literal sets, one or more goal <i>options</i>; e.g. <code>ontop(wood_log, fireplace_rack)</code>.</li>
+    <li>Camera intrinsics <code>K</code> + extrinsics/FK chain (base→torso→head/wrist mounts) — needed to move between pixels and the robot frame.</li>
+  </ol>
+</div>
+<div class="arrow">▼</div>
+
+<!-- ============ STAGE 2 ============ -->
+<div class="blk">
+  <h3>2 · Task director — symbolic planner <span class="st des">designed · W2</span><span class="rate">event-driven · ~1 Hz checks</span></h3>
+  <p class="what">Pure Python over the goal spec; no learning, no GPU. Decides WHAT to pursue now; never outputs motor commands.</p>
+  <ol class="steps">
+    <li><b>Parse</b> <span class="chip signal">GOAL</span> → ground literals; drop init-true literals (denominator-only); enumerate goal options → pick <b>cheapest option</b> (fewest unsatisfied literals).</li>
+    <li><b>Literal lifecycle:</b> each literal is <code>pending → active → satisfied → protected</code>. One literal is <i>active</i> at a time; satisfied literals become <b>protected</b> — the director will veto plans that risk un-satisfying them (metric scores FINAL state only).</li>
+    <li><b>Name the targets:</b> active literal <code>ontop(A,B)</code> → emit <span class="chip signal">NAMES</span> = (A = thing to grasp, B = destination) → stage 3.</li>
+    <li><b>Progress check</b> (~1 Hz): compare <span class="chip signal">POINT3D</span> history vs expectation — object not moving while policy "carries" it → <b>retry signal</b> (re-approach); N failed retries → skip literal, advance.</li>
+    <li><b>Stage estimate:</b> own literal index fused with the policy's <span class="chip signal">STAGE</span> head by majority vote over last k predictions (non-Markovian smoothing).</li>
+    <li><b>Endgame:</b> at <code>T−60s</code> emit <b>PARK</b> → stage 5 (retreat arms, freeze base, protect everything satisfied).</li>
+  </ol>
+  <div class="io"><span class="k">EMITS</span><span><span class="chip signal">NAMES</span> → stage 3 · <span class="chip signal">STAGE</span> index → stage 4 · PARK / RETRY → stage 5</span></div>
+</div>
+<div class="arrow">▼</div>
+
+<!-- ============ STAGE 3 ============ -->
+<div class="blk">
+  <h3>3 · Grounding head — name → metric 3D point <span class="st des">designed · benchmark gate Aug 4</span><span class="rate">every replan ≈ 0.9 s · frozen during grasp</span></h3>
+  <p class="what">The only honest source of "where." A small learned detector plus one geometric read of depth. Visually debuggable at every step.</p>
+  <ol class="steps">
+    <li><b>Camera choice:</b> try head camera first; if target confidence low (occluded/out of view), try wrists; if all low → report lost → director may rotate base/torso (search microbehavior).</li>
+    <li><b>Features:</b> chosen <span class="chip sensor">RGB</span> resized <code>~256²</code> → frozen DINOv2-class encoder → dense features <code>(h×w×d)</code>. (Candidate: reuse policy SigLIP features — decided by the Aug 4 benchmark.)</li>
+    <li><b>Coarse heatmap:</b> light head cross-attends <span class="chip signal">NAMES</span> (text embedding) over features → <code>heatmap(h×w)</code> for A and for B.</li>
+    <li><b>Refine:</b> crop full-res image around coarse peak (<code>~256²</code> crop of the 720² frame — this is where high resolution lives) → second pass → refined peak <code>(u,v)</code> + confidence.</li>
+    <li><b>Unproject (only depth use in the system):</b> <code>z = DEPTH[v,u]</code> → <code>p_cam = z·K⁻¹·[u,v,1]</code> → <code>p_base = T_base←cam(FK) · p_cam</code>.</li>
+    <li><b>Stabilize:</b> EMA over recent estimates; confidence gate; <b>freeze while gripper closes</b> (target must not jitter mid-grasp); force refresh on stage change.</li>
+  </ol>
+  <div class="io"><span class="k">EMITS</span><span><span class="chip signal">POINT3D</span> = source + destination points in robot base frame <code>(2×3)</code> + confidences → stage 4 (and fed back to stage 2d) · <b>oracle mode</b> (sim poses, train/dev only) measures the honest-vs-oracle gap</span></div>
+</div>
+<div class="arrow">▼</div>
+
+<!-- ============ STAGE 4 ============ -->
+<div class="blk core">
+  <h3>4 · Policy — π0.5 core + our conditioning <span class="st run">recipe ✓ · conditioning @ G3 Jul 31</span><span class="rate">one chunk ≈ every 0.9 s</span></h3>
+  <p class="what">3B VLM trunk + 300M flow-matching action expert. Our diffs: what enters the prefix (point + stage tokens, no task-ID) and two aux heads. Identity=language · location=point · progress=stage.</p>
+  <ol class="steps">
+    <li><b>Prefix assembly</b> (computed once per replan, then KV-cached):
+      3 cams <span class="chip sensor">RGB</span> resized <code>224²</code> → SigLIP → <code>3×256</code> visual tokens ·
+      <span class="chip signal">GOAL</span> text → <code>~10–30</code> language tokens ·
+      <span class="chip signal">POINT3D</span> → <b>Fourier features</b> (sin/cos at multiple frequencies per coord, ≈<code>2×~100-d</code>) → linear → <b>2 point tokens</b> (+stage-role flag) ·
+      <span class="chip signal">STAGE</span> → sinusoidal + learned embed → <b>1 stage token</b>. Total ≈ <code>800</code> prefix tokens.</li>
+    <li><b>Trunk forward:</b> 18-layer Gemma-2B trunk over the prefix → per-layer KV cache <code>(18, ~800, d)</code> — the context everything below reads. (Our probes read exactly this cache.)</li>
+    <li><b>Denoising loop ×10:</b> suffix = <span class="chip sensor">PROPRIO</span> <code>61→proj</code> + noised action chunk <code>a_t(32×32-pad)</code> + FM timestep (sinusoidal). The 300M expert attends into the trunk cache with <b>per-layer learned KV-mixing weights</b> (each expert layer sees a learned blend of ALL 18 trunk layers) → velocity estimate → Euler step. Correlated noise at init.</li>
+    <li><b>Aux heads</b> (read the trunk cache): stage logits (→ director vote, 2e) · conformal <code>P(fail|stage)</code> (+ Jacobian-norm brittleness feature) → stage 5.</li>
+    <li><b>Output:</b> denoised chunk, sliced to real dims → <span class="chip signal">CHUNK</span> <code>32 steps × 23-D</code> (base-vel 0:3 · torso 3:7 · armL 7:14 · gripL 14 · armR 15:22 · gripR 22).</li>
+  </ol>
+  <div class="io"><span class="k">EMITS</span><span><span class="chip signal">CHUNK</span> + <span class="chip signal">STAGE</span> logits + <span class="chip signal">P(FAIL)</span> → stage 5</span></div>
+</div>
+<div class="arrow">▼</div>
+
+<!-- ============ STAGE 5 ============ -->
+<div class="blk">
+  <h3>5 · Serving layer — chunks → one safe command <span class="st run">governor built · A/B running</span><span class="rate">30 Hz</span></h3>
+  <p class="what">Deterministic post-processing between model and motors. Priority: PARK &gt; recovery &gt; governor &gt; raw chunk.</p>
+  <div class="timeline">chunk k     |──────── execute 26 of 32 ────────|••4 overlap••|
+chunk k+1                              (replan fires here)|──── execute 26 ────|
+            soft inpainting: first 70% of denoise steps for the 4 overlap
+            actions are inpainted from chunk k → seamless handoff, no jerk</div>
+  <ol class="steps">
+    <li><b>Receding horizon:</b> execute ~26 of 32 actions @30 Hz, replan with 4-action overlap (≈0.87 s cycle — hides the ~0.5–0.7 s inference latency).</li>
+    <li><b>Recovery dispatch:</b> if <span class="chip signal">P(FAIL)</span> &gt; conformal threshold → override chunk with the matching trained recovery (brace / retreat-reapproach / regrasp), then resume. Trained in stage 0f; triggered here.</li>
+    <li><b>Governor</b> (always-on rate limiter): <code>a_t ← clip(a_t, a_{t−1}±cap)</code> per group — base ±0.06 · torso ±0.02 · arms ±0.08 · grippers free. Suppresses fall-inducing accelerations model-independently.</li>
+    <li><b>PARK</b> (from director, T−60s): retreat arms to tuck, zero base velocity, hold — protects satisfied literals to the final-state read. Also the default policy for untrained tasks.</li>
+  </ol>
+  <div class="io"><span class="k">EMITS</span><span><span class="chip signal">ACTION</span> one 23-D command per tick → simulator</span></div>
+</div>
+<div class="arrow">▼</div>
+
+<!-- ============ STAGE 6 ============ -->
+<div class="blk">
+  <h3>6 · OmniGibson evaluator (the referee) <span class="st ok">loop validated</span><span class="rate">15k steps ≈ 20 min/episode</span></h3>
+  <p class="what">Steps physics, renders stage-1 observations (loop closes), and at the FINAL state computes q = satisfied/total literals of the best goal option (success ⇒ q=1). It reads sim state to score; we never do.</p>
+</div>
+
+<h2>Cross-cutting: diagnostics spine</h2>
+<div class="grid2">
+  <div class="panel">
+    <h3>Instruments (per rollout)</h3>
+    <ul>
+      <li><b>Step traces</b> — every signal above logged per tick → parquet.</li>
+      <li><b>Saliency HUD</b> — ∂ACTION/∂RGB overlays + pointer heatmaps + stage/P(FAIL) strips burned into debug video.</li>
+      <li><b>Failure taxonomy</b> — auto-label rollout end-state: fall / grasp-miss / wrong-object / timeout / achieved-then-lost → dashboard.</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h3>Experiments (per gate)</h3>
+    <ul>
+      <li><b>Swap test</b> (G3): exchange POINT3D between two contexts → behavior must follow the point (causal proof the token is load-bearing).</li>
+      <li><b>Probes</b>: ridge decoders on the trunk KV cache — does geometry live where the expert can use it? Tracked across checkpoints and arms.</li>
+      <li><b>Honest-vs-oracle</b>: identical eval, pointer vs sim-pose points → the gap IS a headline number.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="foot">colors: blue = raw sensor · amber = computed · borrowed w/ citation (Larchenko '25): correlated-noise FM · 15-sample FM · soft inpainting · receding horizon · per-layer KV mixing · stage-head concept — dropped: task-ID embeddings · warm-start · correction tables · ckpt-switcher-at-scale — ours: point pathway (pointer + tokens + swap test) · predicate-stage labels · corrective engine · conformal metacog + recovery dispatch · director · governor · diagnostics spine</div>
+</div>

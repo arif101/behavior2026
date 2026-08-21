@@ -1,0 +1,177 @@
+<title>B26 Flight Log</title>
+<style>
+  :root {
+    --ground: #F5F8F7;
+    --panel: #FFFFFF;
+    --panel-edge: #DDE6E4;
+    --ink: #1C2528;
+    --ink-2: #46585B;
+    --muted: #6B7C7E;
+    --accent: #0F6E6B;
+    --accent-soft: #E1EEEC;
+    --warn: #8A650C;
+    --warn-soft: #F5EBD4;
+    --crit: #A33236;
+    --crit-soft: #F6E2E2;
+    --live: #0F6E6B;
+    --bar-track: #E7EEEC;
+    --code-bg: #EDF2F1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101817; --panel: #182220; --panel-edge: #2A3634;
+      --ink: #DCE5E4; --ink-2: #A9BAB8; --muted: #7E9290;
+      --accent: #4FB3AE; --accent-soft: #1D3230;
+      --warn: #D9A83C; --warn-soft: #33290F;
+      --crit: #E07A70; --crit-soft: #3A1F1D;
+      --live: #4FB3AE; --bar-track: #223028; --code-bg: #1F2B29;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #101817; --panel: #182220; --panel-edge: #2A3634;
+    --ink: #DCE5E4; --ink-2: #A9BAB8; --muted: #7E9290;
+    --accent: #4FB3AE; --accent-soft: #1D3230;
+    --warn: #D9A83C; --warn-soft: #33290F;
+    --crit: #E07A70; --crit-soft: #3A1F1D;
+    --live: #4FB3AE; --bar-track: #223028; --code-bg: #1F2B29;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 2.5rem 1.25rem 5rem;
+  }
+  main { max-width: 1020px; margin: 0 auto; }
+  h1, h2 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    text-wrap: balance; letter-spacing: 0.01em;
+  }
+  h1 { font-size: 2.1rem; margin: 0 0 0.25rem; }
+  h2 { font-size: 1.35rem; margin: 2.6rem 0 0.8rem; color: var(--ink); }
+  .sub { color: var(--muted); margin: 0 0 2rem; max-width: 70ch; }
+  .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.72rem;
+    color: var(--accent); font-weight: 600; margin-bottom: 0.4rem;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .tile {
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: 6px; padding: 0.85rem 1rem;
+  }
+  .tile .v { font-size: 1.55rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tile .k { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: 6px; padding: 1rem 1.25rem; margin-top: 0.75rem;
+  }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th {
+    text-align: left; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--muted); font-weight: 600;
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--panel-edge);
+  }
+  td { padding: 0.42rem 0.75rem; border-bottom: 1px solid var(--panel-edge); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .num { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.84rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip {
+    display: inline-block; font-size: 0.72rem; font-weight: 600;
+    padding: 0.12rem 0.55rem; border-radius: 999px; white-space: nowrap;
+  }
+  .chip-converged { background: var(--accent-soft); color: var(--accent); }
+  .chip-partial { background: var(--warn-soft); color: var(--warn); }
+  .chip-cold { background: var(--crit-soft); color: var(--crit); }
+  .chip-live { background: var(--accent-soft); color: var(--live); }
+  .chip-live::before { content: "●"; margin-right: 0.35rem; }
+  .bar { position: relative; background: var(--bar-track); border-radius: 4px; height: 16px; min-width: 130px; }
+  .bar-fill { background: var(--accent); border-radius: 4px 3px 3px 4px; height: 100%; }
+  .bar-val {
+    position: absolute; right: 6px; top: 0; line-height: 16px; font-size: 0.7rem;
+    font-family: ui-monospace, Menlo, monospace; color: var(--ink-2);
+  }
+  code { background: var(--code-bg); border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.84em; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { color: var(--muted); }
+  .event { display: grid; grid-template-columns: 150px 1fr; gap: 1rem; padding: 0.9rem 0; border-bottom: 1px solid var(--panel-edge); }
+  .event:last-child { border-bottom: none; }
+  .event-date { font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+  .event-tag {
+    display: block; margin-top: 0.3rem; font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--accent); font-weight: 600;
+  }
+  .event-body { max-width: 72ch; }
+  .event-body p { margin: 0 0 0.5rem; }
+  .event-body p:last-child { margin-bottom: 0; }
+  .footnote { font-size: 0.8rem; color: var(--muted); margin-top: 2.5rem; }
+  @media (max-width: 640px) { .event { grid-template-columns: 1fr; gap: 0.25rem; } }
+</style>
+<main>
+  <div class="eyebrow">BEHAVIOR-2026 · turning_on_radio terminal-skill campaign</div>
+  <h1>B26 Flight Log</h1>
+  <p class="sub">Running record of the delegated-skill training campaign: per-scene
+  convergence, episode outcomes, failure root causes, and dated findings. Regenerated
+  from box telemetry by <code>logbook/build_logbook.py</code>; narrative entries live in
+  <code>events.jsonl</code>. Held-out eval instance 301 is never touched by anything here.</p>
+
+  <h2>Now running</h2>
+  <div class="panel">{{LIVE}}</div>
+
+  {{V2}}
+
+  <h2>v1 campaign (archived 2026-08-16) — at a glance</h2>
+  <div class="tiles">
+    <div class="tile"><div class="v">{{TOT_EPS}}</div><div class="k">episodes</div></div>
+    <div class="tile"><div class="v">{{SUCC_RATE}}</div><div class="k">success ({{TOT_SUCC}})</div></div>
+    <div class="tile"><div class="v">{{TOT_STEPS}}</div><div class="k">env steps</div></div>
+    <div class="tile"><div class="v">{{TOT_H}}h</div><div class="k">wall clock</div></div>
+    <div class="tile"><div class="v">{{THROUGHPUT}}</div><div class="k">steps / s mean</div></div>
+    <div class="tile"><div class="v">{{N_CONV}} / {{N_SCENES}}</div><div class="k">scenes converged</div></div>
+  </div>
+  <p class="muted" style="margin-top:0.75rem">{{N_COLD}} cold scenes (zero successes at
+  every rung tried): {{COLD_LIST}}.</p>
+
+  <h2>Failure root causes</h2>
+  <div class="panel">
+    <p style="margin-top:0">Failures bucket by terminal EE-to-target distance. The signature is
+    <strong>bimodal</strong>: successes press in a median of ~12 steps, while ~93% of failures
+    time out <em>more than 15&nbsp;cm away</em> — the policy either knows the state and commits
+    immediately, or diverges from it entirely. Near-miss failures at the button are rare.
+    This points at state-coverage/exploration, not precision.</p>
+    <div class="table-wrap"><table>
+      <tr><th>pass</th><th>episodes</th><th>successes</th><th>fail &gt;15cm</th><th>fail 5–15cm</th><th>fail &lt;5cm</th><th>succ med steps</th></tr>
+      {{BUCKET_ROWS}}
+    </table></div>
+  </div>
+
+  <h2>Per-scene convergence</h2>
+  <div class="panel table-wrap">
+    <table>
+      <tr><th>scene</th><th>status</th><th>best rung rate</th><th>per-rung succ/eps</th><th>env steps</th><th>wall</th></tr>
+      {{SCENE_ROWS}}
+    </table>
+  </div>
+
+  <h2>Per-chunk record</h2>
+  <div class="panel">
+    <p style="margin-top:0">One row per training chunk (a scene &times; rung pass), in
+    execution order, with the rule that ended it. Budgets: stage-1 = 3,000 env steps,
+    stage-2 = 4,500 steps or 25 episodes; early-stop fires at rolling20 &ge; 0.95 with
+    &ge;20 episodes (hit once in the whole campaign). A chunk ending with rolling20 &lt; 0.3
+    has its checkpoint quarantined out of the warm-start chain. Known flaw, being replaced
+    in the trainer rebuild: step-denominated budgets allocate episodes inversely to need
+    (cold scenes got 10 episodes, healthy scenes up to 50).</p>
+    <div class="table-wrap"><table>
+      <tr><th>rung</th><th>scene</th><th>succ/eps</th><th>rolling20</th><th>env steps</th><th>wall</th><th>ended by</th></tr>
+      {{CHUNK_ROWS}}
+    </table></div>
+  </div>
+
+  <h2>Log entries</h2>
+  <div class="panel">
+    {{EVENTS}}
+  </div>
+
+  <p class="footnote">Generated {{GENERATED}} · sources: /root/skill_ckpts/stats_*.json,
+  stage1/stage2_train.log, live process table · pre-registered bars per
+  CONTACT_SKILL_SPEC_v1.md §5 remain frozen; nothing here trains on or restores from
+  instance 301.</p>
+</main>

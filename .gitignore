@@ -1,0 +1,32 @@
+# never
+.hf_token
+.claude/
+# big data / regenerables
+*.npz
+*.hdf5
+*.pt
+*.mp4
+*.png
+*.log
+miniconda3/
+bw/
+rawdemos/
+b1k_radio*/
+snapshot_bank*/
+v2_*/
+v21*/
+aff_out/
+aff_data/
+map_viz/
+map_live/
+videos/
+framecheck/
+outputs/
+ckpt_run2/
+openpi_fork/
+poses_x/
+metalink_labels/
+behavior2026/v21_skill_films.html
+behavior2026/foveated_memory_atlas.html
+behavior2026/fork_snapshot/
+.discord_webhook

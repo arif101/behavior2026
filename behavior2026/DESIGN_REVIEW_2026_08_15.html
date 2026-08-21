@@ -1,0 +1,410 @@
+<title>The Last Ten Centimeters</title>
+<style>
+  :root {
+    --ground: #F5F8F7;
+    --panel: #FFFFFF;
+    --panel-edge: #DDE6E4;
+    --ink: #1C2528;
+    --ink-2: #46585B;
+    --muted: #6B7C7E;
+    --accent: #0F6E6B;
+    --accent-soft: #E1EEEC;
+    --warn: #8A650C;
+    --warn-soft: #F5EBD4;
+    --crit: #A33236;
+    --crit-soft: #F6E2E2;
+    --code-bg: #EDF2F1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101817; --panel: #182220; --panel-edge: #2A3634;
+      --ink: #DCE5E4; --ink-2: #A9BAB8; --muted: #7E9290;
+      --accent: #4FB3AE; --accent-soft: #1D3230;
+      --warn: #D9A83C; --warn-soft: #33290F;
+      --crit: #E07A70; --crit-soft: #3A1F1D;
+      --code-bg: #1F2B29;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #101817; --panel: #182220; --panel-edge: #2A3634;
+    --ink: #DCE5E4; --ink-2: #A9BAB8; --muted: #7E9290;
+    --accent: #4FB3AE; --accent-soft: #1D3230;
+    --warn: #D9A83C; --warn-soft: #33290F;
+    --crit: #E07A70; --crit-soft: #3A1F1D;
+    --code-bg: #1F2B29;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 3rem 1.25rem 6rem;
+  }
+  main { max-width: 960px; margin: 0 auto; }
+  h1, h2, h3 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    text-wrap: balance;
+  }
+  h1 { font-size: 2.4rem; margin: 0 0 0.3rem; }
+  h2 { font-size: 1.5rem; margin: 3rem 0 0.8rem; padding-top: 1.5rem; border-top: 1px solid var(--panel-edge); }
+  h2 .qn {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; color: var(--accent);
+    letter-spacing: 0.1em; display: block; margin-bottom: 0.2rem;
+  }
+  h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+  p, li { max-width: 72ch; }
+  .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.72rem;
+    color: var(--accent); font-weight: 600; margin-bottom: 0.5rem;
+  }
+  .sub { color: var(--muted); margin: 0 0 2rem; max-width: 72ch; }
+  .verdict {
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-left: 3px solid var(--accent); border-radius: 6px;
+    padding: 1.2rem 1.5rem; margin: 2rem 0;
+  }
+  .verdict h3 { margin-top: 0; }
+  .table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 6px; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  th {
+    text-align: left; font-size: 0.7rem; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--muted); font-weight: 600;
+    padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--panel-edge); vertical-align: bottom;
+  }
+  td { padding: 0.5rem 0.85rem; border-bottom: 1px solid var(--panel-edge); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.num, .num { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  code { background: var(--code-bg); border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.84em; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .chip {
+    display: inline-block; font-size: 0.7rem; font-weight: 600;
+    padding: 0.1rem 0.5rem; border-radius: 999px; white-space: nowrap; vertical-align: middle;
+  }
+  .chip-ok { background: var(--accent-soft); color: var(--accent); }
+  .chip-warn { background: var(--warn-soft); color: var(--warn); }
+  .chip-crit { background: var(--crit-soft); color: var(--crit); }
+  .measured { color: var(--accent); font-weight: 600; }
+  blockquote {
+    margin: 1rem 0; padding: 0.6rem 1.1rem; border-left: 3px solid var(--panel-edge);
+    color: var(--ink-2); font-size: 0.95rem;
+  }
+  .footnote { font-size: 0.8rem; color: var(--muted); margin-top: 3rem; border-top: 1px solid var(--panel-edge); padding-top: 1rem; }
+  ul { padding-left: 1.3rem; }
+  li { margin-bottom: 0.45rem; }
+</style>
+<main>
+  <div class="eyebrow">BEHAVIOR-2026 · design review · 2026-08-15 · A5000 box, 55 days to freeze</div>
+  <h1>The Last Ten Centimeters</h1>
+  <p class="sub">A first-principles review of the terminal-skill training pipeline and system
+  architecture, written against measured data on this box: 49 training chunks, 848 episodes,
+  175,886 env steps, 40.1&nbsp;h of wall clock, plus the campaign logs, the start bank, the
+  harvest bank, and the actual BDDL goal definitions of all 100 tasks. Companion running record:
+  the <em>B26 Flight Log</em> (regenerated from telemetry by <code>logbook/build_logbook.py</code>).</p>
+
+  <div class="verdict">
+    <h3>Verdict</h3>
+    <p><strong>The skill line is a success as a mode manufacturer and a dead end as a runtime
+    architecture at scale.</strong> RL-from-restore-states is still the only method on the board
+    that has ever created commit behavior (75% in 31&nbsp;min at the easiest rung; instant
+    episode-1 transfer across scenes), but the recipe as run is serial in
+    scenes&nbsp;&times;&nbsp;rungs&nbsp;&times;&nbsp;tasks at 1.22 env-steps/s: finishing
+    <em>radio alone</em> costs another ~100&nbsp;h on this box, and the census says grasp+place
+    &mdash; not press &mdash; gates <strong>94 of 100 tasks</strong>.</p>
+    <p>Recommendation, in one sentence: <strong>treat the skill as a data factory, not a runtime
+    component</strong> &mdash; rebuild the trainer for ~10&times; throughput (multi-scene single
+    policy, snapshot restores, render-off, parallel envs), port the recipe to one grasp task
+    immediately, and spend the Run-3 slot distilling skill successes back into the VLA with the
+    FACT noise-schedule fix and a foveated-input arm, verified by the commit probe. The hand-set
+    0.07&nbsp;m gate and the rest of the runtime handoff machinery stay only as the eval-day
+    backstop, with the threshold replaced by a learned gate. Continuous geometric conditioning
+    ("latent spatial intelligence") is the endpoint of that path, not a competing branch: it
+    becomes testable exactly when the flywheel puts nonzero commit mass back into the policy.</p>
+  </div>
+
+  <h2><span class="qn">Q1</span>Scaling: what the current recipe measurably costs</h2>
+  <p>Everything below is computed from <code>/root/skill_ckpts/stats_*.json</code> and the
+  stage-1/stage-2 training logs on this box; nothing is estimated from memory.</p>
+  <div class="table-wrap"><table>
+    <tr><th>pass</th><th>chunks</th><th>episodes</th><th>successes</th><th>env steps</th><th>wall</th><th>mean rate</th></tr>
+    <tr><td>stage-1 (press&minus;10), 30 scenes</td><td class="num">30</td><td class="num">509</td><td class="num">216 (42%)</td><td class="num">91,611</td><td class="num">21.0 h</td><td class="num">1.21 st/s</td></tr>
+    <tr><td>stage-2 (press&minus;25), 19 scenes so far</td><td class="num">19</td><td class="num">339</td><td class="num">61 (18%)</td><td class="num">84,275</td><td class="num">19.2 h</td><td class="num">1.22 st/s</td></tr>
+    <tr><td><strong>campaign to date</strong></td><td class="num">49</td><td class="num">848</td><td class="num">277 (33%)</td><td class="num">175,886</td><td class="num">40.1 h</td><td class="num">1.22 st/s</td></tr>
+  </table></div>
+  <p>The per-episode cost decomposes (median inter-episode deltas) into a marginal
+  <span class="measured">0.51&ndash;0.63 s per env step</span> and a fixed
+  <span class="measured">~50&ndash;63 s of restore/settle overhead per episode</span>
+  (HDF5 playback restore, AG re-establishment, 90&ndash;150 settle steps; 477 SETTLE_RETRY
+  events across the two passes). Successful episodes take a median of <strong>12&ndash;13
+  steps</strong>, so on converged rungs <em>most of the wall clock is reset, not learning</em>.</p>
+  <p><strong>Extrapolation under the current recipe.</strong> Radio still needs: the rest of
+  stage-2 (~13 chunks), stage-3 (press&minus;100, 32 chunks at a harder rung), the boundary rung
+  (policy-visited 10&nbsp;cm-shell states, untouched &mdash; the 54-state harvest bank has never
+  been trained on), and repeat visits to 12 cold scenes. That is
+  <strong>&ge;100 additional hours for one task</strong>, i.e. ~150&nbsp;h/task naive. Three
+  families need a credible demonstration on ~6&ndash;10 tasks before freeze:
+  <strong>~1,000&ndash;1,500 box-hours against ~1,300 total hours remaining</strong> &mdash; and
+  100 tasks would be ~15,000 h (~1.7 box-years). The recipe's structure, not its constants, is
+  the problem: cost is O(tasks &times; scenes &times; rungs) serial, with per-family engineering
+  (reward, success detector, gate) on top. A 10&times; cut in sim-steps-to-competence and
+  wall-per-step is not an optimization &mdash; it is the difference between "radio-only demo"
+  and "family coverage."</p>
+
+  <h2><span class="qn">Q2</span>Sample efficiency: where 10&times; actually comes from</h2>
+  <p>Ranked by (expected multiple &times; evidence) / cost. The first three are mechanical and
+  compound multiplicatively; none requires new science.</p>
+  <div class="table-wrap"><table>
+    <tr><th>lever</th><th>evidence</th><th>expected</th><th>cost</th></tr>
+    <tr><td><strong>One multi-scene policy</strong> (round-robin scenes in one process, shared replay), instead of per-scene chunks</td>
+        <td>Measured: episode-1 successes (6&ndash;11 steps) on d100/d190/d260 after cross-scene warm start; d270 (cold) converting live under d170's checkpoint. The per-scene re-convergence tax is the single largest line item.</td>
+        <td class="num">3&ndash;10&times;</td><td>trainer refactor, ~2 d (Isaac env-reuse leak forces process-per-<em>scene file</em>; round-robin via scene batching or a process pool)</td></tr>
+    <tr><td><strong>Reset amortization</strong>: restore from validated <code>dump_state</code> snapshots (the harvest-bank mechanism) instead of HDF5 playback + 90&ndash;150 settle steps; validate each bank state once, then trust it</td>
+        <td>Measured: 50&ndash;63 s fixed/episode vs 6&ndash;30 s of actual stepping on successes</td>
+        <td class="num">2&ndash;4&times; on converged rungs</td><td>~1 d; validity semantics already exist in the wrapper</td></tr>
+    <tr><td><strong>Render-off training</strong>: the skill obs is proprio + affordance vector + (zeroed) L2 &mdash; it never reads RGB, yet the env renders cameras every step</td>
+        <td>Unmeasured &mdash; profiling is a 48 h item; rendering is a plausible large share of the 0.5&ndash;0.6 s/step</td>
+        <td class="num">1.5&ndash;3&times; (measure)</td><td>hours (drop rgb modality; keep a render path for flywheel re-recording)</td></tr>
+    <tr><td><strong>2 parallel envs</strong> (this box: 96 CPUs mostly idle, 24 GB VRAM, one sim = 11.8 GB with rendering)</td>
+        <td>VRAM-bound; likely fits only with render-off</td>
+        <td class="num">~2&times;</td><td>~1 d (actor inference batching)</td></tr>
+    <tr><td><strong>Async learner</strong>: today 8 critic updates + 1 actor update run serially with each sim step</td>
+        <td>Unmeasured; nets are tiny, so ceiling is modest</td>
+        <td class="num">1.1&ndash;1.4&times;</td><td>~1 d, or free by folding updates into env wait</td></tr>
+    <tr><td><strong>Demo-replay seeding for cold scenes</strong>: replay the demo's own actions from the restore frame &rarr; near-guaranteed successes into the online buffer before RL starts</td>
+        <td>The demos contain the exact motions; cold scenes currently burn 300-step failures for ~10 episodes and quarantine</td>
+        <td class="num">converts stalls</td><td>hours; pure wrapper feature</td></tr>
+    <tr><td><strong>Un-blind the skill</strong> (enable the L2 slot / wrist-depth features)</td>
+        <td>Untested; the failure signature (93% of failures end &gt;15 cm away &mdash; divergence, not near-miss) is consistent with a policy that cannot see scene-local geometry</td>
+        <td class="num">unknown; may fix cold scenes</td><td>single-variable arm, 1&ndash;2 box-days (Q4)</td></tr>
+    <tr><td><strong>Curriculum shape</strong>: the 42% &rarr; 18% drop from rung 1 to rung 2 says rung spacing is too coarse (the press&minus;10 rung was already added after a 0/20 cliff); auto-advance per state, not per scene-chunk</td>
+        <td>Measured rate cliff; RFCL-style per-state frontier is standard</td>
+        <td class="num">1.5&ndash;2&times;</td><td>~1 d inside the multi-scene refactor</td></tr>
+  </table></div>
+  <p>Multiplying the mechanical levers alone (scene-batching &times; reset &times; render &times;
+  parallelism) gives a defensible <strong>10&ndash;40&times;</strong> in
+  competence-per-wall-hour before touching the algorithm. The refactored trainer is also
+  exactly the machine the flywheel needs to mass-produce commit demos.</p>
+
+  <h2><span class="qn">Q3</span>Architecture: five options, one synthesis</h2>
+  <div class="table-wrap"><table>
+    <tr><th>option</th><th>what decides it</th><th>cost to decide</th><th>read</th></tr>
+    <tr><td><strong>(a) Status quo</strong> &mdash; per-family skills behind the geometric gate</td>
+        <td>arm-C on instance 301 per the frozen bars; success-detector precision &ge;0.9 (Open Item #1, still unmet)</td>
+        <td class="num">detector validation + campaign</td>
+        <td><span class="chip chip-warn">backstop</span> Only proven mode-owner today, but O(family) engineering, hand-set constants, runtime handoff complexity, and the Foresight warning: per-subtask gains demonstrably fail to chain when handoff quality is uncontrolled. Harvest data adds a concrete crack: on d190/d260/d420 &mdash; the skill's <em>best</em> scenes &mdash; the VLA never entered the 10 cm shell, so the gate would rarely fire at eval.</td></tr>
+    <tr><td><strong>(b) Continuous integration</strong> &mdash; one policy, geometry modulating continuously (L2/map via AdaLN/FiLM), no discrete handoff; the 0.07 m constant disappears by construction</td>
+        <td>commit-probe mass &gt; 0 on a conditioned policy; then denoising variance flat at terminal states</td>
+        <td class="num">reachable only via (d)</td>
+        <td><span class="chip chip-ok">endpoint</span> The measured record says conditioning alone cannot manufacture the missing mode (AdaLN point conditioning is behaviorally active yet commit mass = 0.00; BC on commit demos 0/25). RL directly on the 3B flow policy is unproven and does not fit this box. (b) is what the system should <em>become</em>, through (d) &mdash; not a branch that can be built directly today.</td></tr>
+    <tr><td><strong>(c) Learned/uncertainty gating</strong> &mdash; stage-head gate or denoising-variance trigger replaces the hand-set threshold</td>
+        <td>offline ROC of gate signals (dist / stage / conf / variance) against "skill succeeded from this state" labels already sitting in the logs; then gate-fire rate on harvest states</td>
+        <td class="num">~2 d offline + probe build</td>
+        <td><span class="chip chip-ok">do now</span> Cheap, task-relative, and 90% computable from existing data. Caveats: the stage head's 0.998 is on <em>demo</em> frames &mdash; it needs the on-policy serving-path check and the proprio-zeroed copycat guard before it may own the gate; the variance trigger needs the probe built first (it does not exist &mdash; see Q5).</td></tr>
+    <tr><td><strong>(d) Flywheel-first</strong> &mdash; skill = data factory; re-render its successes, retrain the VLA (FACT logit-normal noise schedule + input arm), verify with the commit probe, drop the runtime skill where the probe clears</td>
+        <td>pre-registered: commit-probe mass moves off 0.00 on the Run-3 checkpoint; then arm-C on 301</td>
+        <td class="num">converter ~2&ndash;3 d + one A100 trainer slot (~11 h) + probe</td>
+        <td><span class="chip chip-ok">main line</span> 277 successful commit episodes already exist in the buffers and are cheap to re-render (successes are ~12 steps). This is CONTACT_SKILL_SPEC &sect;6 promoted from afterthought to purpose. The honest risk: BC-from-demos already failed to instill the mode once (0/25); the differences this time are on-policy states, physics-executed teacher data, contact-frame density, and the noise-schedule fix aimed at exactly the failure mechanism. If the probe still reads 0.00, that is a decisive negative worth a slot: it would tell us the mode cannot enter this policy class by imitation at all, and (a)/(c) become the real architecture rather than the backstop.</td></tr>
+    <tr><td><strong>(e) Input-side</strong> &mdash; affordance-centered foveated resampling replacing the uniform 720&rarr;224 downsample (button &asymp; 5 px today), + terminal zoom</td>
+        <td>offline BC-MSE on contact windows under resampled inputs; commit probe after retrain</td>
+        <td class="num">transform-level; rides the same Run-3 slot</td>
+        <td><span class="chip chip-ok">fold into (d)</span> Attacks the perception side of the same mechanism the noise schedule attacks from the gradient side. Alone it is unlikely to conjure a missing action mode (BC already failed with sharp enough demos); as an arm inside the Run-3 retrain it is nearly free and externally supported (+2&ndash;2.7 pp matched-pixel-budget class evidence; fixation placement insensitive).</td></tr>
+  </table></div>
+  <h3>The synthesis</h3>
+  <p><strong>(a) is the engine, (d) is the product, (b) is the destination, (c) removes the
+  hand-set constants in the meantime, (e) rides along in the same training slot.</strong> The
+  deep reason this ordering is right: the runtime-gate problem largely <em>dissolves</em> on the
+  factory path. In sim, the "gate" at data-collection time can be oracle-chosen restore states
+  &mdash; no 0.07 m constant, no detector precision question, no handoff seam. Those constants
+  only matter on the eval-day backstop path, where (c) replaces them with learned, task-relative
+  signals.</p>
+  <p><strong>The grasp+place gate is the binding test.</strong> The verified census (Q8):
+  grasp+place appears in the goal of 94/100 tasks and is the whole goal of 61. Assisted-grasp
+  physics is official eval behavior, which lowers the bar for the exact family we must win. The
+  recipe port (reward = AG-engaged &and; lifted; curriculum from restore states around grasp
+  initiation; same RLPD core; <code>picking_up_trash</code> has the cheapest verified data path)
+  should start within two weeks &mdash; <em>before</em> more radio rungs &mdash; because every
+  architecture above is only as good as its grasp story, and today we have zero measured
+  evidence in that family.</p>
+
+  <h2><span class="qn">Q4</span>Foveation &amp; spatial intelligence: getting geometry into the last 10 cm</h2>
+  <p>The map stack is proven at approach (self-correcting to 0.18&ndash;0.23 m held accuracy;
+  L2 wrist cubes at 2 cm with exact-kinematics registration) and absent from terminal control
+  for two reasons, both deliberate at the time: the skill launched blind as a v1 simplification,
+  and the VLA's geometry routes were frozen after G1 measured prefix tokens
+  consumed-but-unpaid. Neither reason is a law. Concrete paths, each with its offline test:</p>
+  <div class="table-wrap"><table>
+    <tr><th>path</th><th>mechanism</th><th>offline test / decision</th><th>cost</th></tr>
+    <tr><td><strong>1. Enable the skill's L2 slot</strong> (it is in the obs layout, deliberately zeroed at <code>skill_env_wrapper.py:303</code>)</td>
+        <td>pooled occupancy+staleness from the 2 cm wrist cube, exactly as spec'd</td>
+        <td>single-variable retrain arm on 6 scenes (3 warm, 3 cold): &Delta;steps-to-70% and cold-conversion. This one experiment answers Q4 and half of Q6 at once.</td>
+        <td class="num">1&ndash;2 box-days</td></tr>
+    <tr><td><strong>2. Wrist-depth patches</strong> straight into the skill obs (legal per the 08-09 depth adjudication)</td>
+        <td>bypasses map pooling; raw local geometry</td>
+        <td>same arm design; run only if L2 pooling underperforms (the spec's own fallback)</td>
+        <td class="num">1 box-day</td></tr>
+    <tr><td><strong>3. Terminal AdaLN source-switch</strong> on the VLA: when the stage head reads terminal, drive the AdaLN geometry rows from L2/wrist-local instead of global L0/L1</td>
+        <td>the resolution-by-proximity idea the foveated spec always intended; serving-side only</td>
+        <td>precondition: <code>point_liveness.py</code> must first show the AdaLN geometry channel is alive at near-commit states (built, never run on this box)</td>
+        <td class="num">probe ~2 GPU-h + serve patch</td></tr>
+    <tr><td><strong>4. Foveated VLM input</strong> (affordance-centered resample replacing uniform 720&rarr;224)</td>
+        <td>restores button-scale texture the current pipeline destroys before the VLM ever sees it</td>
+        <td>offline BC-MSE on contact-window frames; then a Run-3 arm; commit probe adjudicates</td>
+        <td class="num">transform + shared Run-3 slot</td></tr>
+  </table></div>
+  <p><strong>Route geometry through the small controller first.</strong> Two measured cautions
+  argue for testing L2 on the 2M-param skill before adding more conditioning to the 3B VLA: the
+  strongest external ablation on our own injection route found <em>more</em> information through
+  AdaLN performed <em>worse</em> (displacement-only 68.9 vs +target+gripper 59.7), and our own
+  G1 measured the prefix route dead. The skill arm is cheap, single-variable, and its result
+  transfers: whatever geometry features help a blind MLP own the last 10 cm are the features
+  worth distilling into the VLA via the flywheel &mdash; at which point "latent spatial
+  intelligence" is a property the big policy inherits from data rather than a module bolted on.</p>
+
+  <h2><span class="qn">Q5</span>Latent probes: the battery that gates the architecture</h2>
+  <p>First, corrections to the brief (verified on this box): the commit probe is built and has
+  run (that is where mass = 0.00 comes from); the <strong>denoising-variance readout is a
+  proposal, not a built artifact</strong>; there is <strong>no AdaLN gate-magnitude telemetry
+  script</strong> (nearest: <code>point_liveness.py</code>, an output-delta liveness probe,
+  never run here); the <strong>per-episode flight recorder does not exist</strong>. Two of the
+  five "built but never run" probes need building.</p>
+  <div class="table-wrap"><table>
+    <tr><th>probe</th><th>status</th><th>what it gates</th><th>plan</th></tr>
+    <tr><td>P1 commit-probe mass (<code>probe_action_dist.py</code>)</td><td><span class="chip chip-ok">built, ran</span></td>
+        <td>the flywheel's success criterion: mass off 0.00 on any retrained checkpoint, pre-registered</td>
+        <td>rerun per Run-3 checkpoint; identical script/demo/frame for comparability</td></tr>
+    <tr><td>P2 denoising variance at terminal vs approach states</td><td><span class="chip chip-crit">not built</span></td>
+        <td>the (c) uncertainty trigger; independent corroboration of the FACT &tau;-starvation mechanism (spike at near-commit = generative indecision; flat = mode absence, which matches the probe's current verdict)</td>
+        <td>build ~1&ndash;2 d; run on Run-2 ckpt at the restore bands; needs the policy server &rarr; queue at chunk boundary (GPU is occupied by the live run)</td></tr>
+    <tr><td>P3 AdaLN geometry liveness / gate magnitude (<code>point_liveness.py</code> + serving telemetry)</td><td><span class="chip chip-warn">built, never run here</span></td>
+        <td>whether geometry conditioning is consumed at serving at all &mdash; precondition for Q4 path 3 and for interpreting any (e) result</td>
+        <td>~2 GPU-h on cached frames; add a magnitude log line to the serve wrapper while there</td></tr>
+    <tr><td>P4 stage-head serving-path check + proprio-zeroed copycat guard</td><td><span class="chip chip-warn">partial (0.998 is demo-frame accuracy)</span></td>
+        <td>whether the stage head may own the gate in (c); a collapse with proprio zeroed means it is reading "continue current velocity," decorative exactly at stalls</td>
+        <td>one eval pass over policy-visited states (harvest bank + campaign logs); trainer-side, cheap</td></tr>
+    <tr><td>P5 per-episode flight recorder</td><td><span class="chip chip-crit">not built</span></td>
+        <td>root-cause attribution at eval (nav / approach / gate-never-fired / skill-window / detector-miss / success-then-lost); feeds the Flight Log</td>
+        <td>~1&ndash;2 d: one JSON per episode from signals the wrapper already computes</td></tr>
+  </table></div>
+  <p><strong>Free probes executed for this review</strong> (no GPU, results banked in the Flight
+  Log): episode forensics &mdash; failures are bimodal, ~93% terminate &gt;15 cm out while
+  successes take ~12 steps, pointing at coverage/exploration rather than precision; the
+  cross-scene transfer table; the throughput anatomy (0.5&ndash;0.6 s/step + 50&ndash;63 s/reset);
+  cold-vs-warm crosstab against arm assignment (null &mdash; all scenes are left-arm). The
+  GPU-needing probes are queued rather than run because the box is mid-chunk on the live d270
+  run; launching a 6&ndash;12 GB policy server beside it risks OOM-killing someone else's job.</p>
+
+  <h2><span class="qn">Q6</span>Cold scenes: cheapest decisive experiment</h2>
+  <p>Corrected inventory: 12 scenes with zero successes at every rung tried (d70, d110, d130,
+  d160, d220, d240, d270, d320, d340, d350, d370, d410); d30/d50 are a <em>different</em> root
+  cause &mdash; their start banks fail AG-validity at restore (RESET_EXHAUSTED, ep=0), a
+  restore-fidelity defect, not a learning failure. The referenced posture-cluster AUC 0.77
+  analysis does not exist on this box and should be treated as unverified.</p>
+  <p>What we already know: <strong>warm-starting converts at least some cold scenes</strong> &mdash;
+  d270 went 0/10 fresh at stage 1, and is producing successes right now at stage 2 under d170's
+  checkpoint (first at EP 5). And the step-cap starvation note in <code>train_skill.py</code> is
+  real: cold chunks got ~10 episodes while healthy ones got 30&ndash;55, so cold scenes have
+  also simply <em>seen less training</em>.</p>
+  <p><strong>The experiment</strong> (fits in ~1 box-day at current throughput, less after the
+  Q2 rebuild): on 4 hard-cold scenes (d110, d130, d160, d220), a 2&times;2 of
+  {fresh vs best-warm-start} &times; {blind vs L2-on}, 15 episodes per cell, plus demo-replay
+  seeding (replay the demo's own actions from the restore frame to plant 2&ndash;3 successes in
+  the buffer) as a fifth arm on two of them. Offline in parallel: the orientation analysis the
+  brief wanted &mdash; EE-approach yaw/side relative to the radio at bank states, cold vs warm,
+  reported with honest AUC. <strong>Does the answer change architecture?</strong> Mostly no:
+  warm-start and seeding are curriculum/bootstrap fixes, and cold scenes only shrink the data
+  factory's coverage. The one branch that is architectural: if L2-on is what converts them, the
+  un-blinding becomes load-bearing and belongs in the skill's contract (and, via the flywheel,
+  in the VLA's inputs).</p>
+
+  <h2><span class="qn">Q7</span>Next 48 hours: work no architecture choice invalidates</h2>
+  <div class="table-wrap"><table>
+    <tr><th>item</th><th>why it is invariant</th><th>cost</th></tr>
+    <tr><td>1. <strong>Env-throughput profile matrix</strong>: render on/off &times; 1/2 envs &times; playback-restore vs snapshot-restore; publish s/step + VRAM per cell</td>
+        <td>every plan consumes sim steps; this prices them</td><td class="num">~3 h scripted</td></tr>
+    <tr><td>2. <strong>Success-detector validation</strong> (Open Item #1): dwell-detector vs sim ToggledOn over existing campaign rollouts; report precision/recall; bar &ge;0.9 precision</td>
+        <td>required by (a) eval, (c) gating, and (d)'s arm-C alike</td><td class="num">offline, ~2 h</td></tr>
+    <tr><td>3. <strong>Gate-ROC offline</strong>: hand-set 0.07 m/20&deg;/conf gate vs stage-head vs distance-only, scored against "skill succeeded from here" labels in the logs</td>
+        <td>replaces a hand-set constant with a measurement whichever runtime path survives</td><td class="num">offline, ~2 h</td></tr>
+    <tr><td>4. <strong>Cold-scene 2&times;2 + demo-replay seeding</strong> (Q6) on 4 scenes</td>
+        <td>information-only; no commitment</td><td class="num">~1 box-day</td></tr>
+    <tr><td>5. <strong>P3 + P2 probes at the next chunk boundary</strong> (point_liveness on cached frames; build the denoising-variance readout)</td>
+        <td>gates (c) and Q4 path 3 regardless of choice</td><td class="num">~2 GPU-h + 1&ndash;2 d build</td></tr>
+    <tr><td>6. <strong>Flight recorder + Flight Log</strong> (logbook shipped with this review; recorder next)</td>
+        <td>evaluation infrastructure, architecture-neutral</td><td class="num">1&ndash;2 d</td></tr>
+    <tr><td>7. <strong>Let the live d270 chunk finish; finish the s2 pass with <code>--max-episodes</code> caps</strong></td>
+        <td>its successes are flywheel inventory and cold-scene evidence under any plan</td><td class="num">already running</td></tr>
+    <tr><td>8. <strong>Orientation analysis of cold vs warm bank states</strong>, honest AUC</td>
+        <td>pure analysis; replaces the unverifiable 0.77 claim</td><td class="num">offline, ~3 h</td></tr>
+  </table></div>
+
+  <h3>Evaluation methodology (standing rules, tightened)</h3>
+  <ul>
+    <li><strong>Instance 301 stays untouchable</strong> (never train/restore/harvest), and bars
+    freeze at pre-registration before data arrives &mdash; unchanged; it is why this project's
+    numbers are trustworthy.</li>
+    <li><strong>Power before verdicts</strong>: n=25 arms resolve only large effects (&plusmn;16 pp
+    at p&asymp;0.2); no kill decisions off n=5 arms; one-sided pre-registered tests; n&ge;40 for
+    gate decisions where the budget allows.</li>
+    <li><strong>No arm-C before the detector clears &ge;0.9 precision</strong> against sim ground
+    truth (48 h item 2).</li>
+    <li><strong>Every eval episode writes a flight-recorder JSON</strong> with the fixed failure
+    taxonomy (nav / approach / gate-never-fired / skill-window-fail / detector-miss /
+    success-then-lost), and the Flight Log regenerates from telemetry &mdash; success rates and
+    root causes live in one place, dated, with the raw sources named.</li>
+    <li><strong>Single-variable arms; every claim traces to a measurement</strong> &mdash;
+    unchanged. Numbers read off figures are recorded as such (08-09 lesson).</li>
+  </ul>
+
+  <h2><span class="qn">Q8</span>Corrections to the working brief</h2>
+  <p>The mandate asked that details be verified against the record rather than memory. Four did
+  not survive:</p>
+  <ul>
+    <li><strong>Census</strong>: the actual BDDL goal predicates give grasp+place in 94/100 goals
+    (61 pure), articulated-close 23, toggled_on 7, cook/freeze/transform 17. The quoted
+    "79 / 46 / 20 / 6" is not reproducible under any single predicate-set definition (nearest
+    variants give 77&ndash;82 gated). The strategic conclusion strengthens: grasp+place is even
+    more dominant than believed.</li>
+    <li><strong>Probe inventory</strong>: denoising-variance readout and flight recorder are not
+    built; AdaLN telemetry exists only as the point_liveness probe, never run on this box.</li>
+    <li><strong>Posture-cluster AUC 0.77</strong>: no such analysis exists on this box; treat as
+    unverified until item Q7.8 reproduces or replaces it.</li>
+    <li><strong>"12 partial" scenes</strong>: the stage-1 pass has 18 nonzero scenes (5 converged
+    &ge;60%, 13 partial) and 12 cold; d30/d50 are bank-validity failures, a separate category.</li>
+  </ul>
+
+  <h2><span class="qn">ADDENDUM</span>The primitive-library plan of record (added 2026-08-16)</h2>
+  <p>Adopted after design discussion. Thesis: the VLA is a latent action bank either way &mdash;
+  flow-BC on demos writes entries keyed by visual context (memorization; the commit probe's
+  collapsed diversity, p10&ndash;p90 spread 0.004 rad, is what a lookup table looks like from
+  outside), while the approach behavior proves the alternative already lives in the same
+  network: it is keyed by a geometric input (displacement &rarr; AdaLN) and warps correctly to
+  unseen layouts. <strong>The upgrade is therefore not a new module but control over two
+  things: what the keys are, and how the missing entries get manufactured.</strong> Keys =
+  affordance frame + L2 wrist-frame geometry + contact/in-grasp classification at terminal
+  (resolution-by-proximity, AdaLN route). Entries = RL-manufactured commit/grasp data via the
+  flywheel, trained under the FACT logit-normal schedule with foveated inputs and
+  noise-randomized keys.</p>
+  <div class="table-wrap"><table>
+    <tr><th>phase</th><th>work</th><th>validation (pre-registered before each launch)</th></tr>
+    <tr><td><strong>1. Prove the keys on the 2M policy</strong> (this box, ~2 wks)</td>
+        <td>(a) un-blind arms: L2-on vs blind vs wrist-depth, 6 scenes incl. cold; (b) multi-scene single policy on the rebuilt trainer; (c) grasp-family port (picking_up_trash, reward = AG-engaged &and; lifted)</td>
+        <td>(a) steps-to-70%, cold conversion, zero-shot success on the 8 held-out demos; (b) one policy &ge; per-scene chunks at &le;1/3 env steps; (c) first nonzero grasp from restore states with no new engineering beyond reward</td></tr>
+    <tr><td><strong>2. Write primitives into the VLA</strong> (Run-3 slot)</td>
+        <td>corrective pairs anchored at (widened, 30 cm shell) harvest states; skill successes re-rendered; failures kept for critic; contact-window oversampling; FACT schedule + foveated arm; keys live + randomized (&sigma;=2.6 cm, modality dropout); KL/replay slice</td>
+        <td>ladder: (1) commit-probe mass off 0.00, frozen script; (2) <strong>key-causality probe</strong> &mdash; perturb the affordance point &plusmn;3 cm at near-commit restores, measure &Delta;terminal-EE / &Delta;key slope + success-under-swap (a lookup ignores the key; a primitive tracks it; ~1 GPU-day, no training); (3) AdaLN liveness / gate magnitudes at serving; (4) denoising variance at terminal vs the Run-2 baseline (run the baseline BEFORE the retrain); (5) gate-free rollouts, then arm-C on 301 under frozen bands. Kill rule: probe (1) at 0.00 despite all three fixes &rArr; the mode cannot enter this policy class by imitation; the runtime skill + learned gate becomes the shipped architecture.</td></tr>
+    <tr><td><strong>3. Close the loop</strong></td>
+        <td>re-harvest from the retrained policy (DAgger iteration); port the factory to the articulated family; retire the discrete handoff where probe + arm-C clear, residual-with-learned-gain as backstop</td>
+        <td>per-iteration: harvest-state coverage per scene; commit-probe + key-causality regression suite on every checkpoint</td></tr>
+  </table></div>
+  <p>Deferred but named: target-anchored action re-parameterization (chunks expressed in the
+  affordance frame &mdash; primitives by construction, but it invalidates norm stats and all
+  checkpoints, and the external evidence in our bimanual flow cell is a null). A measured arm
+  for later, not a prerequisite.</p>
+
+  <p class="footnote">Sources: /root/skill_ckpts/stats_*.json (49 chunks) · stage1/stage2_train.log
+  (episode forensics, transfer, throughput) · smoke_stage0.log · skill_start_bank.json ·
+  harvest_bank.json + harvest_run.log · task_targets.json + BEHAVIOR-1K bddl3 activity
+  definitions (census) · train_skill.py / skill_env_wrapper.py / rlpd_sac.py /
+  build_start_bank.py (code reads) · RUN2_EVAL_REPORT.md, RUN1_G1_REPORT.md, GATE_REPORT_G3.md,
+  CONTACT_SKILL_SPEC_v1.md, SPATIAL_INTEL_RESEARCH_2026_08_08/09.md, FOVEATED_MEMORY_SPEC_v1.md,
+  TASK_EXPANSION_SPEC.md, HANDOFF.md · live process table. Companion: B26 Flight Log
+  (behavior2026/logbook/). Written 2026-08-15 on the shared A5000 box; the d270 stage-2 chunk
+  was left running throughout.</p>
+</main>

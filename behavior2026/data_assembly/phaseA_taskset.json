@@ -1,0 +1,188 @@
+{
+  "n_tasks_total": 100,
+  "taxonomy": {
+    "verbs": 28,
+    "objects": 252,
+    "skill_types": [
+      "coordinated",
+      "navigation",
+      "uncoordinated"
+    ]
+  },
+  "budget": 24,
+  "selected": [
+    {
+      "task": "attach_a_camera_to_a_tripod",
+      "tier": 0,
+      "adds_cells": 11,
+      "n_verbs": 5,
+      "n_objs": 3
+    },
+    {
+      "task": "picking_up_trash",
+      "tier": 0,
+      "adds_cells": 4,
+      "n_verbs": 4,
+      "n_objs": 3
+    },
+    {
+      "task": "thawing_frozen_food",
+      "tier": 0,
+      "adds_cells": 8,
+      "n_verbs": 8,
+      "n_objs": 4
+    },
+    {
+      "task": "turning_on_radio",
+      "tier": 0,
+      "adds_cells": 3,
+      "n_verbs": 4,
+      "n_objs": 2
+    },
+    {
+      "task": "make_pizza",
+      "tier": 1,
+      "adds_cells": 19,
+      "n_verbs": 11,
+      "n_objs": 17
+    },
+    {
+      "task": "clean_up_your_desk",
+      "tier": 1,
+      "adds_cells": 12,
+      "n_verbs": 7,
+      "n_objs": 10
+    },
+    {
+      "task": "sorting_household_items",
+      "tier": 1,
+      "adds_cells": 11,
+      "n_verbs": 6,
+      "n_objs": 10
+    },
+    {
+      "task": "cook_cabbage",
+      "tier": 1,
+      "adds_cells": 10,
+      "n_verbs": 9,
+      "n_objs": 13
+    },
+    {
+      "task": "carrying_in_groceries",
+      "tier": 1,
+      "adds_cells": 9,
+      "n_verbs": 10,
+      "n_objs": 9
+    },
+    {
+      "task": "outfit_a_basic_toolbox",
+      "tier": 1,
+      "adds_cells": 7,
+      "n_verbs": 6,
+      "n_objs": 7
+    },
+    {
+      "task": "setting_the_table",
+      "tier": 1,
+      "adds_cells": 7,
+      "n_verbs": 6,
+      "n_objs": 9
+    },
+    {
+      "task": "slicing_vegetables",
+      "tier": 1,
+      "adds_cells": 7,
+      "n_verbs": 7,
+      "n_objs": 10
+    },
+    {
+      "task": "putting_up_Christmas_decorations_inside",
+      "tier": 1,
+      "adds_cells": 7,
+      "n_verbs": 5,
+      "n_objs": 10
+    },
+    {
+      "task": "setting_the_fire",
+      "tier": 1,
+      "adds_cells": 6,
+      "n_verbs": 7,
+      "n_objs": 6
+    },
+    {
+      "task": "setup_a_bar_for_a_cocktail_party",
+      "tier": 1,
+      "adds_cells": 6,
+      "n_verbs": 4,
+      "n_objs": 8
+    },
+    {
+      "task": "rearranging_kitchen_furniture",
+      "tier": 1,
+      "adds_cells": 6,
+      "n_verbs": 6,
+      "n_objs": 6
+    },
+    {
+      "task": "sorting_vegetables",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 4,
+      "n_objs": 8
+    },
+    {
+      "task": "storing_food",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 7,
+      "n_objs": 6
+    },
+    {
+      "task": "organizing_art_supplies",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 4,
+      "n_objs": 7
+    },
+    {
+      "task": "carrying_out_garden_furniture",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 5,
+      "n_objs": 6
+    },
+    {
+      "task": "clean_your_rusty_garden_tools",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 6,
+      "n_objs": 5
+    },
+    {
+      "task": "wash_dog_toys",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 7,
+      "n_objs": 5
+    },
+    {
+      "task": "getting_organized_for_work",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 5,
+      "n_objs": 8
+    },
+    {
+      "task": "rearrange_your_room",
+      "tier": 1,
+      "adds_cells": 5,
+      "n_verbs": 4,
+      "n_objs": 8
+    }
+  ],
+  "coverage": {
+    "cells_covered": 173,
+    "cells_total": 283,
+    "pct": 61.1
+  }
+}

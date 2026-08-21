@@ -1,0 +1,544 @@
+{
+  "entries": [
+    {
+      "demo": 20,
+      "state_file": "/root/harvest_states/d20_s0.npz",
+      "step": 0,
+      "dmin": 0.0911,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 20,
+      "state_file": "/root/harvest_states/d20_s5.npz",
+      "step": 5,
+      "dmin": 0.0931,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 20,
+      "state_file": "/root/harvest_states/d20_s10.npz",
+      "step": 10,
+      "dmin": 0.097,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s0.npz",
+      "step": 0,
+      "dmin": 0.0978,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s5.npz",
+      "step": 5,
+      "dmin": 0.096,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s10.npz",
+      "step": 10,
+      "dmin": 0.0949,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s15.npz",
+      "step": 15,
+      "dmin": 0.0944,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s20.npz",
+      "step": 20,
+      "dmin": 0.0946,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s25.npz",
+      "step": 25,
+      "dmin": 0.0933,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s30.npz",
+      "step": 30,
+      "dmin": 0.0905,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s35.npz",
+      "step": 35,
+      "dmin": 0.0881,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s40.npz",
+      "step": 40,
+      "dmin": 0.0869,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s45.npz",
+      "step": 45,
+      "dmin": 0.0867,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s50.npz",
+      "step": 50,
+      "dmin": 0.0876,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s55.npz",
+      "step": 55,
+      "dmin": 0.0894,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s60.npz",
+      "step": 60,
+      "dmin": 0.0912,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s65.npz",
+      "step": 65,
+      "dmin": 0.0924,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s70.npz",
+      "step": 70,
+      "dmin": 0.0929,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s75.npz",
+      "step": 75,
+      "dmin": 0.0929,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s80.npz",
+      "step": 80,
+      "dmin": 0.0926,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s85.npz",
+      "step": 85,
+      "dmin": 0.0935,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s90.npz",
+      "step": 90,
+      "dmin": 0.0948,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s95.npz",
+      "step": 95,
+      "dmin": 0.0959,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s100.npz",
+      "step": 100,
+      "dmin": 0.0972,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 80,
+      "state_file": "/root/harvest_states/d80_s105.npz",
+      "step": 105,
+      "dmin": 0.0991,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 110,
+      "state_file": "/root/harvest_states/d110_s0.npz",
+      "step": 0,
+      "dmin": 0.0967,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 110,
+      "state_file": "/root/harvest_states/d110_s5.npz",
+      "step": 5,
+      "dmin": 0.0989,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s53.npz",
+      "step": 53,
+      "dmin": 0.0994,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s58.npz",
+      "step": 58,
+      "dmin": 0.0955,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s63.npz",
+      "step": 63,
+      "dmin": 0.0911,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s68.npz",
+      "step": 68,
+      "dmin": 0.0882,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s73.npz",
+      "step": 73,
+      "dmin": 0.0871,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s78.npz",
+      "step": 78,
+      "dmin": 0.0866,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s83.npz",
+      "step": 83,
+      "dmin": 0.0863,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s88.npz",
+      "step": 88,
+      "dmin": 0.086,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s93.npz",
+      "step": 93,
+      "dmin": 0.0856,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s98.npz",
+      "step": 98,
+      "dmin": 0.0852,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s103.npz",
+      "step": 103,
+      "dmin": 0.0856,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s108.npz",
+      "step": 108,
+      "dmin": 0.0855,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s113.npz",
+      "step": 113,
+      "dmin": 0.0851,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s118.npz",
+      "step": 118,
+      "dmin": 0.0858,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s123.npz",
+      "step": 123,
+      "dmin": 0.0874,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s128.npz",
+      "step": 128,
+      "dmin": 0.089,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s133.npz",
+      "step": 133,
+      "dmin": 0.0916,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s138.npz",
+      "step": 138,
+      "dmin": 0.0944,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s143.npz",
+      "step": 143,
+      "dmin": 0.0966,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 300,
+      "state_file": "/root/harvest_states/d300_s148.npz",
+      "step": 148,
+      "dmin": 0.0994,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 340,
+      "state_file": "/root/harvest_states/d340_s48.npz",
+      "step": 48,
+      "dmin": 0.0995,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 340,
+      "state_file": "/root/harvest_states/d340_s53.npz",
+      "step": 53,
+      "dmin": 0.0977,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 340,
+      "state_file": "/root/harvest_states/d340_s58.npz",
+      "step": 58,
+      "dmin": 0.0966,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 340,
+      "state_file": "/root/harvest_states/d340_s63.npz",
+      "step": 63,
+      "dmin": 0.096,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 340,
+      "state_file": "/root/harvest_states/d340_s68.npz",
+      "step": 68,
+      "dmin": 0.0967,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 340,
+      "state_file": "/root/harvest_states/d340_s73.npz",
+      "step": 73,
+      "dmin": 0.098,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    },
+    {
+      "demo": 340,
+      "state_file": "/root/harvest_states/d340_s78.npz",
+      "step": 78,
+      "dmin": 0.0996,
+      "holding_arm": null,
+      "active_arm": "left",
+      "stage": "boundary",
+      "source": "vla_harvest"
+    }
+  ]
+}

@@ -289,11 +289,16 @@ class SkillCommitEnvV2:
                     r += 0.3
                     self._ag_had = True
                 if ag_now and self.entry.get("lift_z") is not None:
-                    tz = float(_np(self.target.get_position_orientation()[0])[2])
-                    prog = min(max(tz - self.entry["lift_z"], 0.0), 0.10)
+                    tzp = _np(self.target.get_position_orientation()[0])
+                    prog = min(max(float(tzp[2]) - self.entry["lift_z"], 0.0), 0.10)
                     if prog > self._lift_prog:
                         r += 3.0 * (prog - self._lift_prog)
                         self._lift_prog = prog
+                    # stillness shaping: once lifted, swinging the object costs
+                    prev = getattr(self, "_tp_prev_shape", None)
+                    if prev is not None and prog >= 0.05:
+                        r -= 2.0 * max(0.0, float(np.linalg.norm(tzp - prev)) - 0.005)
+                    self._tp_prev_shape = tzp.copy()
         if success:
             r += 1.0
         done = success or self.steps >= BUDGET
@@ -392,11 +397,17 @@ class SkillCommitEnvV2:
             base = self.entry.get("lift_z")
             margin = self.entry.get("lift_success", 0.05)
             lifted = base is not None and tp[2] > base + margin
-            if ag and lifted:
+            # QUASI-STATIC hold (v21u): 'held' means STILL — the orbit exploit satisfied
+            # AG∧height∧dwell while swinging the object in circles (filmed), and poisoned
+            # bridge states with momentum. Dwell counts only below ~0.15 m/s.
+            prev = getattr(self, "_tp_prev", None)
+            still = prev is not None and float(np.linalg.norm(tp - prev)) < 0.005
+            self._tp_prev = tp.copy()
+            if ag and lifted and still:
                 self._lift_dwell = getattr(self, "_lift_dwell", 0) + 1
             else:
                 self._lift_dwell = 0
-            return self._lift_dwell >= 15          # held ≥15 steps (debounce, spec D8)
+            return self._lift_dwell >= 15          # held STILL ≥15 steps
         raise NotImplementedError(fam)
 
     def _finger_contact(self):

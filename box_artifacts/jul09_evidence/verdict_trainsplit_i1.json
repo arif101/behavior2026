@@ -1,0 +1,40 @@
+{
+ "steps": 3225,
+ "attempts": 1,
+ "deep_closes": 1,
+ "first_attempt_step": 2990,
+ "first_attempt_sec_at_30fps": 99.7,
+ "close_events": [
+  {
+   "step": 2990,
+   "side": "R",
+   "to": -0.95,
+   "target_dist": 0.141
+  }
+ ],
+ "quarter_activity_arm_base": [
+  [
+   0.97,
+   0.093
+  ],
+  [
+   3.96,
+   0.008
+  ],
+  [
+   4.85,
+   0.003
+  ],
+  [
+   5.81,
+   0.004
+  ]
+ ],
+ "arm_escalation_ratio": 5.99,
+ "classification": "spiral-after-attempt",
+ "proximity_gated": true,
+ "target_attempts": 1,
+ "air_attempts": 0,
+ "min_target_dist_m": 0.133,
+ "first_target_attempt_step": 2990
+}

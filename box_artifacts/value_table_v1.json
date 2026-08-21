@@ -1,0 +1,1297 @@
+{
+ "assembling_gift_baskets": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4
+  },
+  "mean_demo_steps": 26060,
+  "timeout_steps": 39090,
+  "est_rollout_min": 191.6
+ },
+ "attach_a_camera_to_a_tripod": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  },
+  "mean_demo_steps": 3912,
+  "timeout_steps": 5867,
+  "est_rollout_min": 28.8
+ },
+ "boxing_books_up_for_storage": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 24228,
+  "timeout_steps": 36341,
+  "est_rollout_min": 178.1
+ },
+ "boxing_food_after_dinner": {
+  "n_literals": 5,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.8,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 2,
+   "open": 1
+  },
+  "mean_demo_steps": 6698,
+  "timeout_steps": 10047,
+  "est_rollout_min": 49.2
+ },
+ "bringing_in_wood": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 1
+  },
+  "mean_demo_steps": 13536,
+  "timeout_steps": 20303,
+  "est_rollout_min": 99.5
+ },
+ "bringing_paper_to_recycling": {
+  "n_literals": 3,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.67,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "open": 1
+  },
+  "mean_demo_steps": 11214,
+  "timeout_steps": 16821,
+  "est_rollout_min": 82.5
+ },
+ "bringing_water": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 9439,
+  "timeout_steps": 14158,
+  "est_rollout_min": 69.4
+ },
+ "can_meat": {
+  "n_literals": 6,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.33,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "open": 2,
+   "forn": 1,
+   "2": 1
+  },
+  "mean_demo_steps": 11847,
+  "timeout_steps": 17771,
+  "est_rollout_min": 87.1
+ },
+ "canning_food": {
+  "n_literals": 9,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.11,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 2,
+   "filled": 2,
+   "contains": 2,
+   "open": 2,
+   "inside": 1
+  },
+  "mean_demo_steps": 22975,
+  "timeout_steps": 34463,
+  "est_rollout_min": 168.9
+ },
+ "carrying_in_groceries": {
+  "n_literals": 4,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "open": 2
+  },
+  "mean_demo_steps": 14275,
+  "timeout_steps": 21412,
+  "est_rollout_min": 105.0
+ },
+ "carrying_out_garden_furniture": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2
+  },
+  "mean_demo_steps": 11059,
+  "timeout_steps": 16588,
+  "est_rollout_min": 81.3
+ },
+ "chop_an_onion": {
+  "n_literals": 4,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "real": 1,
+   "contains": 1
+  },
+  "mean_demo_steps": 6400,
+  "timeout_steps": 9600,
+  "est_rollout_min": 47.1
+ },
+ "chopping_wood": {
+  "n_literals": 8,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 8
+  },
+  "mean_demo_steps": 10752,
+  "timeout_steps": 16128,
+  "est_rollout_min": 79.1
+ },
+ "clean_a_keyboard": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 3876,
+  "timeout_steps": 5814,
+  "est_rollout_min": 28.5
+ },
+ "clean_a_patio": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 12071,
+  "timeout_steps": 18106,
+  "est_rollout_min": 88.8
+ },
+ "clean_a_trumpet": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 5307,
+  "timeout_steps": 7961,
+  "est_rollout_min": 39.0
+ },
+ "clean_boxing_gloves": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 8235,
+  "timeout_steps": 12353,
+  "est_rollout_min": 60.6
+ },
+ "clean_up_broken_glass": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 8691,
+  "timeout_steps": 13037,
+  "est_rollout_min": 63.9
+ },
+ "clean_up_your_desk": {
+  "n_literals": 8,
+  "kinematic_literals": 7,
+  "kinematic_frac": 0.88,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4,
+   "ontop": 3,
+   "open": 1
+  },
+  "mean_demo_steps": 21418,
+  "timeout_steps": 32127,
+  "est_rollout_min": 157.5
+ },
+ "clean_your_rusty_garden_tools": {
+  "n_literals": 5,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.4,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 2,
+   "inside": 2,
+   "open": 1
+  },
+  "mean_demo_steps": 15158,
+  "timeout_steps": 22737,
+  "est_rollout_min": 111.5
+ },
+ "cleaning_up_branches_and_twigs": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "ontop": 1
+  },
+  "mean_demo_steps": 12527,
+  "timeout_steps": 18791,
+  "est_rollout_min": 92.1
+ },
+ "cleaning_up_plates_and_food": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 13696,
+  "timeout_steps": 20544,
+  "est_rollout_min": 100.7
+ },
+ "clearing_food_from_table_into_fridge": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  },
+  "mean_demo_steps": 13068,
+  "timeout_steps": 19602,
+  "est_rollout_min": 96.1
+ },
+ "collecting_aluminum_cans": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 10203,
+  "timeout_steps": 15304,
+  "est_rollout_min": 75.0
+ },
+ "collecting_childrens_toys": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4
+  },
+  "mean_demo_steps": 19186,
+  "timeout_steps": 28779,
+  "est_rollout_min": 141.1
+ },
+ "composting_waste": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2
+  },
+  "mean_demo_steps": 3639,
+  "timeout_steps": 5458,
+  "est_rollout_min": 26.8
+ },
+ "cook_a_brisket": {
+  "n_literals": 3,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.67,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2,
+   "cooked": 1
+  },
+  "mean_demo_steps": 7335,
+  "timeout_steps": 11002,
+  "est_rollout_min": 53.9
+ },
+ "cook_a_frozen_pie": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 1,
+   "cooked": 1
+  },
+  "mean_demo_steps": 8668,
+  "timeout_steps": 13002,
+  "est_rollout_min": 63.7
+ },
+ "cook_bacon": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "cooked": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 7680,
+  "timeout_steps": 11519,
+  "est_rollout_min": 56.5
+ },
+ "cook_broccolini": {
+  "n_literals": 5,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.6,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "cooked": 2
+  },
+  "mean_demo_steps": 4618,
+  "timeout_steps": 6927,
+  "est_rollout_min": 34.0
+ },
+ "cook_brussels_sprouts": {
+  "n_literals": 5,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.2,
+  "has_or_options": false,
+  "pred_hist": {
+   "open": 2,
+   "real": 1,
+   "cooked": 1,
+   "inside": 1
+  },
+  "mean_demo_steps": 15662,
+  "timeout_steps": 23493,
+  "est_rollout_min": 115.2
+ },
+ "cook_cabbage": {
+  "n_literals": 4,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 2,
+   "contains": 2
+  },
+  "mean_demo_steps": 14145,
+  "timeout_steps": 21217,
+  "est_rollout_min": 104.0
+ },
+ "cook_hot_dogs": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "cooked": 1
+  },
+  "mean_demo_steps": 9145,
+  "timeout_steps": 13717,
+  "est_rollout_min": 67.2
+ },
+ "dispose_of_batteries": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "ontop": 1
+  },
+  "mean_demo_steps": 14428,
+  "timeout_steps": 21643,
+  "est_rollout_min": 106.1
+ },
+ "dispose_of_glass": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 9195,
+  "timeout_steps": 13793,
+  "est_rollout_min": 67.6
+ },
+ "freeze_fruit": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  },
+  "mean_demo_steps": 12619,
+  "timeout_steps": 18928,
+  "est_rollout_min": 92.8
+ },
+ "freeze_pies": {
+  "n_literals": 4,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "frozen": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 12455,
+  "timeout_steps": 18683,
+  "est_rollout_min": 91.6
+ },
+ "getting_organized_for_work": {
+  "n_literals": 10,
+  "kinematic_literals": 10,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 5,
+   "nextto": 4,
+   "under": 1
+  },
+  "mean_demo_steps": 15671,
+  "timeout_steps": 23507,
+  "est_rollout_min": 115.2
+ },
+ "halve_an_egg": {
+  "n_literals": 5,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.6,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 2,
+   "ontop": 2,
+   "inside": 1
+  },
+  "mean_demo_steps": 6377,
+  "timeout_steps": 9566,
+  "est_rollout_min": 46.9
+ },
+ "hanging_pictures": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  },
+  "mean_demo_steps": 2387,
+  "timeout_steps": 3581,
+  "est_rollout_min": 17.6
+ },
+ "hiding_Easter_eggs": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 1,
+   "inside": 1,
+   "ontop": 1
+  },
+  "mean_demo_steps": 7620,
+  "timeout_steps": 11430,
+  "est_rollout_min": 56.0
+ },
+ "installing_a_fax_machine": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 1,
+   "ontop": 1
+  },
+  "mean_demo_steps": 4077,
+  "timeout_steps": 6115,
+  "est_rollout_min": 30.0
+ },
+ "installing_a_modem": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2,
+   "toggled_on": 1,
+   "nextto": 1
+  },
+  "mean_demo_steps": 2413,
+  "timeout_steps": 3619,
+  "est_rollout_min": 17.7
+ },
+ "installing_a_scanner": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 1,
+   "nextto": 1
+  },
+  "mean_demo_steps": 4259,
+  "timeout_steps": 6388,
+  "est_rollout_min": 31.3
+ },
+ "installing_smoke_detectors": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  },
+  "mean_demo_steps": 2569,
+  "timeout_steps": 3853,
+  "est_rollout_min": 18.9
+ },
+ "laying_tile_floors": {
+  "n_literals": 5,
+  "kinematic_literals": 5,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "nextto": 4,
+   "ontop": 1
+  },
+  "mean_demo_steps": 14351,
+  "timeout_steps": 21526,
+  "est_rollout_min": 105.5
+ },
+ "loading_the_car": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  },
+  "mean_demo_steps": 19226,
+  "timeout_steps": 28840,
+  "est_rollout_min": 141.4
+ },
+ "make_cabinet_doors": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  },
+  "mean_demo_steps": 3443,
+  "timeout_steps": 5164,
+  "est_rollout_min": 25.3
+ },
+ "make_gift_bags_for_baby_showers": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 1
+  },
+  "mean_demo_steps": 9651,
+  "timeout_steps": 14476,
+  "est_rollout_min": 71.0
+ },
+ "make_microwave_popcorn": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 1,
+   "contains": 1
+  },
+  "mean_demo_steps": 3238,
+  "timeout_steps": 4857,
+  "est_rollout_min": 23.8
+ },
+ "make_pizza": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 1,
+   "ontop": 1
+  },
+  "mean_demo_steps": 19187,
+  "timeout_steps": 28780,
+  "est_rollout_min": 141.1
+ },
+ "make_rose_centerpieces": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "ontop": 1
+  },
+  "mean_demo_steps": 4532,
+  "timeout_steps": 6798,
+  "est_rollout_min": 33.3
+ },
+ "moving_boxes_to_storage": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 4
+  },
+  "mean_demo_steps": 14596,
+  "timeout_steps": 21894,
+  "est_rollout_min": 107.3
+ },
+ "organizing_art_supplies": {
+  "n_literals": 5,
+  "kinematic_literals": 5,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4,
+   "ontop": 1
+  },
+  "mean_demo_steps": 6194,
+  "timeout_steps": 9292,
+  "est_rollout_min": 45.5
+ },
+ "organizing_school_stuff": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 5,
+   "ontop": 1
+  },
+  "mean_demo_steps": 14592,
+  "timeout_steps": 21888,
+  "est_rollout_min": 107.3
+ },
+ "outfit_a_basic_toolbox": {
+  "n_literals": 7,
+  "kinematic_literals": 6,
+  "kinematic_frac": 0.86,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 5,
+   "ontop": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 10638,
+  "timeout_steps": 15957,
+  "est_rollout_min": 78.2
+ },
+ "packing_meal_for_delivery": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "ontop": 1
+  },
+  "mean_demo_steps": 8860,
+  "timeout_steps": 13290,
+  "est_rollout_min": 65.1
+ },
+ "picking_up_toys": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3
+  },
+  "mean_demo_steps": 18891,
+  "timeout_steps": 28336,
+  "est_rollout_min": 138.9
+ },
+ "picking_up_trash": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 5268,
+  "timeout_steps": 7902,
+  "est_rollout_min": 38.7
+ },
+ "polishing_shoes": {
+  "n_literals": 6,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.67,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 3,
+   "covered": 2,
+   "ontop": 1
+  },
+  "mean_demo_steps": 10738,
+  "timeout_steps": 16107,
+  "est_rollout_min": 79.0
+ },
+ "preparing_lunch_box": {
+  "n_literals": 5,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.8,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4,
+   "open": 1
+  },
+  "mean_demo_steps": 8245,
+  "timeout_steps": 12368,
+  "est_rollout_min": 60.6
+ },
+ "put_together_a_basic_pruning_kit": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 11264,
+  "timeout_steps": 16897,
+  "est_rollout_min": 82.8
+ },
+ "putting_away_Halloween_decorations": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "nextto": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 13788,
+  "timeout_steps": 20682,
+  "est_rollout_min": 101.4
+ },
+ "putting_away_toys": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 11297,
+  "timeout_steps": 16945,
+  "est_rollout_min": 83.1
+ },
+ "putting_dirty_dishes_in_sink": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2
+  },
+  "mean_demo_steps": 12149,
+  "timeout_steps": 18223,
+  "est_rollout_min": 89.3
+ },
+ "putting_dishes_away_after_cleaning": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "open": 1
+  },
+  "mean_demo_steps": 10953,
+  "timeout_steps": 16430,
+  "est_rollout_min": 80.5
+ },
+ "putting_shoes_on_rack": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "touching": 4,
+   "nextto": 2
+  },
+  "mean_demo_steps": 7726,
+  "timeout_steps": 11589,
+  "est_rollout_min": 56.8
+ },
+ "putting_up_Christmas_decorations_inside": {
+  "n_literals": 11,
+  "kinematic_literals": 7,
+  "kinematic_frac": 0.64,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 4,
+   "forn": 2,
+   "nextto": 1,
+   "under": 1,
+   "touching": 1,
+   "1": 1
+  },
+  "mean_demo_steps": 13719,
+  "timeout_steps": 20578,
+  "est_rollout_min": 100.9
+ },
+ "re_shelving_library_books": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 9528,
+  "timeout_steps": 14293,
+  "est_rollout_min": 70.1
+ },
+ "rearrange_your_room": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2
+  },
+  "mean_demo_steps": 12855,
+  "timeout_steps": 19282,
+  "est_rollout_min": 94.5
+ },
+ "rearranging_kitchen_furniture": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  },
+  "mean_demo_steps": 8943,
+  "timeout_steps": 13415,
+  "est_rollout_min": 65.8
+ },
+ "scrubbing_bathroom_floor": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 3154,
+  "timeout_steps": 4731,
+  "est_rollout_min": 23.2
+ },
+ "set_up_a_coffee_station_in_your_kitchen": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "nextto": 3
+  },
+  "mean_demo_steps": 6266,
+  "timeout_steps": 9399,
+  "est_rollout_min": 46.1
+ },
+ "setting_mousetraps": {
+  "n_literals": 5,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.6,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 1,
+   "forn": 1,
+   "2": 1,
+   "under": 1,
+   "nextto": 1
+  },
+  "mean_demo_steps": 10196,
+  "timeout_steps": 15294,
+  "est_rollout_min": 75.0
+ },
+ "setting_the_fire": {
+  "n_literals": 5,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.4,
+  "has_or_options": false,
+  "pred_hist": {
+   "on_fire": 2,
+   "ontop": 1,
+   "inside": 1,
+   "toggled_on": 1
+  },
+  "mean_demo_steps": 9118,
+  "timeout_steps": 13677,
+  "est_rollout_min": 67.0
+ },
+ "setting_the_table": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2,
+   "nextto": 2
+  },
+  "mean_demo_steps": 17809,
+  "timeout_steps": 26713,
+  "est_rollout_min": 130.9
+ },
+ "setup_a_bar_for_a_cocktail_party": {
+  "n_literals": 12,
+  "kinematic_literals": 12,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "nextto": 6,
+   "ontop": 5,
+   "inside": 1
+  },
+  "mean_demo_steps": 13419,
+  "timeout_steps": 20128,
+  "est_rollout_min": 98.7
+ },
+ "slicing_vegetables": {
+  "n_literals": 7,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 6,
+   "open": 1
+  },
+  "mean_demo_steps": 14845,
+  "timeout_steps": 22267,
+  "est_rollout_min": 109.2
+ },
+ "sorting_books_on_shelf": {
+  "n_literals": 12,
+  "kinematic_literals": 10,
+  "kinematic_frac": 0.83,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 7,
+   "inside": 3,
+   "forn": 1,
+   "2": 1
+  },
+  "mean_demo_steps": 7739,
+  "timeout_steps": 11609,
+  "est_rollout_min": 56.9
+ },
+ "sorting_bottles_cans_and_paper": {
+  "n_literals": 12,
+  "kinematic_literals": 12,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 12
+  },
+  "mean_demo_steps": 10264,
+  "timeout_steps": 15396,
+  "est_rollout_min": 75.5
+ },
+ "sorting_household_items": {
+  "n_literals": 7,
+  "kinematic_literals": 7,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "nextto": 2,
+   "under": 1,
+   "inside": 1
+  },
+  "mean_demo_steps": 15808,
+  "timeout_steps": 23712,
+  "est_rollout_min": 116.2
+ },
+ "sorting_vegetables": {
+  "n_literals": 5,
+  "kinematic_literals": 5,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 5
+  },
+  "mean_demo_steps": 11904,
+  "timeout_steps": 17856,
+  "est_rollout_min": 87.5
+ },
+ "spraying_for_bugs": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 6479,
+  "timeout_steps": 9719,
+  "est_rollout_min": 47.6
+ },
+ "spraying_fruit_trees": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 2
+  },
+  "mean_demo_steps": 8346,
+  "timeout_steps": 12519,
+  "est_rollout_min": 61.4
+ },
+ "stacking_wood": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "touching": 6
+  },
+  "mean_demo_steps": 15939,
+  "timeout_steps": 23909,
+  "est_rollout_min": 117.2
+ },
+ "store_batteries": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 7704,
+  "timeout_steps": 11556,
+  "est_rollout_min": 56.6
+ },
+ "store_honey": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  },
+  "mean_demo_steps": 6767,
+  "timeout_steps": 10150,
+  "est_rollout_min": 49.8
+ },
+ "store_produce": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2
+  },
+  "mean_demo_steps": 9522,
+  "timeout_steps": 14284,
+  "est_rollout_min": 70.0
+ },
+ "storing_food": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4
+  },
+  "mean_demo_steps": 19869,
+  "timeout_steps": 29804,
+  "est_rollout_min": 146.1
+ },
+ "sweeping_garage": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 2
+  },
+  "mean_demo_steps": 4473,
+  "timeout_steps": 6710,
+  "est_rollout_min": 32.9
+ },
+ "thawing_frozen_food": {
+  "n_literals": 9,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.44,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "frozen": 2,
+   "open": 2,
+   "inside": 1,
+   "toggled_on": 1
+  },
+  "mean_demo_steps": 8230,
+  "timeout_steps": 12344,
+  "est_rollout_min": 60.5
+ },
+ "tidying_bathroom": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "inside": 1
+  },
+  "mean_demo_steps": 13003,
+  "timeout_steps": 19505,
+  "est_rollout_min": 95.6
+ },
+ "tidying_bedroom": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 2,
+   "ontop": 1
+  },
+  "mean_demo_steps": 11037,
+  "timeout_steps": 16556,
+  "est_rollout_min": 81.2
+ },
+ "tidying_living_room": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "inside": 1
+  },
+  "mean_demo_steps": 12566,
+  "timeout_steps": 18849,
+  "est_rollout_min": 92.4
+ },
+ "turning_on_radio": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 1
+  },
+  "mean_demo_steps": 2150,
+  "timeout_steps": 3224,
+  "est_rollout_min": 15.8
+ },
+ "turning_out_all_lights_before_sleep": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 2
+  },
+  "mean_demo_steps": 10006,
+  "timeout_steps": 15009,
+  "est_rollout_min": 73.6
+ },
+ "unloading_the_car": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 2
+  },
+  "mean_demo_steps": 11323,
+  "timeout_steps": 16985,
+  "est_rollout_min": 83.3
+ },
+ "vacuuming_floors": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 2412,
+  "timeout_steps": 3618,
+  "est_rollout_min": 17.7
+ },
+ "wash_a_baseball_cap": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  },
+  "mean_demo_steps": 8349,
+  "timeout_steps": 12524,
+  "est_rollout_min": 61.4
+ },
+ "wash_dog_toys": {
+  "n_literals": 4,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 4
+  },
+  "mean_demo_steps": 11223,
+  "timeout_steps": 16834,
+  "est_rollout_min": 82.5
+ }
+}

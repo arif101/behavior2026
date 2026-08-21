@@ -1,0 +1,129 @@
+{
+ "steps": 7901,
+ "attempts": 24,
+ "deep_closes": 0,
+ "first_attempt_step": 751,
+ "first_attempt_sec_at_30fps": 25.0,
+ "close_events": [
+  {
+   "step": 751,
+   "side": "R",
+   "to": 0.83
+  },
+  {
+   "step": 1007,
+   "side": "R",
+   "to": 0.91
+  },
+  {
+   "step": 1391,
+   "side": "R",
+   "to": 0.87
+  },
+  {
+   "step": 2175,
+   "side": "R",
+   "to": 0.97
+  },
+  {
+   "step": 2239,
+   "side": "R",
+   "to": 0.98
+  },
+  {
+   "step": 2319,
+   "side": "R",
+   "to": 0.9
+  },
+  {
+   "step": 2783,
+   "side": "R",
+   "to": 0.91
+  },
+  {
+   "step": 3375,
+   "side": "R",
+   "to": 0.97
+  },
+  {
+   "step": 3599,
+   "side": "R",
+   "to": 0.85
+  },
+  {
+   "step": 3823,
+   "side": "R",
+   "to": 0.88
+  },
+  {
+   "step": 4175,
+   "side": "R",
+   "to": 0.78
+  },
+  {
+   "step": 4239,
+   "side": "R",
+   "to": 0.87
+  },
+  {
+   "step": 4479,
+   "side": "R",
+   "to": 0.83
+  },
+  {
+   "step": 4623,
+   "side": "R",
+   "to": 0.92
+  },
+  {
+   "step": 4719,
+   "side": "R",
+   "to": 0.96
+  },
+  {
+   "step": 4975,
+   "side": "R",
+   "to": 1.05
+  },
+  {
+   "step": 5199,
+   "side": "R",
+   "to": 0.91
+  },
+  {
+   "step": 5247,
+   "side": "R",
+   "to": 0.87
+  },
+  {
+   "step": 5695,
+   "side": "R",
+   "to": 1.0
+  },
+  {
+   "step": 5903,
+   "side": "R",
+   "to": 0.88
+  }
+ ],
+ "quarter_activity_arm_base": [
+  [
+   1.82,
+   0.189
+  ],
+  [
+   4.4,
+   0.163
+  ],
+  [
+   6.55,
+   0.212
+  ],
+  [
+   7.7,
+   0.143
+  ]
+ ],
+ "arm_escalation_ratio": 4.23,
+ "classification": "spiral-after-attempt"
+}

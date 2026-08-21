@@ -1,0 +1,33 @@
+{
+ "steps": 3225,
+ "attempts": 0,
+ "deep_closes": 0,
+ "first_attempt_step": null,
+ "first_attempt_sec_at_30fps": null,
+ "close_events": [],
+ "quarter_activity_arm_base": [
+  [
+   0.68,
+   0.107
+  ],
+  [
+   3.06,
+   0.009
+  ],
+  [
+   5.07,
+   0.009
+  ],
+  [
+   6.01,
+   0.011
+  ]
+ ],
+ "arm_escalation_ratio": 8.84,
+ "classification": "never-engaged",
+ "proximity_gated": true,
+ "target_attempts": 0,
+ "air_attempts": 0,
+ "min_target_dist_m": 0.169,
+ "first_target_attempt_step": null
+}

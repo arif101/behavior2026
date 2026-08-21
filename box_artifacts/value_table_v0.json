@@ -1,0 +1,997 @@
+{
+ "assembling_gift_baskets": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4
+  }
+ },
+ "attach_a_camera_to_a_tripod": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  }
+ },
+ "boxing_books_up_for_storage": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "boxing_food_after_dinner": {
+  "n_literals": 5,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.8,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 2,
+   "open": 1
+  }
+ },
+ "bringing_in_wood": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 1
+  }
+ },
+ "bringing_paper_to_recycling": {
+  "n_literals": 3,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.67,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "open": 1
+  }
+ },
+ "bringing_water": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 1,
+   "open": 1
+  }
+ },
+ "can_meat": {
+  "n_literals": 6,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.33,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "open": 2,
+   "forn": 1,
+   "2": 1
+  }
+ },
+ "canning_food": {
+  "n_literals": 9,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.11,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 2,
+   "filled": 2,
+   "contains": 2,
+   "open": 2,
+   "inside": 1
+  }
+ },
+ "carrying_in_groceries": {
+  "n_literals": 4,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "open": 2
+  }
+ },
+ "carrying_out_garden_furniture": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2
+  }
+ },
+ "chop_an_onion": {
+  "n_literals": 4,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "real": 1,
+   "contains": 1
+  }
+ },
+ "chopping_wood": {
+  "n_literals": 8,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 8
+  }
+ },
+ "clean_a_keyboard": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "clean_a_patio": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "clean_a_trumpet": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "clean_boxing_gloves": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "clean_up_broken_glass": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "clean_up_your_desk": {
+  "n_literals": 8,
+  "kinematic_literals": 7,
+  "kinematic_frac": 0.88,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4,
+   "ontop": 3,
+   "open": 1
+  }
+ },
+ "clean_your_rusty_garden_tools": {
+  "n_literals": 5,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.4,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 2,
+   "inside": 2,
+   "open": 1
+  }
+ },
+ "cleaning_up_branches_and_twigs": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "ontop": 1
+  }
+ },
+ "cleaning_up_plates_and_food": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 1,
+   "open": 1
+  }
+ },
+ "clearing_food_from_table_into_fridge": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  }
+ },
+ "collecting_aluminum_cans": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "collecting_childrens_toys": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4
+  }
+ },
+ "composting_waste": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2
+  }
+ },
+ "cook_a_brisket": {
+  "n_literals": 3,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.67,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2,
+   "cooked": 1
+  }
+ },
+ "cook_a_frozen_pie": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 1,
+   "cooked": 1
+  }
+ },
+ "cook_bacon": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "cooked": 1,
+   "open": 1
+  }
+ },
+ "cook_broccolini": {
+  "n_literals": 5,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.6,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "cooked": 2
+  }
+ },
+ "cook_brussels_sprouts": {
+  "n_literals": 5,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.2,
+  "has_or_options": false,
+  "pred_hist": {
+   "open": 2,
+   "real": 1,
+   "cooked": 1,
+   "inside": 1
+  }
+ },
+ "cook_cabbage": {
+  "n_literals": 4,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 2,
+   "contains": 2
+  }
+ },
+ "cook_hot_dogs": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "cooked": 1
+  }
+ },
+ "dispose_of_batteries": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "ontop": 1
+  }
+ },
+ "dispose_of_glass": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "freeze_fruit": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  }
+ },
+ "freeze_pies": {
+  "n_literals": 4,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "frozen": 1,
+   "open": 1
+  }
+ },
+ "getting_organized_for_work": {
+  "n_literals": 10,
+  "kinematic_literals": 10,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 5,
+   "nextto": 4,
+   "under": 1
+  }
+ },
+ "halve_an_egg": {
+  "n_literals": 5,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.6,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 2,
+   "ontop": 2,
+   "inside": 1
+  }
+ },
+ "hanging_pictures": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  }
+ },
+ "hiding_Easter_eggs": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 1,
+   "inside": 1,
+   "ontop": 1
+  }
+ },
+ "installing_a_fax_machine": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 1,
+   "ontop": 1
+  }
+ },
+ "installing_a_modem": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2,
+   "toggled_on": 1,
+   "nextto": 1
+  }
+ },
+ "installing_a_scanner": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 1,
+   "nextto": 1
+  }
+ },
+ "installing_smoke_detectors": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  }
+ },
+ "laying_tile_floors": {
+  "n_literals": 5,
+  "kinematic_literals": 5,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "nextto": 4,
+   "ontop": 1
+  }
+ },
+ "loading_the_car": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  }
+ },
+ "make_cabinet_doors": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "attached": 1
+  }
+ },
+ "make_gift_bags_for_baby_showers": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 1
+  }
+ },
+ "make_microwave_popcorn": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 1,
+   "contains": 1
+  }
+ },
+ "make_pizza": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 1,
+   "ontop": 1
+  }
+ },
+ "make_rose_centerpieces": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "ontop": 1
+  }
+ },
+ "moving_boxes_to_storage": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 4
+  }
+ },
+ "organizing_art_supplies": {
+  "n_literals": 5,
+  "kinematic_literals": 5,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4,
+   "ontop": 1
+  }
+ },
+ "organizing_school_stuff": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 5,
+   "ontop": 1
+  }
+ },
+ "outfit_a_basic_toolbox": {
+  "n_literals": 7,
+  "kinematic_literals": 6,
+  "kinematic_frac": 0.86,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 5,
+   "ontop": 1,
+   "open": 1
+  }
+ },
+ "packing_meal_for_delivery": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "ontop": 1
+  }
+ },
+ "picking_up_toys": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3
+  }
+ },
+ "picking_up_trash": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "polishing_shoes": {
+  "n_literals": 6,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.67,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 3,
+   "covered": 2,
+   "ontop": 1
+  }
+ },
+ "preparing_lunch_box": {
+  "n_literals": 5,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.8,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4,
+   "open": 1
+  }
+ },
+ "put_together_a_basic_pruning_kit": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "ontop": 1,
+   "open": 1
+  }
+ },
+ "putting_away_Halloween_decorations": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2,
+   "nextto": 1,
+   "open": 1
+  }
+ },
+ "putting_away_toys": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "putting_dirty_dishes_in_sink": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2
+  }
+ },
+ "putting_dishes_away_after_cleaning": {
+  "n_literals": 2,
+  "kinematic_literals": 1,
+  "kinematic_frac": 0.5,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1,
+   "open": 1
+  }
+ },
+ "putting_shoes_on_rack": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "touching": 4,
+   "nextto": 2
+  }
+ },
+ "putting_up_Christmas_decorations_inside": {
+  "n_literals": 11,
+  "kinematic_literals": 7,
+  "kinematic_frac": 0.64,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 4,
+   "forn": 2,
+   "nextto": 1,
+   "under": 1,
+   "touching": 1,
+   "1": 1
+  }
+ },
+ "re_shelving_library_books": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "rearrange_your_room": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2
+  }
+ },
+ "rearranging_kitchen_furniture": {
+  "n_literals": 4,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.75,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 3,
+   "open": 1
+  }
+ },
+ "scrubbing_bathroom_floor": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "set_up_a_coffee_station_in_your_kitchen": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "nextto": 3
+  }
+ },
+ "setting_mousetraps": {
+  "n_literals": 5,
+  "kinematic_literals": 3,
+  "kinematic_frac": 0.6,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 1,
+   "forn": 1,
+   "2": 1,
+   "under": 1,
+   "nextto": 1
+  }
+ },
+ "setting_the_fire": {
+  "n_literals": 5,
+  "kinematic_literals": 2,
+  "kinematic_frac": 0.4,
+  "has_or_options": false,
+  "pred_hist": {
+   "on_fire": 2,
+   "ontop": 1,
+   "inside": 1,
+   "toggled_on": 1
+  }
+ },
+ "setting_the_table": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 2,
+   "nextto": 2
+  }
+ },
+ "setup_a_bar_for_a_cocktail_party": {
+  "n_literals": 12,
+  "kinematic_literals": 12,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "nextto": 6,
+   "ontop": 5,
+   "inside": 1
+  }
+ },
+ "slicing_vegetables": {
+  "n_literals": 7,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "real": 6,
+   "open": 1
+  }
+ },
+ "sorting_books_on_shelf": {
+  "n_literals": 12,
+  "kinematic_literals": 10,
+  "kinematic_frac": 0.83,
+  "has_or_options": true,
+  "pred_hist": {
+   "ontop": 7,
+   "inside": 3,
+   "forn": 1,
+   "2": 1
+  }
+ },
+ "sorting_bottles_cans_and_paper": {
+  "n_literals": 12,
+  "kinematic_literals": 12,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 12
+  }
+ },
+ "sorting_household_items": {
+  "n_literals": 7,
+  "kinematic_literals": 7,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "nextto": 2,
+   "under": 1,
+   "inside": 1
+  }
+ },
+ "sorting_vegetables": {
+  "n_literals": 5,
+  "kinematic_literals": 5,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 5
+  }
+ },
+ "spraying_for_bugs": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "spraying_fruit_trees": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 2
+  }
+ },
+ "stacking_wood": {
+  "n_literals": 6,
+  "kinematic_literals": 6,
+  "kinematic_frac": 1.0,
+  "has_or_options": true,
+  "pred_hist": {
+   "touching": 6
+  }
+ },
+ "store_batteries": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "store_honey": {
+  "n_literals": 1,
+  "kinematic_literals": 1,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 1
+  }
+ },
+ "store_produce": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 2
+  }
+ },
+ "storing_food": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "inside": 4
+  }
+ },
+ "sweeping_garage": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 2
+  }
+ },
+ "thawing_frozen_food": {
+  "n_literals": 9,
+  "kinematic_literals": 4,
+  "kinematic_frac": 0.44,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "frozen": 2,
+   "open": 2,
+   "inside": 1,
+   "toggled_on": 1
+  }
+ },
+ "tidying_bathroom": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "inside": 1
+  }
+ },
+ "tidying_bedroom": {
+  "n_literals": 3,
+  "kinematic_literals": 3,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 2,
+   "ontop": 1
+  }
+ },
+ "tidying_living_room": {
+  "n_literals": 4,
+  "kinematic_literals": 4,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "ontop": 3,
+   "inside": 1
+  }
+ },
+ "turning_on_radio": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 1
+  }
+ },
+ "turning_out_all_lights_before_sleep": {
+  "n_literals": 2,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "toggled_on": 2
+  }
+ },
+ "unloading_the_car": {
+  "n_literals": 2,
+  "kinematic_literals": 2,
+  "kinematic_frac": 1.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "nextto": 2
+  }
+ },
+ "vacuuming_floors": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "wash_a_baseball_cap": {
+  "n_literals": 1,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 1
+  }
+ },
+ "wash_dog_toys": {
+  "n_literals": 4,
+  "kinematic_literals": 0,
+  "kinematic_frac": 0.0,
+  "has_or_options": false,
+  "pred_hist": {
+   "covered": 4
+  }
+ }
+}

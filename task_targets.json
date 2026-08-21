@@ -1,0 +1,3118 @@
+{
+  "turning_on_radio": {
+    "targets": [
+      "radio"
+    ],
+    "references": [],
+    "target_synsets": [
+      "radio_receiver.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "picking_up_trash": {
+    "targets": [
+      "can_of_soda"
+    ],
+    "references": [
+      "trash_can"
+    ],
+    "target_synsets": [
+      "can__of__soda.n.01"
+    ],
+    "reference_synsets": [
+      "ashcan.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "putting_away_Halloween_decorations": {
+    "targets": [
+      "pumpkin",
+      "beeswax_candle",
+      "dip_candle",
+      "pillar_candle",
+      "cauldron",
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet",
+      "booth",
+      "breakfast_table",
+      "checkout_counter",
+      "coffee_table",
+      "conference_table",
+      "console_table",
+      "desk",
+      "gaming_table",
+      "garden_coffee_table",
+      "lab_table",
+      "nightstand",
+      "pedestal_table",
+      "ping_pong_table",
+      "pool_table",
+      "reception_desk",
+      "stand"
+    ],
+    "target_synsets": [
+      "pumpkin.n.02",
+      "candle.n.01",
+      "caldron.n.01",
+      "cabinet.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01",
+      "table.n.02"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "BROAD synset table.n.02 -> 16 categories; restrict to actual scene instances downstream; quantifiers: exists, forall"
+  },
+  "cleaning_up_plates_and_food": {
+    "targets": [
+      "pizza",
+      "bowl",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "plate",
+      "display_fridge",
+      "fridge",
+      "wine_fridge",
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink"
+    ],
+    "target_synsets": [
+      "pizza.n.01",
+      "bowl.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "plate.n.04",
+      "electric_refrigerator.n.01",
+      "sink.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall, forpairs"
+  },
+  "can_meat": {
+    "targets": [
+      "hinged_jar",
+      "bratwurst",
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet",
+      "hinged_jar"
+    ],
+    "target_synsets": [
+      "hinged_jar.n.01",
+      "bratwurst.n.01",
+      "cabinet.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01",
+      "hinged_jar.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall, forn"
+  },
+  "setting_mousetraps": {
+    "targets": [
+      "mousetrap"
+    ],
+    "references": [
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink"
+    ],
+    "target_synsets": [
+      "mousetrap.n.01"
+    ],
+    "reference_synsets": [
+      "sink.n.01"
+    ],
+    "n_goal_literals": 3,
+    "has_options": true,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01; quantifiers: exists, forall, forn"
+  },
+  "hiding_Easter_eggs": {
+    "targets": [
+      "easter_egg"
+    ],
+    "references": [
+      "low_resolution_tree",
+      "tree",
+      "wicker_basket",
+      "lawn"
+    ],
+    "target_synsets": [
+      "easter_egg.n.01"
+    ],
+    "reference_synsets": [
+      "tree.n.01",
+      "wicker_basket.n.01",
+      "lawn.n.01"
+    ],
+    "n_goal_literals": 3,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "picking_up_toys": {
+    "targets": [
+      "jigsaw_puzzle",
+      "board_game",
+      "tennis_ball"
+    ],
+    "references": [
+      "toy_box"
+    ],
+    "target_synsets": [
+      "jigsaw_puzzle.n.01",
+      "board_game.n.01",
+      "tennis_ball.n.01"
+    ],
+    "reference_synsets": [
+      "toy_box.n.01"
+    ],
+    "n_goal_literals": 3,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "rearranging_kitchen_furniture": {
+    "targets": [
+      "toaster",
+      "food_processor",
+      "french_press",
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "target_synsets": [
+      "toaster.n.02",
+      "food_processor.n.01",
+      "french_press.n.01",
+      "cabinet.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "quantifiers: exists"
+  },
+  "putting_up_Christmas_decorations_inside": {
+    "targets": [
+      "gift_box",
+      "pillar_candle",
+      "candy_cane",
+      "valentine_wreath",
+      "wreath"
+    ],
+    "references": [
+      "christmas_tree",
+      "christmas_tree_decorated",
+      "booth",
+      "breakfast_table",
+      "checkout_counter",
+      "coffee_table",
+      "conference_table",
+      "console_table",
+      "desk",
+      "gaming_table",
+      "garden_coffee_table",
+      "lab_table",
+      "nightstand",
+      "pedestal_table",
+      "ping_pong_table",
+      "pool_table",
+      "reception_desk",
+      "stand",
+      "sofa"
+    ],
+    "target_synsets": [
+      "gift_box.n.01",
+      "pillar_candle.n.01",
+      "candy_cane.n.01",
+      "wreath.n.01"
+    ],
+    "reference_synsets": [
+      "christmas_tree.n.05",
+      "table.n.02",
+      "sofa.n.01"
+    ],
+    "n_goal_literals": 7,
+    "has_options": true,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "BROAD synset table.n.02 -> 16 categories; restrict to actual scene instances downstream; quantifiers: exists, forall, forn"
+  },
+  "set_up_a_coffee_station_in_your_kitchen": {
+    "targets": [
+      "coffee_maker",
+      "bottle_of_coffee",
+      "paper_coffee_filter",
+      "saucer",
+      "coffee_cup",
+      "electric_kettle"
+    ],
+    "references": [
+      "bar",
+      "commercial_kitchen_table",
+      "countertop",
+      "coffee_maker",
+      "saucer"
+    ],
+    "target_synsets": [
+      "coffee_maker.n.01",
+      "bottle__of__coffee.n.01",
+      "paper_coffee_filter.n.01",
+      "saucer.n.02",
+      "coffee_cup.n.01",
+      "electric_kettle.n.01"
+    ],
+    "reference_synsets": [
+      "countertop.n.01",
+      "coffee_maker.n.01",
+      "saucer.n.02"
+    ],
+    "n_goal_literals": 6,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "putting_dishes_away_after_cleaning": {
+    "targets": [
+      "plate",
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "target_synsets": [
+      "plate.n.04",
+      "cabinet.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "preparing_lunch_box": {
+    "targets": [
+      "half_apple",
+      "club_sandwich",
+      "chocolate_chip_cookie",
+      "bottle_of_tea",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "packing_box"
+    ],
+    "target_synsets": [
+      "half__apple.n.01",
+      "club_sandwich.n.01",
+      "chocolate_chip_cookie.n.01",
+      "bottle__of__tea.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "packing_box.n.02"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "loading_the_car": {
+    "targets": [
+      "acetone_atomizer",
+      "air_freshener_atomizer",
+      "allspice_shaker",
+      "ammonia_water_atomizer",
+      "ashtray",
+      "baby_bottle",
+      "backpack",
+      "baking_powder_jar",
+      "barbecue_sauce_bottle",
+      "basil_jar",
+      "bathtub",
+      "beaker",
+      "beef_broth_carton",
+      "beer_bottle",
+      "beer_glass",
+      "beer_keg",
+      "bicycle",
+      "bird_feed_bag",
+      "bleaching_agent_atomizer",
+      "bowl",
+      "briefcase",
+      "broken_glass",
+      "brown_rice_sack",
+      "brown_sugar_sack",
+      "bucket",
+      "burlap_bag",
+      "butter_package",
+      "can",
+      "candy_dispenser_shelf",
+      "canister",
+      "canteen",
+      "car",
+      "carafe",
+      "carton",
+      "cash_register",
+      "casserole",
+      "cast",
+      "cat_food_tin",
+      "catsup_bottle",
+      "cauldron",
+      "cayenne_shaker",
+      "cedar_chest",
+      "cellulose_tape_dispenser",
+      "chalice",
+      "chia_seed_bag",
+      "chicken_broth_carton",
+      "chicken_soup_carton",
+      "chickpea_can",
+      "chlorine_bottle",
+      "chocolate_sauce_bottle",
+      "cinnamon_shaker",
+      "cleansing_bottle",
+      "clove_jar",
+      "cocktail_glass",
+      "cocoa_powder_jar",
+      "coconut_oil_jar",
+      "coffee_bean_jar",
+      "coffee_cup",
+      "cola_bottle",
+      "compost_bin",
+      "conditioner_atomizer",
+      "conditioner_dispenser",
+      "cooking_oil_atomizer",
+      "cooking_oil_bottle",
+      "copper_pot",
+      "coriander_shaker",
+      "cornstarch_jar",
+      "cream_carton",
+      "cream_cheese_box",
+      "cream_of_tartar_shaker",
+      "cream_pitcher",
+      "cruet",
+      "cumin_shaker",
+      "curry_powder_shaker",
+      "decanter",
+      "deodorant_atomizer",
+      "detergent_atomizer",
+      "detergent_bottle",
+      "dipper",
+      "dish_rack_cart",
+      "disinfectant_bottle",
+      "display_case",
+      "dog_food_can",
+      "drink_dispenser",
+      "drip_pot",
+      "dry_food_dispenser_shelf",
+      "dustpan",
+      "dutch_oven",
+      "electric_cauldron",
+      "electric_kettle",
+      "envelope",
+      "erlenmeyer_flask",
+      "fabric_softener_bottle",
+      "fertilizer_atomizer",
+      "feta_box",
+      "floor_wax_bottle",
+      "flour_sack",
+      "frail",
+      "frosting_jar",
+      "fuel_can",
+      "gelatin_box",
+      "ginger_shaker",
+      "glaze_bottle",
+      "goblet",
+      "granola_box",
+      "granulated_sugar_jar",
+      "granulated_sugar_sack",
+      "grated_cheese_sack",
+      "gravy_boat",
+      "ground_beef_package",
+      "hamper",
+      "herbicide_bottle",
+      "hinged_jar",
+      "hingeless_jar",
+      "honey_jar",
+      "hot_sauce_bottle",
+      "hot_tub",
+      "hummus_box",
+      "hydrogen_peroxide_bottle",
+      "ice_bucket",
+      "ice_cream_carton",
+      "ice_tray",
+      "inhaler",
+      "ink_bottle",
+      "insectifuge_atomizer",
+      "instant_coffee_jar",
+      "isopropanol_dispenser",
+      "jam_dispenser",
+      "jelly_bean_jar",
+      "jelly_jar",
+      "jigger",
+      "jimmies_jar",
+      "jug",
+      "kettle",
+      "lemon_juice_bottle",
+      "lemon_pepper_seasoning_shaker",
+      "lemonade_bottle",
+      "lime_juice_bottle",
+      "liquid_carton",
+      "liquid_soap_bottle",
+      "litter_box",
+      "longboard",
+      "lorry",
+      "lubricant_bottle",
+      "lunch_box",
+      "mailbox",
+      "maple_syrup_jar",
+      "marinara_jar",
+      "marjoram_shaker",
+      "match_box",
+      "measuring_cup",
+      "milk_carton",
+      "mixing_bowl",
+      "mop_bucket",
+      "mortar",
+      "motorcycle",
+      "mug",
+      "mulch_bag",
+      "mustard_bottle",
+      "mustard_seed_shaker",
+      "noodle_jar",
+      "nutmeg_shaker",
+      "oat_box",
+      "oil_bottle",
+      "olive_oil_bottle",
+      "onion_powder_shaker",
+      "orange_juice_carton",
+      "package",
+      "packing_box",
+      "paper_bag",
+      "paper_cup",
+      "paprika_shaker",
+      "parmesan_shaker",
+      "pasta_box",
+      "peanut_butter_jar",
+      "pellet_food_bag",
+      "pencil_case",
+      "pepper_shaker",
+      "pesticide_atomizer",
+      "petfood_bag",
+      "petri_dish",
+      "pewter_teapot",
+      "pickup_truck",
+      "pill_bottle",
+      "pineapple_juice_carton",
+      "pitcher",
+      "pizza_box",
+      "plant_pot",
+      "plastic_bag",
+      "polish_bottle",
+      "popcorn_bag",
+      "pressure_cooker",
+      "public_trash_can",
+      "pumpkin_seed_bag",
+      "raisin_box",
+      "reagent_bottle",
+      "recreational_vehicle",
+      "recycling_bin",
+      "refried_beans_can",
+      "rosemary_shaker",
+      "round_bottom_flask",
+      "rubbing_alcohol_atomizer",
+      "rum_bottle",
+      "saddle_soap_bottle",
+      "saffron_shaker",
+      "sage_shaker",
+      "salsa_bottle",
+      "salt_bottle",
+      "salt_shaker",
+      "satchel",
+      "saucepot",
+      "scoop",
+      "sealant_atomizer",
+      "serving_cart",
+      "sesame_oil_bottle",
+      "sesame_seed_shaker",
+      "shaker",
+      "shampoo_bottle",
+      "shampoo_dispenser",
+      "shoe_box",
+      "shopping_basket",
+      "shopping_cart",
+      "shortening_carton",
+      "shoulder_bag",
+      "sleeping_bag",
+      "soap_bottle",
+      "soap_dispenser",
+      "soda_cup",
+      "soda_water_bottle",
+      "sodium_carbonate_jar",
+      "soil_bag",
+      "solvent_bottle",
+      "soup_ladle",
+      "soupspoon",
+      "soy_sauce_bottle",
+      "specimen_bottle",
+      "spray_bottle",
+      "spray_can",
+      "spray_paint_can",
+      "squeeze_bottle",
+      "stockpot",
+      "storage_box",
+      "storage_organizer",
+      "stroller",
+      "sugar_sack",
+      "sugar_syrup_bottle",
+      "suitcase",
+      "sunflower_seed_bag",
+      "tablespoon",
+      "tank",
+      "teacup",
+      "teapot",
+      "teaspoon",
+      "thyme_shaker",
+      "tissue_dispenser",
+      "toilet_soap_bottle",
+      "tomato_paste_can",
+      "tomato_sauce_jar",
+      "toolbox",
+      "tote",
+      "toy_box",
+      "trailer_truck",
+      "trash_can",
+      "tray",
+      "tupperware",
+      "vanilla_bottle",
+      "vase",
+      "vinegar_atomizer",
+      "vinegar_bottle",
+      "violin_case",
+      "vodka_bottle",
+      "wall_mounted_soap_dispenser",
+      "wallet",
+      "water_atomizer",
+      "water_bottle",
+      "water_dispenser",
+      "water_glass",
+      "watering_can",
+      "wheelbarrow",
+      "whipped_cream_atomizer",
+      "whiskey_bottle",
+      "white_rice_sack",
+      "white_sauce_bottle",
+      "wicker_basket",
+      "wine_bottle",
+      "wine_sauce_bottle",
+      "wineglass",
+      "wooden_spoon",
+      "yeast_jar",
+      "yeast_shaker",
+      "yogurt_carton",
+      "digital_camera",
+      "tennis_racket"
+    ],
+    "references": [
+      "car",
+      "acetone_atomizer",
+      "air_freshener_atomizer",
+      "allspice_shaker",
+      "ammonia_water_atomizer",
+      "ashtray",
+      "baby_bottle",
+      "backpack",
+      "baking_powder_jar",
+      "barbecue_sauce_bottle",
+      "basil_jar",
+      "bathtub",
+      "beaker",
+      "beef_broth_carton",
+      "beer_bottle",
+      "beer_glass",
+      "beer_keg",
+      "bicycle",
+      "bird_feed_bag",
+      "bleaching_agent_atomizer",
+      "bowl",
+      "briefcase",
+      "broken_glass",
+      "brown_rice_sack",
+      "brown_sugar_sack",
+      "bucket",
+      "burlap_bag",
+      "butter_package",
+      "can",
+      "candy_dispenser_shelf",
+      "canister",
+      "canteen",
+      "carafe",
+      "carton",
+      "cash_register",
+      "casserole",
+      "cast",
+      "cat_food_tin",
+      "catsup_bottle",
+      "cauldron",
+      "cayenne_shaker",
+      "cedar_chest",
+      "cellulose_tape_dispenser",
+      "chalice",
+      "chia_seed_bag",
+      "chicken_broth_carton",
+      "chicken_soup_carton",
+      "chickpea_can",
+      "chlorine_bottle",
+      "chocolate_sauce_bottle",
+      "cinnamon_shaker",
+      "cleansing_bottle",
+      "clove_jar",
+      "cocktail_glass",
+      "cocoa_powder_jar",
+      "coconut_oil_jar",
+      "coffee_bean_jar",
+      "coffee_cup",
+      "cola_bottle",
+      "compost_bin",
+      "conditioner_atomizer",
+      "conditioner_dispenser",
+      "cooking_oil_atomizer",
+      "cooking_oil_bottle",
+      "copper_pot",
+      "coriander_shaker",
+      "cornstarch_jar",
+      "cream_carton",
+      "cream_cheese_box",
+      "cream_of_tartar_shaker",
+      "cream_pitcher",
+      "cruet",
+      "cumin_shaker",
+      "curry_powder_shaker",
+      "decanter",
+      "deodorant_atomizer",
+      "detergent_atomizer",
+      "detergent_bottle",
+      "dipper",
+      "dish_rack_cart",
+      "disinfectant_bottle",
+      "display_case",
+      "dog_food_can",
+      "drink_dispenser",
+      "drip_pot",
+      "dry_food_dispenser_shelf",
+      "dustpan",
+      "dutch_oven",
+      "electric_cauldron",
+      "electric_kettle",
+      "envelope",
+      "erlenmeyer_flask",
+      "fabric_softener_bottle",
+      "fertilizer_atomizer",
+      "feta_box",
+      "floor_wax_bottle",
+      "flour_sack",
+      "frail",
+      "frosting_jar",
+      "fuel_can",
+      "gelatin_box",
+      "ginger_shaker",
+      "glaze_bottle",
+      "goblet",
+      "granola_box",
+      "granulated_sugar_jar",
+      "granulated_sugar_sack",
+      "grated_cheese_sack",
+      "gravy_boat",
+      "ground_beef_package",
+      "hamper",
+      "herbicide_bottle",
+      "hinged_jar",
+      "hingeless_jar",
+      "honey_jar",
+      "hot_sauce_bottle",
+      "hot_tub",
+      "hummus_box",
+      "hydrogen_peroxide_bottle",
+      "ice_bucket",
+      "ice_cream_carton",
+      "ice_tray",
+      "inhaler",
+      "ink_bottle",
+      "insectifuge_atomizer",
+      "instant_coffee_jar",
+      "isopropanol_dispenser",
+      "jam_dispenser",
+      "jelly_bean_jar",
+      "jelly_jar",
+      "jigger",
+      "jimmies_jar",
+      "jug",
+      "kettle",
+      "lemon_juice_bottle",
+      "lemon_pepper_seasoning_shaker",
+      "lemonade_bottle",
+      "lime_juice_bottle",
+      "liquid_carton",
+      "liquid_soap_bottle",
+      "litter_box",
+      "longboard",
+      "lorry",
+      "lubricant_bottle",
+      "lunch_box",
+      "mailbox",
+      "maple_syrup_jar",
+      "marinara_jar",
+      "marjoram_shaker",
+      "match_box",
+      "measuring_cup",
+      "milk_carton",
+      "mixing_bowl",
+      "mop_bucket",
+      "mortar",
+      "motorcycle",
+      "mug",
+      "mulch_bag",
+      "mustard_bottle",
+      "mustard_seed_shaker",
+      "noodle_jar",
+      "nutmeg_shaker",
+      "oat_box",
+      "oil_bottle",
+      "olive_oil_bottle",
+      "onion_powder_shaker",
+      "orange_juice_carton",
+      "package",
+      "packing_box",
+      "paper_bag",
+      "paper_cup",
+      "paprika_shaker",
+      "parmesan_shaker",
+      "pasta_box",
+      "peanut_butter_jar",
+      "pellet_food_bag",
+      "pencil_case",
+      "pepper_shaker",
+      "pesticide_atomizer",
+      "petfood_bag",
+      "petri_dish",
+      "pewter_teapot",
+      "pickup_truck",
+      "pill_bottle",
+      "pineapple_juice_carton",
+      "pitcher",
+      "pizza_box",
+      "plant_pot",
+      "plastic_bag",
+      "polish_bottle",
+      "popcorn_bag",
+      "pressure_cooker",
+      "public_trash_can",
+      "pumpkin_seed_bag",
+      "raisin_box",
+      "reagent_bottle",
+      "recreational_vehicle",
+      "recycling_bin",
+      "refried_beans_can",
+      "rosemary_shaker",
+      "round_bottom_flask",
+      "rubbing_alcohol_atomizer",
+      "rum_bottle",
+      "saddle_soap_bottle",
+      "saffron_shaker",
+      "sage_shaker",
+      "salsa_bottle",
+      "salt_bottle",
+      "salt_shaker",
+      "satchel",
+      "saucepot",
+      "scoop",
+      "sealant_atomizer",
+      "serving_cart",
+      "sesame_oil_bottle",
+      "sesame_seed_shaker",
+      "shaker",
+      "shampoo_bottle",
+      "shampoo_dispenser",
+      "shoe_box",
+      "shopping_basket",
+      "shopping_cart",
+      "shortening_carton",
+      "shoulder_bag",
+      "sleeping_bag",
+      "soap_bottle",
+      "soap_dispenser",
+      "soda_cup",
+      "soda_water_bottle",
+      "sodium_carbonate_jar",
+      "soil_bag",
+      "solvent_bottle",
+      "soup_ladle",
+      "soupspoon",
+      "soy_sauce_bottle",
+      "specimen_bottle",
+      "spray_bottle",
+      "spray_can",
+      "spray_paint_can",
+      "squeeze_bottle",
+      "stockpot",
+      "storage_box",
+      "storage_organizer",
+      "stroller",
+      "sugar_sack",
+      "sugar_syrup_bottle",
+      "suitcase",
+      "sunflower_seed_bag",
+      "tablespoon",
+      "tank",
+      "teacup",
+      "teapot",
+      "teaspoon",
+      "thyme_shaker",
+      "tissue_dispenser",
+      "toilet_soap_bottle",
+      "tomato_paste_can",
+      "tomato_sauce_jar",
+      "toolbox",
+      "tote",
+      "toy_box",
+      "trailer_truck",
+      "trash_can",
+      "tray",
+      "tupperware",
+      "vanilla_bottle",
+      "vase",
+      "vinegar_atomizer",
+      "vinegar_bottle",
+      "violin_case",
+      "vodka_bottle",
+      "wall_mounted_soap_dispenser",
+      "wallet",
+      "water_atomizer",
+      "water_bottle",
+      "water_dispenser",
+      "water_glass",
+      "watering_can",
+      "wheelbarrow",
+      "whipped_cream_atomizer",
+      "whiskey_bottle",
+      "white_rice_sack",
+      "white_sauce_bottle",
+      "wicker_basket",
+      "wine_bottle",
+      "wine_sauce_bottle",
+      "wineglass",
+      "wooden_spoon",
+      "yeast_jar",
+      "yeast_shaker",
+      "yogurt_carton"
+    ],
+    "target_synsets": [
+      "container.n.01",
+      "digital_camera.n.01",
+      "tennis_racket.n.01",
+      "car.n.01"
+    ],
+    "reference_synsets": [
+      "car.n.01",
+      "container.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "BROAD synset container.n.01 -> 291 categories; restrict to actual scene instances downstream"
+  },
+  "carrying_in_groceries": {
+    "targets": [
+      "beefsteak_tomato",
+      "carton_of_milk",
+      "car",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "target_synsets": [
+      "beefsteak_tomato.n.01",
+      "carton__of__milk.n.01",
+      "car.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "electric_refrigerator.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "quantifiers: exists"
+  },
+  "bringing_in_wood": {
+    "targets": [
+      "plywood"
+    ],
+    "references": [],
+    "target_synsets": [
+      "plywood.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01; quantifiers: forall"
+  },
+  "moving_boxes_to_storage": {
+    "targets": [
+      "storage_box"
+    ],
+    "references": [
+      "storage_box"
+    ],
+    "target_synsets": [
+      "storage_container.n.01"
+    ],
+    "reference_synsets": [
+      "storage_container.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": true,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01"
+  },
+  "bringing_water": {
+    "targets": [
+      "beer_bottle",
+      "canteen",
+      "carafe",
+      "cruet",
+      "decanter",
+      "erlenmeyer_flask",
+      "pill_bottle",
+      "reagent_bottle",
+      "round_bottom_flask",
+      "specimen_bottle",
+      "water_bottle",
+      "wine_bottle",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "coffee_table",
+      "garden_coffee_table"
+    ],
+    "target_synsets": [
+      "bottle.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "coffee_table.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "tidying_bedroom": {
+    "targets": [
+      "sandal",
+      "hardback",
+      "notebook",
+      "paperback_book"
+    ],
+    "references": [
+      "bed",
+      "bunk_bed",
+      "massage_bed",
+      "sandal",
+      "booth",
+      "breakfast_table",
+      "checkout_counter",
+      "coffee_table",
+      "conference_table",
+      "console_table",
+      "desk",
+      "gaming_table",
+      "garden_coffee_table",
+      "lab_table",
+      "nightstand",
+      "pedestal_table",
+      "ping_pong_table",
+      "pool_table",
+      "reception_desk",
+      "stand"
+    ],
+    "target_synsets": [
+      "sandal.n.01",
+      "book.n.02"
+    ],
+    "reference_synsets": [
+      "bed.n.01",
+      "sandal.n.01",
+      "table.n.02"
+    ],
+    "n_goal_literals": 3,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "BROAD synset table.n.02 -> 16 categories; restrict to actual scene instances downstream; quantifiers: exists"
+  },
+  "outfit_a_basic_toolbox": {
+    "targets": [
+      "drill",
+      "power_drill",
+      "plier",
+      "flashlight",
+      "allen_wrench",
+      "screwdriver",
+      "toolbox"
+    ],
+    "references": [
+      "toolbox",
+      "bar",
+      "commercial_kitchen_table",
+      "countertop"
+    ],
+    "target_synsets": [
+      "drill.n.01",
+      "pliers.n.01",
+      "flashlight.n.01",
+      "allen_wrench.n.01",
+      "screwdriver.n.01",
+      "toolbox.n.01"
+    ],
+    "reference_synsets": [
+      "toolbox.n.01",
+      "tabletop.n.01"
+    ],
+    "n_goal_literals": 7,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "sorting_vegetables": {
+    "targets": [
+      "bok_choy",
+      "vidalia_onion",
+      "leek",
+      "broccoli",
+      "sweet_corn"
+    ],
+    "references": [
+      "mixing_bowl"
+    ],
+    "target_synsets": [
+      "bok_choy.n.02",
+      "vidalia_onion.n.01",
+      "leek.n.02",
+      "broccoli.n.02",
+      "sweet_corn.n.02"
+    ],
+    "reference_synsets": [
+      "mixing_bowl.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "collecting_childrens_toys": {
+    "targets": [
+      "dice",
+      "teddy_bear",
+      "board_game",
+      "toy_train"
+    ],
+    "references": [
+      "bookcase"
+    ],
+    "target_synsets": [
+      "die.n.01",
+      "teddy.n.01",
+      "board_game.n.01",
+      "train_set.n.01"
+    ],
+    "reference_synsets": [
+      "bookcase.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "putting_shoes_on_rack": {
+    "targets": [
+      "sandal",
+      "gym_shoe"
+    ],
+    "references": [
+      "hall_tree",
+      "gym_shoe",
+      "sandal"
+    ],
+    "target_synsets": [
+      "sandal.n.01",
+      "gym_shoe.n.01"
+    ],
+    "reference_synsets": [
+      "hallstand.n.01",
+      "gym_shoe.n.01",
+      "sandal.n.01"
+    ],
+    "n_goal_literals": 6,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01; quantifiers: forall"
+  },
+  "boxing_books_up_for_storage": {
+    "targets": [
+      "hardback",
+      "notebook",
+      "paperback_book"
+    ],
+    "references": [
+      "beef_broth_carton",
+      "carton",
+      "cash_register",
+      "cedar_chest",
+      "chicken_broth_carton",
+      "chicken_soup_carton",
+      "cream_carton",
+      "ice_cream_carton",
+      "liquid_carton",
+      "mailbox",
+      "match_box",
+      "milk_carton",
+      "orange_juice_carton",
+      "packing_box",
+      "pencil_case",
+      "pineapple_juice_carton",
+      "shoe_box",
+      "shortening_carton",
+      "storage_box",
+      "toolbox",
+      "toy_box",
+      "yogurt_carton"
+    ],
+    "target_synsets": [
+      "book.n.02"
+    ],
+    "reference_synsets": [
+      "box.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "BROAD synset box.n.01 -> 22 categories; restrict to actual scene instances downstream; quantifiers: forall"
+  },
+  "storing_food": {
+    "targets": [
+      "box_of_oatmeal",
+      "bag_of_chips",
+      "bottle_of_olive_oil",
+      "jar_of_sugar"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "target_synsets": [
+      "box__of__oatmeal.n.01",
+      "bag__of__chips.n.01",
+      "bottle__of__olive_oil.n.01",
+      "jar__of__sugar.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "clearing_food_from_table_into_fridge": {
+    "targets": [
+      "half_apple_pie",
+      "half_chicken",
+      "tupperware",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "tupperware",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "target_synsets": [
+      "half__apple_pie.n.01",
+      "half__chicken.n.01",
+      "tupperware.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "tupperware.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "assembling_gift_baskets": {
+    "targets": [
+      "beeswax_candle",
+      "dip_candle",
+      "pillar_candle",
+      "swiss_cheese",
+      "butter_cookie",
+      "bow"
+    ],
+    "references": [
+      "wicker_basket"
+    ],
+    "target_synsets": [
+      "candle.n.01",
+      "swiss_cheese.n.01",
+      "butter_cookie.n.01",
+      "bow.n.08"
+    ],
+    "reference_synsets": [
+      "wicker_basket.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forpairs"
+  },
+  "sorting_household_items": {
+    "targets": [
+      "bottle_of_detergent",
+      "box_of_sanitary_napkins",
+      "soap_dispenser",
+      "wall_mounted_soap_dispenser",
+      "beaker",
+      "coffee_cup",
+      "paper_cup",
+      "soda_cup",
+      "teacup",
+      "tube_of_toothpaste",
+      "toothbrush"
+    ],
+    "references": [
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink",
+      "bottle_of_detergent",
+      "commercial_kitchen_shelf",
+      "shelf",
+      "beaker",
+      "coffee_cup",
+      "paper_cup",
+      "soda_cup",
+      "teacup"
+    ],
+    "target_synsets": [
+      "bottle__of__detergent.n.01",
+      "box__of__sanitary_napkin.n.01",
+      "soap_dispenser.n.01",
+      "cup.n.01",
+      "tube__of__toothpaste.n.01",
+      "toothbrush.n.01"
+    ],
+    "reference_synsets": [
+      "sink.n.01",
+      "bottle__of__detergent.n.01",
+      "shelf.n.01",
+      "cup.n.01"
+    ],
+    "n_goal_literals": 7,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "getting_organized_for_work": {
+    "targets": [
+      "keyboard",
+      "desktop_computer",
+      "game_console",
+      "laptop",
+      "portable_game_console",
+      "tablet",
+      "monitor",
+      "mouse",
+      "folder",
+      "notebook",
+      "pen",
+      "swivel_chair"
+    ],
+    "references": [
+      "monitor",
+      "desk",
+      "keyboard",
+      "mouse",
+      "folder",
+      "notebook"
+    ],
+    "target_synsets": [
+      "keyboard.n.01",
+      "computer.n.01",
+      "monitor.n.04",
+      "mouse.n.04",
+      "folder.n.02",
+      "notebook.n.01",
+      "pen.n.01",
+      "swivel_chair.n.01"
+    ],
+    "reference_synsets": [
+      "monitor.n.04",
+      "desk.n.01",
+      "keyboard.n.01",
+      "mouse.n.04",
+      "folder.n.02",
+      "notebook.n.01"
+    ],
+    "n_goal_literals": 10,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "clean_up_your_desk": {
+    "targets": [
+      "folder",
+      "pen",
+      "paperback_book",
+      "colored_pencil",
+      "pencil",
+      "stapler",
+      "pencil_case",
+      "laptop"
+    ],
+    "references": [
+      "bookcase",
+      "pencil_case",
+      "desk"
+    ],
+    "target_synsets": [
+      "folder.n.02",
+      "pen.n.01",
+      "paperback_book.n.01",
+      "pencil.n.01",
+      "stapler.n.01",
+      "pencil_box.n.01",
+      "laptop.n.01"
+    ],
+    "reference_synsets": [
+      "bookcase.n.01",
+      "pencil_box.n.01",
+      "desk.n.01"
+    ],
+    "n_goal_literals": 8,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "setting_the_fire": {
+    "targets": [
+      "firewood",
+      "newspaper",
+      "lighter"
+    ],
+    "references": [
+      "newspaper",
+      "wood_fireplace"
+    ],
+    "target_synsets": [
+      "firewood.n.01",
+      "newspaper.n.03",
+      "cigar_lighter.n.01"
+    ],
+    "reference_synsets": [
+      "newspaper.n.03",
+      "wood_fireplace.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "clean_boxing_gloves": {
+    "targets": [
+      "boxing_gloves"
+    ],
+    "references": [],
+    "target_synsets": [
+      "boxing_glove.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "goal substances: dust.n.01; quantifiers: forall"
+  },
+  "wash_a_baseball_cap": {
+    "targets": [
+      "baseball_cap"
+    ],
+    "references": [],
+    "target_synsets": [
+      "baseball_cap.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "goal substances: dirt.n.02; quantifiers: forall"
+  },
+  "wash_dog_toys": {
+    "targets": [
+      "teddy_bear",
+      "tennis_ball",
+      "softball"
+    ],
+    "references": [],
+    "target_synsets": [
+      "teddy.n.01",
+      "tennis_ball.n.01",
+      "softball.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "goal substances: dirt.n.02, dust.n.01, debris.n.01; quantifiers: forall"
+  },
+  "hanging_pictures": {
+    "targets": [
+      "poster"
+    ],
+    "references": [
+      "wall_nail"
+    ],
+    "target_synsets": [
+      "poster.n.01"
+    ],
+    "reference_synsets": [
+      "wall_nail.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "quantifiers: exists"
+  },
+  "attach_a_camera_to_a_tripod": {
+    "targets": [
+      "digital_camera"
+    ],
+    "references": [
+      "camera_tripod"
+    ],
+    "target_synsets": [
+      "digital_camera.n.01"
+    ],
+    "reference_synsets": [
+      "camera_tripod.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "clean_a_patio": {
+    "targets": [],
+    "references": [],
+    "target_synsets": [],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: mud.n.03; ignored synsets in goal: floor.n.01; cleaning task: state-change subject is an ignored synset (floor.n.01); goal = remove substance, no manipulable target category"
+  },
+  "clean_a_trumpet": {
+    "targets": [
+      "trumpet"
+    ],
+    "references": [],
+    "target_synsets": [
+      "cornet.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: dust.n.01"
+  },
+  "spraying_for_bugs": {
+    "targets": [
+      "hanging_basket",
+      "hanging_plant",
+      "pot_plant"
+    ],
+    "references": [],
+    "target_synsets": [
+      "pot_plant.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "goal substances: insectifuge.n.01; quantifiers: forall"
+  },
+  "spraying_fruit_trees": {
+    "targets": [
+      "low_resolution_tree",
+      "tree"
+    ],
+    "references": [],
+    "target_synsets": [
+      "tree.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: pesticide.n.01"
+  },
+  "make_microwave_popcorn": {
+    "targets": [
+      "popcorn_bag"
+    ],
+    "references": [],
+    "target_synsets": [
+      "cooked__popcorn.n.01",
+      "popcorn__bag.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "substance synset (particle system, no asset category): cooked__popcorn.n.01; goal substances: cooked__popcorn.n.01"
+  },
+  "cook_cabbage": {
+    "targets": [
+      "frying_pan"
+    ],
+    "references": [],
+    "target_synsets": [
+      "cooked__diced__head_cabbage.n.01",
+      "cooked__diced__chili.n.01",
+      "frying_pan.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "substance synset (particle system, no asset category): cooked__diced__head_cabbage.n.01; substance synset (particle system, no asset category): cooked__diced__chili.n.01; goal substances: cooked__diced__head_cabbage.n.01, cooked__diced__chili.n.01"
+  },
+  "chop_an_onion": {
+    "targets": [
+      "parer",
+      "chopping_board",
+      "cutting_board",
+      "bowl"
+    ],
+    "references": [
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink"
+    ],
+    "target_synsets": [
+      "diced__vidalia_onion.n.01",
+      "parer.n.02",
+      "chopping_board.n.01",
+      "bowl.n.01"
+    ],
+    "reference_synsets": [
+      "sink.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "substance synset (particle system, no asset category): diced__vidalia_onion.n.01; goal substances: diced__vidalia_onion.n.01"
+  },
+  "slicing_vegetables": {
+    "targets": [
+      "display_fridge",
+      "fridge",
+      "wine_fridge",
+      "bell_pepper",
+      "beet",
+      "zucchini"
+    ],
+    "references": [],
+    "target_synsets": [
+      "diced__zucchini.n.01",
+      "diced__bell_pepper.n.01",
+      "diced__beet.n.01",
+      "electric_refrigerator.n.01",
+      "bell_pepper.n.02",
+      "beet.n.02",
+      "zucchini.n.02"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 7,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "substance synset (particle system, no asset category): diced__zucchini.n.01; substance synset (particle system, no asset category): diced__bell_pepper.n.01; substance synset (particle system, no asset category): diced__beet.n.01; quantifiers: forall"
+  },
+  "chopping_wood": {
+    "targets": [
+      "half_log"
+    ],
+    "references": [],
+    "target_synsets": [
+      "half__log.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 8,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "cook_hot_dogs": {
+    "targets": [
+      "hotdog"
+    ],
+    "references": [],
+    "target_synsets": [
+      "hotdog.n.02"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "cook_bacon": {
+    "targets": [
+      "bacon",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [],
+    "target_synsets": [
+      "bacon.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "freeze_pies": {
+    "targets": [
+      "apple_pie",
+      "tupperware",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "tupperware",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "target_synsets": [
+      "apple_pie.n.01",
+      "tupperware.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "tupperware.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall, forpairs"
+  },
+  "canning_food": {
+    "targets": [
+      "bowl",
+      "display_fridge",
+      "fridge",
+      "wine_fridge",
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "target_synsets": [
+      "diced__steak.n.01",
+      "diced__pineapple.n.01",
+      "bowl.n.01",
+      "electric_refrigerator.n.01",
+      "cabinet.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01"
+    ],
+    "n_goal_literals": 9,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "substance synset (particle system, no asset category): diced__steak.n.01; substance synset (particle system, no asset category): diced__pineapple.n.01; goal substances: diced__steak.n.01, diced__pineapple.n.01; quantifiers: exists, forall"
+  },
+  "make_pizza": {
+    "targets": [
+      "pizza"
+    ],
+    "references": [
+      "baking_sheet"
+    ],
+    "target_synsets": [
+      "pizza.n.01"
+    ],
+    "reference_synsets": [
+      "cookie_sheet.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "freeze_fruit": {
+    "targets": [
+      "apple",
+      "strawberry",
+      "tupperware",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "tupperware",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "target_synsets": [
+      "apple.n.01",
+      "strawberry.n.01",
+      "tupperware.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "tupperware.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall, forpairs"
+  },
+  "cook_a_brisket": {
+    "targets": [
+      "brisket",
+      "frying_pan"
+    ],
+    "references": [
+      "chopping_board",
+      "cutting_board",
+      "bar",
+      "commercial_kitchen_table",
+      "countertop"
+    ],
+    "target_synsets": [
+      "brisket.n.01",
+      "frying_pan.n.01"
+    ],
+    "reference_synsets": [
+      "chopping_board.n.01",
+      "countertop.n.01"
+    ],
+    "n_goal_literals": 3,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "sorting_bottles_cans_and_paper": {
+    "targets": [
+      "wine_bottle",
+      "can_of_soda",
+      "newspaper",
+      "magazine"
+    ],
+    "references": [
+      "bucket",
+      "ice_bucket"
+    ],
+    "target_synsets": [
+      "wine_bottle.n.01",
+      "can__of__soda.n.01",
+      "newspaper.n.03",
+      "magazine.n.02"
+    ],
+    "reference_synsets": [
+      "bucket.n.01"
+    ],
+    "n_goal_literals": 12,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "tidying_living_room": {
+    "targets": [
+      "hanging_basket",
+      "hanging_plant",
+      "pot_plant",
+      "hardback",
+      "newspaper",
+      "notebook"
+    ],
+    "references": [
+      "coffee_table",
+      "garden_coffee_table",
+      "bookcase",
+      "desk"
+    ],
+    "target_synsets": [
+      "pot_plant.n.01",
+      "hardback.n.01",
+      "newspaper.n.03",
+      "notebook.n.01"
+    ],
+    "reference_synsets": [
+      "coffee_table.n.01",
+      "bookcase.n.01",
+      "desk.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "quantifiers: exists"
+  },
+  "putting_away_toys": {
+    "targets": [
+      "toy_figure"
+    ],
+    "references": [
+      "toy_box"
+    ],
+    "target_synsets": [
+      "toy_figure.n.01"
+    ],
+    "reference_synsets": [
+      "toy_box.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "re_shelving_library_books": {
+    "targets": [
+      "hardback",
+      "notebook",
+      "paperback_book"
+    ],
+    "references": [
+      "bookcase"
+    ],
+    "target_synsets": [
+      "book.n.02"
+    ],
+    "reference_synsets": [
+      "bookcase.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "make_rose_centerpieces": {
+    "targets": [
+      "rose",
+      "vase"
+    ],
+    "references": [
+      "vase",
+      "coffee_table",
+      "garden_coffee_table"
+    ],
+    "target_synsets": [
+      "rose.n.01",
+      "vase.n.01"
+    ],
+    "reference_synsets": [
+      "vase.n.01",
+      "coffee_table.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "sweeping_garage": {
+    "targets": [],
+    "references": [],
+    "target_synsets": [],
+    "reference_synsets": [],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: sand.n.04, dust.n.01; ignored synsets in goal: floor.n.01; cleaning task: state-change subject is an ignored synset (floor.n.01); goal = remove substance, no manipulable target category"
+  },
+  "stacking_wood": {
+    "targets": [
+      "log"
+    ],
+    "references": [
+      "log"
+    ],
+    "target_synsets": [
+      "log.n.01"
+    ],
+    "reference_synsets": [
+      "log.n.01"
+    ],
+    "n_goal_literals": 6,
+    "has_options": true,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "organizing_art_supplies": {
+    "targets": [
+      "glue_stick",
+      "rubber_eraser",
+      "paintbrush",
+      "marker",
+      "tote"
+    ],
+    "references": [
+      "tote",
+      "desk"
+    ],
+    "target_synsets": [
+      "glue_stick.n.01",
+      "rubber_eraser.n.01",
+      "paintbrush.n.01",
+      "marker.n.03",
+      "carryall.n.01"
+    ],
+    "reference_synsets": [
+      "carryall.n.01",
+      "desk.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "scrubbing_bathroom_floor": {
+    "targets": [],
+    "references": [],
+    "target_synsets": [],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: dirt.n.02; ignored synsets in goal: floor.n.01; cleaning task: state-change subject is an ignored synset (floor.n.01); goal = remove substance, no manipulable target category"
+  },
+  "bringing_paper_to_recycling": {
+    "targets": [
+      "paper_bag",
+      "newspaper",
+      "recycling_bin"
+    ],
+    "references": [
+      "recycling_bin"
+    ],
+    "target_synsets": [
+      "sack.n.01",
+      "newspaper.n.03",
+      "recycling_bin.n.01"
+    ],
+    "reference_synsets": [
+      "recycling_bin.n.01"
+    ],
+    "n_goal_literals": 3,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "halve_an_egg": {
+    "targets": [
+      "half_hard_boiled_egg",
+      "carving_knife"
+    ],
+    "references": [
+      "plate",
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink"
+    ],
+    "target_synsets": [
+      "half__hard-boiled_egg.n.01",
+      "carving_knife.n.01"
+    ],
+    "reference_synsets": [
+      "plate.n.04",
+      "sink.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "installing_smoke_detectors": {
+    "targets": [
+      "fire_alarm"
+    ],
+    "references": [
+      "wall_nail"
+    ],
+    "target_synsets": [
+      "fire_alarm.n.02"
+    ],
+    "reference_synsets": [
+      "wall_nail.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "setting_the_table": {
+    "targets": [
+      "plate",
+      "cupcake",
+      "tablefork",
+      "table_knife"
+    ],
+    "references": [
+      "breakfast_table",
+      "plate"
+    ],
+    "target_synsets": [
+      "plate.n.04",
+      "cupcake.n.01",
+      "tablefork.n.01",
+      "table_knife.n.01"
+    ],
+    "reference_synsets": [
+      "breakfast_table.n.01",
+      "plate.n.04"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall, forpairs"
+  },
+  "unloading_the_car": {
+    "targets": [
+      "briefcase",
+      "satchel"
+    ],
+    "references": [
+      "sofa"
+    ],
+    "target_synsets": [
+      "briefcase.n.01",
+      "satchel.n.01"
+    ],
+    "reference_synsets": [
+      "sofa.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "turning_out_all_lights_before_sleep": {
+    "targets": [
+      "electric_switch",
+      "table_lamp"
+    ],
+    "references": [],
+    "target_synsets": [
+      "switch.n.01",
+      "table_lamp.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "boxing_food_after_dinner": {
+    "targets": [
+      "taco",
+      "plate",
+      "tupperware",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "references": [
+      "tupperware",
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink",
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "target_synsets": [
+      "taco.n.02",
+      "plate.n.04",
+      "tupperware.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "reference_synsets": [
+      "tupperware.n.01",
+      "sink.n.01",
+      "electric_refrigerator.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "cleaning_up_branches_and_twigs": {
+    "targets": [
+      "branch",
+      "recycling_bin"
+    ],
+    "references": [
+      "recycling_bin"
+    ],
+    "target_synsets": [
+      "branch.n.02",
+      "recycling_bin.n.01"
+    ],
+    "reference_synsets": [
+      "recycling_bin.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01; quantifiers: forall"
+  },
+  "vacuuming_floors": {
+    "targets": [],
+    "references": [],
+    "target_synsets": [],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: dust.n.01; ignored synsets in goal: floor.n.01; cleaning task: state-change subject is an ignored synset (floor.n.01); goal = remove substance, no manipulable target category"
+  },
+  "thawing_frozen_food": {
+    "targets": [
+      "chicken_breast",
+      "plate",
+      "microwave",
+      "display_fridge",
+      "fridge",
+      "wine_fridge",
+      "bread_slice"
+    ],
+    "references": [
+      "plate",
+      "microwave",
+      "bar",
+      "commercial_kitchen_table",
+      "countertop"
+    ],
+    "target_synsets": [
+      "chicken_breast.n.02",
+      "plate.n.04",
+      "microwave.n.02",
+      "electric_refrigerator.n.01",
+      "bread_slice.n.01"
+    ],
+    "reference_synsets": [
+      "plate.n.04",
+      "microwave.n.02",
+      "countertop.n.01"
+    ],
+    "n_goal_literals": 9,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "quantifiers: exists"
+  },
+  "clean_your_rusty_garden_tools": {
+    "targets": [
+      "trowel",
+      "scraper",
+      "toolbox"
+    ],
+    "references": [
+      "toolbox"
+    ],
+    "target_synsets": [
+      "trowel.n.01",
+      "scraper.n.01",
+      "toolbox.n.01"
+    ],
+    "reference_synsets": [
+      "toolbox.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: rust.n.01"
+  },
+  "cook_a_frozen_pie": {
+    "targets": [
+      "apple_pie"
+    ],
+    "references": [
+      "tray"
+    ],
+    "target_synsets": [
+      "apple_pie.n.01"
+    ],
+    "reference_synsets": [
+      "tray.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "organizing_school_stuff": {
+    "targets": [
+      "folder",
+      "hardback",
+      "notebook",
+      "paperback_book",
+      "colored_pencil",
+      "pencil",
+      "pen",
+      "calculator",
+      "tote"
+    ],
+    "references": [
+      "tote",
+      "bed",
+      "bunk_bed",
+      "massage_bed"
+    ],
+    "target_synsets": [
+      "folder.n.02",
+      "book.n.02",
+      "pencil.n.01",
+      "pen.n.01",
+      "calculator.n.02",
+      "carryall.n.01"
+    ],
+    "reference_synsets": [
+      "carryall.n.01",
+      "bed.n.01"
+    ],
+    "n_goal_literals": 6,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "carrying_out_garden_furniture": {
+    "targets": [
+      "garden_chair",
+      "wheelbarrow"
+    ],
+    "references": [
+      "lawn"
+    ],
+    "target_synsets": [
+      "lawn_chair.n.01",
+      "barrow.n.03"
+    ],
+    "reference_synsets": [
+      "lawn.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01; quantifiers: exists"
+  },
+  "put_together_a_basic_pruning_kit": {
+    "targets": [
+      "toolbox",
+      "pruner",
+      "shears"
+    ],
+    "references": [
+      "toolbox"
+    ],
+    "target_synsets": [
+      "toolbox.n.01",
+      "pruner.n.02",
+      "shears.n.01"
+    ],
+    "reference_synsets": [
+      "toolbox.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01"
+  },
+  "dispose_of_glass": {
+    "targets": [
+      "water_glass"
+    ],
+    "references": [
+      "trash_can"
+    ],
+    "target_synsets": [
+      "water_glass.n.02"
+    ],
+    "reference_synsets": [
+      "ashcan.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "installing_a_modem": {
+    "targets": [
+      "modem",
+      "standing_tv",
+      "wall_mounted_tv"
+    ],
+    "references": [
+      "standing_tv",
+      "wall_mounted_tv",
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "target_synsets": [
+      "modem.n.01",
+      "television_receiver.n.01"
+    ],
+    "reference_synsets": [
+      "television_receiver.n.01",
+      "cabinet.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "quantifiers: exists"
+  },
+  "make_cabinet_doors": {
+    "targets": [
+      "cabinet_door"
+    ],
+    "references": [
+      "cabinet_base"
+    ],
+    "target_synsets": [
+      "cabinet_door.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet_base.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "polishing_shoes": {
+    "targets": [
+      "scrub_brush",
+      "baby_shoe",
+      "gym_shoe",
+      "high_heel",
+      "sandal",
+      "slingback",
+      "walker"
+    ],
+    "references": [
+      "nightstand",
+      "stand",
+      "baby_shoe",
+      "gym_shoe",
+      "high_heel",
+      "sandal",
+      "slingback",
+      "walker",
+      "ottoman"
+    ],
+    "target_synsets": [
+      "scrub_brush.n.01",
+      "shoe.n.01"
+    ],
+    "reference_synsets": [
+      "stand.n.04",
+      "shoe.n.01",
+      "footstool.n.01"
+    ],
+    "n_goal_literals": 6,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: dust.n.01; quantifiers: exists"
+  },
+  "clean_up_broken_glass": {
+    "targets": [
+      "broken_glass"
+    ],
+    "references": [
+      "trash_can"
+    ],
+    "target_synsets": [
+      "broken__glass.n.01"
+    ],
+    "reference_synsets": [
+      "ashcan.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "packing_meal_for_delivery": {
+    "targets": [
+      "wrapped_hamburger",
+      "paper_bag"
+    ],
+    "references": [
+      "paper_bag",
+      "storage_box"
+    ],
+    "target_synsets": [
+      "wrapped_hamburger.n.01",
+      "sack.n.01"
+    ],
+    "reference_synsets": [
+      "sack.n.01",
+      "storage_container.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall, forpairs"
+  },
+  "store_batteries": {
+    "targets": [
+      "battery"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "target_synsets": [
+      "battery.n.02"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "store_honey": {
+    "targets": [
+      "jar_of_honey"
+    ],
+    "references": [
+      "bottom_cabinet",
+      "bottom_cabinet_no_top",
+      "metal_bottom_cabinet",
+      "top_cabinet"
+    ],
+    "target_synsets": [
+      "jar__of__honey.n.01"
+    ],
+    "reference_synsets": [
+      "cabinet.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "tidying_bathroom": {
+    "targets": [
+      "bar_soap",
+      "tissue_dispenser",
+      "toilet_paper",
+      "cork"
+    ],
+    "references": [
+      "soap_dish",
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink",
+      "toilet",
+      "trash_can"
+    ],
+    "target_synsets": [
+      "bar_soap.n.01",
+      "tissue_dispenser.n.01",
+      "toilet_tissue.n.01",
+      "cork.n.04"
+    ],
+    "reference_synsets": [
+      "soap_dish.n.01",
+      "sink.n.01",
+      "toilet.n.02",
+      "ashcan.n.01"
+    ],
+    "n_goal_literals": 4,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "putting_dirty_dishes_in_sink": {
+    "targets": [
+      "bowl",
+      "plate"
+    ],
+    "references": [
+      "commercial_kitchen_sink",
+      "drop_in_sink",
+      "furniture_sink",
+      "multi_station_furniture_sink",
+      "multi_station_tabletop_sink",
+      "multi_station_wall_mounted_sink",
+      "pedestal_sink",
+      "tabletop_sink",
+      "wall_mounted_sink"
+    ],
+    "target_synsets": [
+      "bowl.n.01",
+      "plate.n.04"
+    ],
+    "reference_synsets": [
+      "sink.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "make_gift_bags_for_baby_showers": {
+    "targets": [
+      "paper_bag",
+      "toy_dice",
+      "wafer"
+    ],
+    "references": [
+      "coffee_table",
+      "garden_coffee_table",
+      "paper_bag"
+    ],
+    "target_synsets": [
+      "sack.n.01",
+      "toy_dice.n.01",
+      "wafer.n.02"
+    ],
+    "reference_synsets": [
+      "coffee_table.n.01",
+      "sack.n.01"
+    ],
+    "n_goal_literals": 3,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall, forpairs"
+  },
+  "collecting_aluminum_cans": {
+    "targets": [
+      "can_of_soda"
+    ],
+    "references": [
+      "bucket",
+      "ice_bucket"
+    ],
+    "target_synsets": [
+      "can__of__soda.n.01"
+    ],
+    "reference_synsets": [
+      "bucket.n.01"
+    ],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "rearrange_your_room": {
+    "targets": [
+      "tissue_dispenser",
+      "pillow"
+    ],
+    "references": [
+      "nightstand",
+      "stand",
+      "bed",
+      "bunk_bed",
+      "massage_bed"
+    ],
+    "target_synsets": [
+      "tissue_dispenser.n.01",
+      "pillow.n.01"
+    ],
+    "reference_synsets": [
+      "stand.n.04",
+      "bed.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forpairs"
+  },
+  "installing_a_fax_machine": {
+    "targets": [
+      "facsimile"
+    ],
+    "references": [
+      "cubicle"
+    ],
+    "target_synsets": [
+      "facsimile.n.02"
+    ],
+    "reference_synsets": [
+      "carrel.n.02"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "quantifiers: exists"
+  },
+  "composting_waste": {
+    "targets": [
+      "half_banana",
+      "half_pomegranate"
+    ],
+    "references": [
+      "trash_can"
+    ],
+    "target_synsets": [
+      "half__banana.n.01",
+      "half__pomegranate.n.01"
+    ],
+    "reference_synsets": [
+      "ashcan.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "store_produce": {
+    "targets": [
+      "pomegranate",
+      "mango"
+    ],
+    "references": [
+      "display_fridge",
+      "fridge",
+      "wine_fridge"
+    ],
+    "target_synsets": [
+      "pomegranate.n.02",
+      "mango.n.02"
+    ],
+    "reference_synsets": [
+      "electric_refrigerator.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "installing_a_scanner": {
+    "targets": [
+      "scanner"
+    ],
+    "references": [
+      "laptop"
+    ],
+    "target_synsets": [
+      "scanner.n.02"
+    ],
+    "reference_synsets": [
+      "laptop.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": ""
+  },
+  "clean_a_keyboard": {
+    "targets": [
+      "keyboard"
+    ],
+    "references": [],
+    "target_synsets": [
+      "keyboard.n.01"
+    ],
+    "reference_synsets": [],
+    "n_goal_literals": 1,
+    "has_options": false,
+    "has_forall": false,
+    "unmapped": [],
+    "notes": "goal substances: dust.n.01"
+  },
+  "dispose_of_batteries": {
+    "targets": [
+      "battery",
+      "trash_can"
+    ],
+    "references": [
+      "trash_can"
+    ],
+    "target_synsets": [
+      "battery.n.02",
+      "ashcan.n.01"
+    ],
+    "reference_synsets": [
+      "ashcan.n.01"
+    ],
+    "n_goal_literals": 2,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01; quantifiers: forall"
+  },
+  "cook_brussels_sprouts": {
+    "targets": [
+      "half_brussels_sprouts",
+      "display_fridge",
+      "fridge",
+      "wine_fridge",
+      "oven"
+    ],
+    "references": [
+      "oven"
+    ],
+    "target_synsets": [
+      "half__brussels_sprouts.n.01",
+      "electric_refrigerator.n.01",
+      "oven.n.01"
+    ],
+    "reference_synsets": [
+      "oven.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "cook_broccolini": {
+    "targets": [
+      "garlic_clove",
+      "broccolini",
+      "frying_pan"
+    ],
+    "references": [
+      "frying_pan",
+      "burner",
+      "stove"
+    ],
+    "target_synsets": [
+      "clove.n.03",
+      "broccolini.n.01",
+      "frying_pan.n.01"
+    ],
+    "reference_synsets": [
+      "frying_pan.n.01",
+      "stove.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": false,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: forall"
+  },
+  "setup_a_bar_for_a_cocktail_party": {
+    "targets": [
+      "wine_bottle",
+      "can_of_soda",
+      "ice_cube",
+      "bucket",
+      "ice_bucket",
+      "wineglass",
+      "corkscrew"
+    ],
+    "references": [
+      "bar",
+      "commercial_kitchen_table",
+      "countertop",
+      "can_of_soda",
+      "bucket",
+      "ice_bucket",
+      "wine_bottle",
+      "wineglass"
+    ],
+    "target_synsets": [
+      "wine_bottle.n.01",
+      "can__of__soda.n.01",
+      "ice_cube.n.01",
+      "bucket.n.01",
+      "wineglass.n.01",
+      "corkscrew.n.01"
+    ],
+    "reference_synsets": [
+      "countertop.n.01",
+      "can__of__soda.n.01",
+      "bucket.n.01",
+      "wine_bottle.n.01",
+      "wineglass.n.01"
+    ],
+    "n_goal_literals": 12,
+    "has_options": true,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall"
+  },
+  "laying_tile_floors": {
+    "targets": [
+      "ceramic_tile",
+      "tile"
+    ],
+    "references": [
+      "ceramic_tile",
+      "tile"
+    ],
+    "target_synsets": [
+      "tile.n.01"
+    ],
+    "reference_synsets": [
+      "tile.n.01"
+    ],
+    "n_goal_literals": 5,
+    "has_options": true,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "ignored synsets in goal: floor.n.01; quantifiers: forall"
+  },
+  "sorting_books_on_shelf": {
+    "targets": [
+      "comic_book",
+      "notebook",
+      "hardback"
+    ],
+    "references": [
+      "bookcase",
+      "comic_book",
+      "notebook",
+      "hardback"
+    ],
+    "target_synsets": [
+      "comic_book.n.01",
+      "notebook.n.01",
+      "hardback.n.01"
+    ],
+    "reference_synsets": [
+      "bookcase.n.01",
+      "comic_book.n.01",
+      "notebook.n.01",
+      "hardback.n.01"
+    ],
+    "n_goal_literals": 10,
+    "has_options": true,
+    "has_forall": true,
+    "unmapped": [],
+    "notes": "quantifiers: exists, forall, forn"
+  }
+}

@@ -30,3 +30,8 @@ behavior2026/v21_skill_films.html
 behavior2026/foveated_memory_atlas.html
 behavior2026/fork_snapshot/
 .discord_webhook
+mainbox_rescue/
+*.tar.gz
+__pycache__/
+*.pyc
+.DS_Store

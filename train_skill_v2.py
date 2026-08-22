@@ -165,7 +165,24 @@ def main():
         recorder.flush()
         results_all.append(rec)
         ent_stats[id(entry)].append(1 if info["success"] else 0)
+        if info["success"]:
+            save_clip(entry, rec, phase_switch=None)
         return rec
+
+    clip_n = [0]
+
+    def save_clip(entry, rec, phase_switch):
+        os.makedirs(f"{a.out}/clips", exist_ok=True)
+        cp = f"{a.out}/clips/clip_{clip_n[0]:05d}.npz"
+        clip_n[0] += 1
+        np.savez_compressed(
+            cp, acts=np.stack(env._ep_acts).astype(np.float32),
+            meta=json.dumps({"demo": entry["demo"], "stage": str(rec["stage"]),
+                             "family": entry["family"], "snapshot": entry["snapshot"],
+                             "assist_r": rec.get("assist_r"),
+                             "phase_switch": phase_switch}))
+        print(f"CLIP {cp.split('/')[-1]} {rec['stage']} d{entry['demo']} "
+              f"{len(env._ep_acts)} steps", flush=True)
 
     bridge_count = collections.defaultdict(int)
     chain_seeded = set()
@@ -221,6 +238,8 @@ def main():
         recorder.write(json.dumps(rec) + "\n")
         recorder.flush()
         results_all.append(rec)
+        if rec["success"]:
+            save_clip(gentry, rec, phase_switch=int(len(env._ep_acts) - env.steps))
         print(f"CHAIN d{gentry['demo']} phase={phase} succ={rec['success']} "
               f"steps={rec['steps']}", flush=True)
         return rec

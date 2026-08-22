@@ -147,6 +147,7 @@ class SkillCommitEnvV2:
         self.dwell_bonus = 0.0
         self.contact_made = False
         self._lift_dwell = 0
+        self._ep_acts = []   # per-episode 23-d command log (flywheel export replay)
         # anti-drift anchor (v21q): where the held object should STAY during pressing
         self.hold_anchor = (_np(self.target.get_position_orientation()[0]).copy()
                             if e.get("holding_arm") else None)
@@ -210,6 +211,7 @@ class SkillCommitEnvV2:
                 self._release_ctr = 0
             if self._release_ctr < 5:
                 act23[A_GRIP[arm]] = -1.0
+        self._ep_acts.append(act23.copy())
         self.env.step(act23)
         # Annealed AG assist (v21g): grant the teleop rig's ranged engage when the policy
         # COMMITS (closes the gripper) within ag_assist_range of the target, then shrink
@@ -559,7 +561,7 @@ class SkillCommitEnvV2:
             if (chain_press_entry is not None and established
                     and getattr(self, "_chain_flip_step", None) is not None
                     and len(getattr(self, "last_chain_rungs", [])) < 3
-                    and (len(trans) - self._chain_flip_step) % 8 == 4):
+                    and (len(trans) - self._chain_flip_step) % 2 == 1):
                 # demo-transport rung: the human's left arm is partway across —
                 # snapshot as a reverse-curriculum start for bridge-press
                 import omnigibson as _og

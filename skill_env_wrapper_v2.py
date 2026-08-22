@@ -548,12 +548,29 @@ class SkillCommitEnvV2:
                         self.entry = dict(chain_press_entry)
                         self.active_arm = chain_press_entry["active_arm"]
                         self.hold_act = self._stationary_act(self._proprio61())
+                        self._chain_flip_step = len(trans)
+                        self.last_chain_rungs = []
                         self.dwell = 0
                         self.dwell_bonus = 0.0
                         self.contact_made = False
                         self._lift_dwell = 0
                         self.target_base = self._live_target_base()
             self.steps += 1
+            if (chain_press_entry is not None and established
+                    and getattr(self, "_chain_flip_step", None) is not None
+                    and len(getattr(self, "last_chain_rungs", [])) < 3
+                    and (len(trans) - self._chain_flip_step) % 8 == 4):
+                # demo-transport rung: the human's left arm is partway across —
+                # snapshot as a reverse-curriculum start for bridge-press
+                import omnigibson as _og
+                import os as _os
+                _st = _og.sim.dump_state(serialized=True)
+                _st = _st.cpu().numpy() if hasattr(_st, "cpu") else np.asarray(_st)
+                _os.makedirs("/root/transport_rungs", exist_ok=True)
+                _bp = (f"/root/transport_rungs/d{entry['demo']}"
+                       f"_{len(self.last_chain_rungs)}.npz")
+                np.savez_compressed(_bp, state=_st)
+                self.last_chain_rungs.append(_bp)
             s = self._proprio61()
             self._hist = (self._hist + [self._frame_feat(s)])[-STACK:]
             nobs = self._obs()

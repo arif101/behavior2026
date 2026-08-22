@@ -259,6 +259,11 @@ def main():
                     _gent = next((x for x in es if x["family"] == "pick_up_from"), None)
                     if _gent is not None and i % 5 == 1:
                         entry = _gent
+                    # guaranteed press cadence (v21v): press rungs starve the same way
+                    # grasp did once bridges/chains dominate the weights
+                    _pent = next((x for x in press if str(x.get("stage")) == "0"), None)
+                    if _pent is not None and i % 5 == 3:
+                        entry = _pent
 
                     # CHAIN scheduling: once this scene's grasp is consolidating, every
                     # 4th episode runs the full grasp->press chain; the first chain gets
@@ -279,6 +284,19 @@ def main():
                                     online.add(o_, a_, r_, no_, dn_)
                                     seedbuf.add(o_, a_, r_, no_, dn_)
                                 print(f"CHAIN_SEEDED d{d}: {len(trans)} transitions",
+                                      flush=True)
+                                for _bp in getattr(env, "last_chain_rungs", []):
+                                    _be = {"demo": d, "stage": "H", "frame": -1,
+                                           "holding_arm": gent["active_arm"],
+                                           "active_arm": ptmpl["active_arm"],
+                                           "snapshot": _bp, "family": "press",
+                                           "lift_z": gent.get("lift_z"),
+                                           "grasp_closure_frame": None,
+                                           "target_name_sub": "radio"}
+                                    es.append(_be)
+                                    ent_stats[id(_be)] = collections.deque(maxlen=20)
+                                print(f"TRANSPORT_RUNGS d{d}: "
+                                      f"{len(getattr(env, 'last_chain_rungs', []))}",
                                       flush=True)
                             else:
                                 print(f"CHAIN_SEED_FAILED d{d}", flush=True)

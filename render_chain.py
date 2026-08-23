@@ -34,7 +34,10 @@ def main():
     entries = [e for e in load_snapshot_bank("/root/snapshot_bank_v21") if e["demo"] == 20]
     env = SkillCommitEnvV2(wrapper, entries, l2_on=True, seed=0)
     agent = RLPD(env.obs_dim, 12, seed=0)
-    agent.load("/root/v21s_run/ckpt.pt", reset_alpha=True)
+    import glob as _g
+    _ck = max(_g.glob("/root/v21*_run/ckpt.pt"), key=__import__("os").path.getmtime)
+    print("CF using ckpt:", _ck, flush=True)
+    agent.load(_ck, reset_alpha=True)
     cam = og.sim.viewer_camera
 
     def aim(target):

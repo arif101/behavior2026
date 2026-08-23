@@ -125,6 +125,15 @@ def main():
     # v21g annealed AG assist: per-scene engage radius, 0.30 m (teleop-rig parity)
     # -> shrink 5 cm each time the scene's grasp rolling rate holds >= 0.5 -> 0 = eval physics
     assist_range = collections.defaultdict(lambda: 0.30)
+    if a.resume:
+        _sp = os.path.join(os.path.dirname(a.resume), "stats.json")
+        try:
+            for k, v in json.load(open(_sp)).get("assist_range", {}).items():
+                assist_range[int(k)] = float(v)
+            print(f"assist_range restored: { {k: v for k, v in assist_range.items()} }",
+                  flush=True)
+        except FileNotFoundError:
+            pass
     results_all = []
     env_steps = 0
     t0 = time.time()
@@ -134,6 +143,7 @@ def main():
         json.dump({"episodes": len(results_all), "successes": succ,
                    "env_steps": env_steps, "elapsed_s": round(time.time() - t0, 1),
                    "l2": a.l2, "scenes": demos,
+                   "assist_range": {str(k): v for k, v in assist_range.items()},
                    "per_scene": {str(d): [sum(ent_stats[id(e)]) / max(len(ent_stats[id(e)]), 1)
                                           for e in by_scene[d]] for d in demos}},
                   open(f"{a.out}/stats.json", "w"), indent=1)
@@ -178,6 +188,7 @@ def main():
         np.savez_compressed(
             cp, acts=np.stack(env._ep_acts).astype(np.float32),
             meta=json.dumps({"demo": entry["demo"], "stage": str(rec["stage"]),
+                             "frame": entry.get("frame"),
                              "family": entry["family"], "snapshot": entry["snapshot"],
                              "assist_r": rec.get("assist_r"),
                              "phase_switch": phase_switch}))
@@ -264,7 +275,7 @@ def main():
                     allowed = []
                     for e in press:
                         allowed.append(e)
-                        if rate(e) < 0.5 or len(ent_stats[id(e)]) < 6:
+                        if rate(e) < 0.7 or len(ent_stats[id(e)]) < 6:
                             break                      # gate: stop unlocking past frontier
                     # bridge states ('H') bypass the press rung-gate: they are the chain's
                     # own curriculum track, not a demo-offset rung
@@ -292,7 +303,7 @@ def main():
                                  press[0] if press else None)
                     chain_due = (gent is not None and ptmpl is not None
                                  and len(ent_stats[id(gent)]) >= 2
-                                 and rate(gent) >= 0.5 and i % 4 == 3)
+                                 and rate(gent) >= 0.6 and i % 4 == 3)
                     if chain_due:
                         if (rnd, d) not in chain_seeded:
                             chain_seeded.add((rnd, d))
@@ -327,7 +338,7 @@ def main():
                     if (entry["family"] == "pick_up_from" and rec["success"]
                             and rec.get("stage") != "C"):
                         h = ent_stats[id(entry)]
-                        if len(h) >= 6 and sum(h) / len(h) >= 0.5:
+                        if len(h) >= 6 and sum(h) / len(h) >= 0.7:
                             assist_range[entry["demo"]] = max(
                                 0.0, assist_range[entry["demo"]] - 0.05)
                             print(f"ASSIST_ANNEAL d{entry['demo']} -> "

@@ -335,13 +335,25 @@ def main():
                     else:
                         rec = run_episode(entry)
                     scene_succ += rec["success"]
-                    if (entry["family"] == "pick_up_from" and rec["success"]
+                    if (entry["family"] == "pick_up_from"
                             and rec.get("stage") != "C"):
                         h = ent_stats[id(entry)]
-                        if len(h) >= 6 and sum(h) / len(h) >= 0.7:
+                        if (rec["success"] and len(h) >= 6
+                                and sum(h) / len(h) >= 0.7):
                             assist_range[entry["demo"]] = max(
                                 0.0, assist_range[entry["demo"]] - 0.05)
                             print(f"ASSIST_ANNEAL d{entry['demo']} -> "
+                                  f"{assist_range[entry['demo']]:.2f}", flush=True)
+                        elif (not rec["success"] and len(h) >= 15
+                                and sum(h) / len(h) <= 0.1
+                                and assist_range[entry["demo"]] < 0.30):
+                            # bidirectional anneal: a collapsed scene widens one step,
+                            # rebuilds approach value where the assist still fires,
+                            # then re-descends (ratchet-only locked d20 out at 0.10)
+                            assist_range[entry["demo"]] = min(
+                                0.30, assist_range[entry["demo"]] + 0.05)
+                            ent_stats[id(entry)].clear()
+                            print(f"ASSIST_RELIEF d{entry['demo']} -> "
                                   f"{assist_range[entry['demo']]:.2f}", flush=True)
                     # BRIDGE harvest: every grasp success donates its end state (radio
                     # held, lifted) as a press start — the handoff distribution

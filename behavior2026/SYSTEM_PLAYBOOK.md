@@ -142,12 +142,19 @@ re-collapse.
 
 ## 3. Laws (each learned the hard way; do not relearn)
 
+0. **Freeze a RANDOM-POLICY baseline per rung BEFORE any training.** A skill target
+   whose random floor breaches the bar is not a skill target (task-62 chop: random
+   0.355 — phase withdrawn). No bar means anything without its floor.
 1. **Inputs the task doesn't demand go unused.** Add a liveness ablation the day you
    add an input.
 2. **Validate futures, not states.** A restored state is only as good as what demo
    actions do FROM it.
-3. **Demo action streams lie wherever the collection rig assisted.** Audit the task's
-   demos for assist artifacts before trusting any action segment.
+3. **Run the replay-fidelity sweep FIRST; it decides the replay-vs-RL mix per task.**
+   Segment replay from restored anchors under eval physics: where q holds, replay (and
+   replay-under-DR) is a cheap, honest corpus generator; where it collapses (e.g. rig
+   assists like radio's magnetic grasps), RL is the only honest source. Continuous
+   full-episode replay drifts to q=0 — demos are anchors + locally-valid snippets,
+   never policies (task-62 evidence, both directions).
 4. **Rollout physics must equal eval physics**; bridge gaps with constraint
    curricula, never by softening the rollout env permanently.
 5. **Never default metadata — audit from data.** Arms, holders, closure frames.
@@ -157,6 +164,9 @@ re-collapse.
 8. **Success predicates define the data you export.** "Held" means still; sloppy
    predicates ship sloppy behavior into the VLA.
 9. **Make every mechanism observable in the flight recorder before you need it.**
+9b. **Guard your own edits**: a sanity_check script (duplicate-definition scan,
+   obs_dim guard) runs after every wrapper/trainer patch — string-slice edits can
+   silently duplicate blocks with stale copies winning (task-62 incident).
 10. **Watch your own videos, as contact sheets.**
 
 ## 4. Ops (this box)

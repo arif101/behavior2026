@@ -229,7 +229,7 @@ class SkillCommitEnvV2:
                 # STICKY RUNG (v21m): at radius <= 0.10 the assist requires ACTUAL
                 # finger contact — the hand must genuinely reach and touch. Ranged
                 # engage is only the bootstrap rung; radius 0 = native eval AG.
-                contact_ok = (self.ag_assist_range > 0.10) or self._finger_contact()
+                contact_ok = (self.ag_assist_range > 0.045) or self._finger_contact()
                 if d < self.ag_assist_range and contact_ok:
                     import torch as th
                     # PULL-IN goes INTO THE FINGER CAGE (v21m; was 10 cm off the wrist
@@ -259,12 +259,15 @@ class SkillCommitEnvV2:
         ag_now = bool(getattr(self.robot, "_ag_obj_constraint_params",
                               {}).get(self.active_arm))
         if self.shaping:
-            r -= 0.01 * self._dist(s)
+            _d = self._dist(s)
+            r -= 0.01 * _d
+            if self.entry.get("family") == "pick_up_from" and _d < 0.10:
+                r -= 0.05 * _d   # steepened terminal-zone gradient (sticky escalation)
             if (self.entry.get("family") == "press"
                     and getattr(self, "hold_anchor", None) is not None):
                 r -= 0.01 * self._dist(s)   # transport contexts: double approach pull
             if contact and not self.contact_made:
-                r += 0.1
+                r += 0.5   # sticky-rung escalation: contact is the scarce event
                 self.contact_made = True
             if contact:
                 self.dwell += 1

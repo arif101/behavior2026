@@ -1,0 +1,38 @@
+[
+ {
+  "sig": 0.0,
+  "rep": 0,
+  "ag_fired": false,
+  "ag_rel": null,
+  "mean_drift": 0.0114,
+  "max_drift": 0.0234,
+  "max_drift_plunge": 0.0234,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "sig": 0.0,
+  "rep": 1,
+  "ag_fired": false,
+  "ag_rel": null,
+  "mean_drift": 0.0114,
+  "max_drift": 0.0234,
+  "max_drift_plunge": 0.0234,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "sig": 0.005,
+  "rep": 0,
+  "ag_fired": false,
+  "ag_rel": null,
+  "mean_drift": 0.0114,
+  "max_drift": 0.0234,
+  "max_drift_plunge": 0.0234,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ }
+]

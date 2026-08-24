@@ -1,0 +1,32 @@
+[
+ {
+  "back": 10,
+  "ag_fired": false,
+  "ag_rel": null,
+  "mean_drift": 0.0121,
+  "max_drift": 0.0247,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "back": 5,
+  "ag_fired": false,
+  "ag_rel": null,
+  "mean_drift": 0.0138,
+  "max_drift": 0.0258,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "back": 2,
+  "ag_fired": false,
+  "ag_rel": null,
+  "mean_drift": 0.0155,
+  "max_drift": 0.0267,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ }
+]

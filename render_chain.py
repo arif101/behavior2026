@@ -28,14 +28,14 @@ def main():
     from skill_env_wrapper import _np
 
     wrapper = HDF5PlaybackWrapper.create_from_hdf5(
-        input_path="/root/rawdemos/task-0000/episode_00000020.hdf5",
+        input_path="/root/rawdemos/task-0000/episode_00000030.hdf5",
         output_path="/root/render_tmp4.hdf5",
         robot_obs_modalities=("proprio",), robot_proprio_keys=EVAL_PROPRIO_KEYS)
-    entries = [e for e in load_snapshot_bank("/root/snapshot_bank_v21") if e["demo"] == 20]
+    entries = [e for e in load_snapshot_bank("/root/snapshot_bank_v21") if e["demo"] == 30]
     env = SkillCommitEnvV2(wrapper, entries, l2_on=True, seed=0)
     agent = RLPD(env.obs_dim, 12, seed=0)
     import glob as _g
-    _ck = max(_g.glob("/root/v21*_run/ckpt.pt"), key=__import__("os").path.getmtime)
+    _ck = max(_g.glob("/root/v2*_run/ckpt.pt"), key=__import__("os").path.getmtime)
     print("CF using ckpt:", _ck, flush=True)
     agent.load(_ck, reset_alpha=True)
     cam = og.sim.viewer_camera
@@ -51,7 +51,12 @@ def main():
         return np.asarray(obs["rgb"])[..., :3].astype(np.uint8)
 
     gE = [e for e in entries if e["stage"] == "G"][0]
-    pE = [e for e in entries if str(e["stage"]) == "0"][0]
+    _press = [e for e in entries if e["family"] == "press"]
+    pE = next(iter(_press), None) or {
+        "demo": gE["demo"], "stage": "0", "frame": -1, "family": "press",
+        "active_arm": "left", "holding_arm": gE["active_arm"],
+        "lift_z": gE.get("lift_z"), "grasp_closure_frame": None,
+        "snapshot": gE["snapshot"], "target_name_sub": "radio"}
 
     def liveness():
         res = {}
@@ -59,7 +64,7 @@ def main():
             env.l2_on = (cond == "l2_on")
             out = []
             for k in range(6):
-                env.ag_assist_range = 0.30
+                env.ag_assist_range = 0.20
                 obs = env.reset(entry=gE)
                 done, info = False, {}
                 while not done:
@@ -74,7 +79,7 @@ def main():
         return res
 
     for take in range(1, 4):
-        env.ag_assist_range = 0.30
+        env.ag_assist_range = 0.20
         obs = env.reset(entry=gE)
         frames, done, info, phase = [], False, {}, 1
         for t in range(600):

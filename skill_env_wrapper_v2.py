@@ -393,7 +393,18 @@ class SkillCommitEnvV2:
         if fam == "press":
             try:
                 from omnigibson.object_states import ToggledOn
-                return bool(self.target.states[ToggledOn].get_value())
+                if not bool(self.target.states[ToggledOn].get_value()):
+                    return False
+                # ON-STATION press (v22f): a held-object press only counts if the object
+                # is within 10 cm of its hold anchor — ToggledOn-after-an-orbit is the
+                # same fraud the grasp stillness gate killed, one phase later
+                # (the -16.26-return "success" was a swinging press; user film review #5)
+                anch = getattr(self, "hold_anchor", None)
+                if anch is not None:
+                    tp = _np(self.target.get_position_orientation()[0])
+                    if float(np.linalg.norm(tp - anch)) > 0.10:
+                        return False
+                return True
             except Exception:  # noqa: BLE001
                 return False
         if fam == "pick_up_from":

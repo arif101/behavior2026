@@ -1,0 +1,322 @@
+[
+ {
+  "rel": -2,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [],
+  "min_gap": 0.0589,
+  "grip": 0.05
+ },
+ {
+  "rel": -1,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [],
+  "min_gap": 0.0589,
+  "grip": 0.05
+ },
+ {
+  "rel": 0,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [],
+  "min_gap": 0.0589,
+  "grip": 0.05
+ },
+ {
+  "rel": 1,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [],
+  "min_gap": 0.0631,
+  "grip": 0.0409
+ },
+ {
+  "rel": 2,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [],
+  "min_gap": 0.0673,
+  "grip": 0.0319
+ },
+ {
+  "rel": 3,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0074,
+  "grip": 0.0251
+ },
+ {
+  "rel": 4,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0072,
+  "grip": 0.025
+ },
+ {
+  "rel": 5,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0069,
+  "grip": 0.0249
+ },
+ {
+  "rel": 6,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0061,
+  "grip": 0.0248
+ },
+ {
+  "rel": 7,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0051,
+  "grip": 0.0248
+ },
+ {
+  "rel": 8,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0039,
+  "grip": 0.0248
+ },
+ {
+  "rel": 9,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.003,
+  "grip": 0.0245
+ },
+ {
+  "rel": 10,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0026,
+  "grip": 0.0244
+ },
+ {
+  "rel": 11,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0021,
+  "grip": 0.0243
+ },
+ {
+  "rel": 12,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0019,
+  "grip": 0.0242
+ },
+ {
+  "rel": 13,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0013,
+  "grip": 0.024
+ },
+ {
+  "rel": 14,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0009,
+  "grip": 0.0239
+ },
+ {
+  "rel": 15,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0005,
+  "grip": 0.0237
+ },
+ {
+  "rel": 16,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0,
+  "grip": 0.0235
+ },
+ {
+  "rel": 17,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0,
+  "grip": 0.0231
+ },
+ {
+  "rel": 18,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0,
+  "grip": 0.0224
+ },
+ {
+  "rel": 19,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0,
+  "grip": 0.0217
+ },
+ {
+  "rel": 20,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0,
+  "grip": 0.0205
+ },
+ {
+  "rel": 21,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0,
+  "grip": 0.0199
+ },
+ {
+  "rel": 22,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0006,
+  "grip": 0.0191
+ },
+ {
+  "rel": 23,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0034,
+  "grip": 0.0183
+ },
+ {
+  "rel": 24,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0077,
+  "grip": 0.0173
+ },
+ {
+  "rel": 25,
+  "contact": true,
+  "inhand": "radio_89",
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0135,
+  "grip": 0.016
+ },
+ {
+  "rel": 26,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0174,
+  "grip": 0.0143
+ },
+ {
+  "rel": 27,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0221,
+  "grip": 0.0144
+ },
+ {
+  "rel": 28,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0223,
+  "grip": 0.0144
+ },
+ {
+  "rel": 29,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.0206,
+  "grip": 0.0143
+ },
+ {
+  "rel": 30,
+  "contact": false,
+  "inhand": null,
+  "ray_hits": [
+   "base_link"
+  ],
+  "min_gap": 0.019,
+  "grip": 0.0143
+ }
+]

@@ -1,0 +1,42 @@
+[
+ {
+  "trial": "settled",
+  "extra": 0.0,
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 14,
+  "min_gap": 0.0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "settled_p05",
+  "extra": 0.005,
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 13,
+  "min_gap": 0.0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "settled_p15",
+  "extra": 0.015,
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 15,
+  "min_gap": 0.0009,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "settled_m05",
+  "extra": -0.005,
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 14,
+  "min_gap": 0.0,
+  "lifted": false,
+  "still15": false
+ }
+]

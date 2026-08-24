@@ -1,0 +1,72 @@
+[
+ {
+  "trial": "pull",
+  "off": [
+   0.2502,
+   0.0574,
+   0.0
+  ],
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 0,
+  "min_gap": 0.019,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "pull_m1",
+  "off": [
+   0.2404,
+   0.0552,
+   0.0
+  ],
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 0,
+  "min_gap": 0.0211,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "pull_p1",
+  "off": [
+   0.2599,
+   0.0596,
+   0.0
+  ],
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 0,
+  "min_gap": 0.0148,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "pull_latp",
+  "off": [
+   0.2479,
+   0.0672,
+   0.0
+  ],
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 0,
+  "min_gap": 0.0211,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "pull_latm",
+  "off": [
+   0.2524,
+   0.0477,
+   0.0
+  ],
+  "ag": false,
+  "ag_rel": null,
+  "contact_frames": 0,
+  "min_gap": 0.0146,
+  "lifted": false,
+  "still15": false
+ }
+]

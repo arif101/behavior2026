@@ -1,0 +1,20 @@
+[
+ {
+  "trial": "weld_p6",
+  "anchor_rel": 6,
+  "ag": true,
+  "ag_steps": 90,
+  "lifted": true,
+  "still15": true,
+  "ag_end": true
+ },
+ {
+  "trial": "weld_p10",
+  "anchor_rel": 10,
+  "ag": true,
+  "ag_steps": 90,
+  "lifted": true,
+  "still15": true,
+  "ag_end": true
+ }
+]

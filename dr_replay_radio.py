@@ -39,11 +39,15 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     rng = np.random.default_rng(11)
     results = []
+    sb = json.load(open("/root/skill_start_bank_v21.json"))["entries"]
+    pf = {(e["demo"], str(e["stage"])): e.get("press_frame") for e in sb}
     for demo in (20, 30):
         man = json.load(open(f"/root/snapshot_bank_v21/manifest_d{demo}.json"))
-        anchors = [r for r in man["entries"]
+        anchors = [dict(r, press_frame=pf.get((demo, str(r["stage"]))))
+                   for r in man["entries"]
                    if r.get("family", "press") == "press"
-                   and str(r["stage"]) in ("0", "1", "2")]
+                   and str(r["stage"]) in ("0", "1", "2")
+                   and pf.get((demo, str(r["stage"])))]
         wrapper = HDF5PlaybackWrapper.create_from_hdf5(
             input_path=f"/root/rawdemos/task-0000/episode_{demo:08d}.hdf5",
             output_path=f"/root/drtmp_{demo}.hdf5",

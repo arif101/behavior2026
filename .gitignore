@@ -50,3 +50,7 @@ skill_buffer_prior/
 action_log.jsonl
 stage_head_partial.jsonl
 *.npy
+v22*/
+rt_*.hdf5
+dr_press_clips/
+transport_rungs/

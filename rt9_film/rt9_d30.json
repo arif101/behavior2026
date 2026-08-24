@@ -1,0 +1,47 @@
+[
+ {
+  "trial": "recon",
+  "off": [
+   0.0,
+   0.0
+  ],
+  "grip_early": false,
+  "ag": false,
+  "ag_rel": null,
+  "min_gap_cur": 0.0587,
+  "min_gap_gtab": 0.0017,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "grip",
+  "off": [
+   0.0,
+   0.0
+  ],
+  "grip_early": true,
+  "ag": false,
+  "ag_rel": null,
+  "min_gap_cur": 0.0587,
+  "min_gap_gtab": 0.0018,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ },
+ {
+  "trial": "gripx",
+  "off": [
+   0.02,
+   0.0
+  ],
+  "grip_early": true,
+  "ag": false,
+  "ag_rel": null,
+  "min_gap_cur": 0.0416,
+  "min_gap_gtab": 0.0018,
+  "contact_frames": 0,
+  "lifted": false,
+  "still15": false
+ }
+]

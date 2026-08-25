@@ -27,6 +27,7 @@ def main():
     ap.add_argument("--demo", type=int, required=True)
     ap.add_argument("--tol", type=float, default=0.006)
     ap.add_argument("--settle", type=int, default=40)
+    ap.add_argument("--t0off", type=int, default=6)
     a = ap.parse_args()
 
     import h5py
@@ -105,7 +106,7 @@ def main():
                     and np.abs(q[P["trunk_qpos"]] - cmd[A_TORSO]).max() < a.tol):
                 break
 
-    t0 = closure + 6
+    t0 = closure + a.t0off
     restore_to_frame(wrapper, 0, t0)
     rob._refresh_rigid_contact_view()
     q = q61()

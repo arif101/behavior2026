@@ -1,0 +1,114 @@
+<title>The Radio Verdict</title>
+<style>
+  :root { --bg:#f7f6f3; --ink:#1d1c1a; --muted:#6b675f; --line:#dcd9d2;
+          --accent:#8a4d2e; --card:#ffffff; --good:#3d7a44; --bad:#a4432f; }
+  :root:not([data-theme="light"]) { }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#161513; --ink:#e8e5df; --muted:#98938a;
+      --line:#33312c; --accent:#d29a6b; --card:#1f1d1a; --good:#7fbf85; --bad:#d98a74; }
+  }
+  :root[data-theme="dark"] { --bg:#161513; --ink:#e8e5df; --muted:#98938a;
+      --line:#33312c; --accent:#d29a6b; --card:#1f1d1a; --good:#7fbf85; --bad:#d98a74; }
+  body { background:var(--bg); color:var(--ink); margin:0;
+         font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .wrap { max-width:820px; margin:0 auto; padding:44px 20px 72px; }
+  .eyebrow { font-size:12px; letter-spacing:.15em; text-transform:uppercase;
+             color:var(--accent); margin:0 0 8px; }
+  h1 { font-size:38px; line-height:1.1; margin:0 0 6px; text-wrap:balance; }
+  .date { color:var(--muted); font-size:14px; margin:0 0 28px; }
+  h2 { font-size:20px; margin:36px 0 10px; border-bottom:1px solid var(--line);
+       padding-bottom:6px; }
+  p { max-width:66ch; margin:10px 0; }
+  .verdict { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--accent);
+             border-radius:6px; padding:16px 20px; margin:22px 0; }
+  .verdict strong { color:var(--accent); }
+  table { border-collapse:collapse; width:100%; font-size:14.5px;
+          font-variant-numeric:tabular-nums; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; font-size:12.5px;
+       text-transform:uppercase; letter-spacing:.06em; }
+  .g { color:var(--good); font-weight:600; }
+  .b { color:var(--bad); font-weight:600; }
+  .scroll { overflow-x:auto; }
+  ol { max-width:66ch; }
+  li { margin:7px 0; }
+  .muted { color:var(--muted); }
+  footer { color:var(--muted); font-size:13px; border-top:1px solid var(--line);
+           margin-top:44px; padding-top:14px; }
+</style>
+<div class="wrap">
+  <p class="eyebrow">BEHAVIOR-2026 · pre-committed checkpoint</p>
+  <h1>The Radio Verdict</h1>
+  <p class="date">Tuesday, August 25, 2026 · decision point set one week prior</p>
+
+  <div class="verdict">
+    <p><strong>Verdict: the RL grasp ladder is frozen. The demo-repair factory is the
+    production line.</strong> The checkpoint's own criteria — contact-legal grasps and
+    floor-separated transport by Tuesday morning — were met, but by replay manufacture,
+    not by reinforcement learning. Resources follow the machine that delivered.</p>
+  </div>
+
+  <h2>The scoreboard the checkpoint asked for</h2>
+  <div class="scroll"><table>
+    <tr><th>Criterion (set last week)</th><th>RL wing (v22g ladder)</th><th>Factory (replay manufacture)</th></tr>
+    <tr><td>Contact-legal grasp at eval physics</td>
+        <td class="b">Not reached — ladder at 0.10&#8202;/&#8202;0.20&nbsp;m assist</td>
+        <td class="g">36 of 40 demos; 16 welds self-fired by eval's own trigger</td></tr>
+    <tr><td>Floor-separated transport</td>
+        <td class="b">Never demonstrated honestly</td>
+        <td class="g">Full-length carries, weld intact every frame, all 36 clips</td></tr>
+    <tr><td>Marginal cost per new clip</td>
+        <td class="b">Days of ladder training</td>
+        <td class="g">15&ndash;50 min, deterministic, resumable</td></tr>
+  </table></div>
+
+  <h2>What was discovered, in one paragraph</h2>
+  <p>The human demos' grasps are physically fake: the collection rig pulls the object
+  ~26&nbsp;cm into the closing hand, so no recording demonstrates an earnable grasp, and the
+  policies trained on them inherit a motion that eval's physics refuses. But the recordings
+  are honest <em>everywhere else</em> — and one frame after the pull, the world is legally
+  arranged. Restoring that frame, closing under live physics until eval's three native
+  conditions hold for the full window, welding, and replaying the demo's own motion
+  manufactures a physically-honest clip from every viable demo. Half the time eval's
+  trigger fires entirely on its own.</p>
+
+  <h2>Corpus inventory, this morning</h2>
+  <div class="scroll"><table>
+    <tr><th>Asset</th><th>Count</th><th>Provenance</th></tr>
+    <tr><td>Grasp + transport clips</td><td>35 (+1 chain demo)</td>
+        <td>16 native self-fired welds; 19 conditions-verified at measured 10&times; eval margin</td></tr>
+    <tr><td>Press clips (DR replay)</td><td>23</td><td>Strict-physics gate, from press-bank restores</td></tr>
+    <tr><td>Weld failures queued for anchor-swept retry</td><td>4</td><td>d110, d170, d190, d200 — retries running now</td></tr>
+  </table></div>
+
+  <h2>What RL keeps</h2>
+  <p>Recovery and off-nominal data that replay cannot explore; the fallback wing for
+  portfolio tasks where the replay-fidelity probe fails; and, conditionally, the final
+  approach segment (hover to cage) — no demo contains it, and a scripted interpolation test
+  decides whether that last monopoly also falls. The 2M network's checkpoint and the entire
+  bring-up playbook remain assets; nothing is deleted, only re-prioritized.</p>
+
+  <h2>Resource allocation, in order</h2>
+  <ol>
+    <li>Finish retries; re-render a sample of clips and <strong>watch them</strong> before
+        certifying anything (film protocol).</li>
+    <li>LeRobot conversion of the certified corpus (the aux-column schema work).</li>
+    <li><strong>Distillation A/B: demos-only vs demos + manufactured corpus.</strong> The
+        entire pivot answers to this number. A100 request is justified the moment
+        conversion completes.</li>
+    <li>Portfolio replay-fidelity sweep — rank the other 99 tasks; scale the factory
+        playbook where the probe passes, assign RL where it fails.</li>
+    <li>Press leg of the chain: composed from the DR press corpus for now; the live-button
+        servo resumes film-first, off the critical path.</li>
+  </ol>
+
+  <h2>Standing risks</h2>
+  <p><span class="muted">Named, not hidden:</span> the approach gap (clips begin post-approach;
+  the VLA must still learn the final reach from somewhere), the press leg of single-take
+  chains, and — largest of all — distillation itself: no evidence yet that any corpus moves
+  the VLA's score. Items 2 and 3 exist to retire that risk first.</p>
+
+  <footer>Prepared from the overnight factory sweep (35/39, log on box) · films:
+  claude.ai/code/artifact/8a4b5888&hellip; · repo arif101/behavior2026 · this memo supersedes
+  the RL-first plan of record.</footer>
+</div>

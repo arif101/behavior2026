@@ -75,9 +75,26 @@ def main():
         return np.asarray(obs["rgb"])[..., :3].astype(np.uint8)
 
     restore_to_frame(wrapper, 0, meta["t0"])
+    try:
+        rob._refresh_rigid_contact_view()
+    except Exception:  # noqa: BLE001
+        pass
     frames = [grab()]
+    welded = False
     for i, cmd in enumerate(cmds):
         wrapper.env.step(np.asarray(cmd, np.float32))
+        if (not welded and i >= meta["weld_k"]
+                and rob._ag_obj_constraint_params.get("right") is None):
+            ft = _np(th.stack([l.get_position_orientation()[0]
+                               for l in rob.finger_links["right"]]).mean(dim=0))
+            rob._establish_grasp(radio, radio.root_link_name, "right",
+                                 th.as_tensor(ft, dtype=th.float32),
+                                 "FixedJoint")
+            print(f"REWELD at i={i} (weld_k {meta['weld_k']})", flush=True)
+            welded = True
+        elif not welded and rob._ag_obj_constraint_params.get("right") is not None:
+            print(f"NATIVE_REWELD at i={i}", flush=True)
+            welded = True
         if i % a.every == 0:
             frames.append(grab())
     zend = float(_np(radio.get_position_orientation()[0])[2])

@@ -49,7 +49,7 @@ $PY -m pip install -q "jax[cuda12]" 2>&1 | tail -1
 $PY -m pip install -q "lerobot[dataset] @ git+https://github.com/wensi-ai/lerobot@release/b1k" 2>&1 | tail -1
 $PY -c "import jax; d=jax.devices(); print(d); assert any('cuda' in str(x).lower() for x in d), 'JAX is CPU-only'" && echo STAGE_JAX_GPU_OK
 cd /root/behavior2026
-for p in patch_stage_head patch_map_adaln patch_depth_aux patch_modality_dropout patch_run2_config patch_stage_oversample patch_context_cond patch_t62_config; do
+for p in patch_stage_head patch_map_adaln patch_depth_aux patch_modality_dropout patch_run2_config patch_stage_oversample patch_context_cond patch_t62_config patch_stage_infer; do
   /root/miniconda3/bin/python $p.py 2>/dev/null || $PY $p.py; done
 $PY -c "import sys; sys.path.insert(0,'/root/openpi_fork/src'); import openpi.training.config as C; c=C._CONFIGS_DICT['pi05_t62_ctx']; assert c.model.context_conditioning and c.model.stage_classes==8; print('pi05_t62_ctx ok')" && echo STAGE_FORK_OK
 

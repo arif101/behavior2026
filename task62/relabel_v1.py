@@ -45,11 +45,15 @@ def ag_labels(sim, d, stride):
     sim.ensure_pre_slice_composition()
     spike = chop_spike(d); prev = 0
     for t in range(0, T, stride):
-        # post-slice frames need the halves to exist: slice in-episode once, then keep restoring forward
-        if spike is not None and t >= spike + 15 and not sim.halves_exist():
+        # post-slice frames need the halves to exist: recorded states from the spike frame on already
+        # carry them. Slice in-episode once (replay spike-60 -> spike+15), skip the transition frames
+        # (halves uninitialized for a step; AG unchanged across them), then keep restoring forward.
+        if spike is not None and t >= spike and not sim.halves_exist():
             sim.restore_sequential(d, max(0, spike - 60), start=prev + 1 if prev else 0)
             for k in range(max(0, spike - 60), spike + 15): sim.step(d["action"][k])
             prev = spike + 15
+        if spike is not None and spike <= t < spike + 16:
+            agL[t:t + stride] = agL[max(0, t - 1)]; agR[t:t + stride] = agR[max(0, t - 1)]; continue
         try:
             sim.restore_sequential(d, t, start=prev + 1 if prev else 0, stride=stride); prev = t
         except Exception as e:

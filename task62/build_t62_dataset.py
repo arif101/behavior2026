@@ -86,6 +86,8 @@ def main():
     ap.add_argument("--ann", default="/root/t62_annotations")
     ap.add_argument("--out", default="/root/b1k_t62")
     ap.add_argument("--max_skew", type=int, default=4)
+    ap.add_argument("--v1", default=None, help="dir of relabel_v1.py outputs (ep{raw}.npz); overrides progress/AG/"
+                                                "held-class channels and sets context_weight from seg_ok")
     a = ap.parse_args()
     src, ann, out = pathlib.Path(a.src), pathlib.Path(a.ann), pathlib.Path(a.out)
     meta = pd.concat([pd.read_parquet(p) for p in sorted(glob.glob(f"{ann}/meta/episodes/chunk-*/file-*.parquet"))], ignore_index=True)
@@ -116,6 +118,24 @@ def main():
                 report["dropped"].append(dict(episode=int(e), raw=raw, why=f"skew {skew}")); continue
             act = act_all[sel]
             ctx, fam = labels_for_episode(T, skills, act)
+            if a.v1 and os.path.exists(f"{a.v1}/ep{raw}.npz"):
+                v1 = np.load(f"{a.v1}/ep{raw}.npz"); n = min(T, len(v1["q"]))
+                ctx[:n, 8] = np.clip(v1["q"][:n], 0, 1)                       # progress from sim goal_status
+                ctx[:n, 9] = (v1["q"][:n] >= 0.4).astype(np.float32)          # post-slice = both real(half) satisfied
+                for j, key in enumerate(("ag_L", "ag_R")):
+                    c = v1[key][:n].astype(np.int64)
+                    ctx[:n, 10 + j] = (c > 0).astype(np.float32)
+                    ctx[:n, 12 + 2 * j] = (c == 1).astype(np.float32); ctx[:n, 13 + 2 * j] = (c == 2).astype(np.float32)
+                summ = glob.glob(f"{a.v1}/summary_*.json"); ok_map = {}
+                for sp_ in summ:
+                    ok_map.update({k: v for k, v in json.load(open(sp_)).get(str(raw), {}).get("seg_ok", {}).items()})
+                for s in skills:                                              # segment weight: 0.5 where replay failed
+                    key = None
+                    for tag_key, v in ok_map.items():
+                        if tag_key.endswith(f"#{s['skill_idx']}"): key = tag_key
+                    if key is not None and not ok_map[key].get("ok", True):
+                        aa, bb = s["frame_duration"]; w_all[sel[max(0, aa):min(T, bb)]] = 0.5
+                report.setdefault("v1_episodes", []).append(raw)
             ctx_all[sel] = ctx; stage_all[sel] = fam; keep[sel] = True
             new_idx[int(e)] = len(kept_eps); ep_new[sel] = new_idx[int(e)]
             fam_counts += np.bincount(fam, minlength=8); report["frames"] += T; report["episodes"].append(raw); kept_eps.append(int(e))

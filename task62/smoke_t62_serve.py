@@ -27,10 +27,13 @@ print("frame ctx:", np.round(ctx, 2).tolist(), "stage:", int(row["stage"]), flus
 
 obs = {f"observation/image_{k}": np.zeros((224, 224, 3), np.uint8) for k in range(3)}
 obs.update({"observation/state": state, "prompt": "halve_an_egg"})
-a0 = np.asarray(policy.infer(dict(obs, context=np.zeros(16, np.float32)))["actions"])
-a1 = np.asarray(policy.infer(dict(obs, context=ctx))["actions"])
+out0 = policy.infer(dict(obs, context=np.zeros(16, np.float32))); a0 = np.asarray(out0["actions"])
+out1 = policy.infer(dict(obs, context=ctx)); a1 = np.asarray(out1["actions"])
 a2 = np.asarray(policy.infer(dict(obs))["actions"])   # no context key -> zeros sentinel
 print("T62_SERVE_SMOKE_OK", a1.shape, "finite:", bool(np.all(np.isfinite(a1))), flush=True)
+sh = out1.get("stage_head")
+print("stage_head output:", None if sh is None else (np.asarray(sh).shape, "argmax", int(np.argmax(np.asarray(sh)[:8])),
+      "progress", float(1 / (1 + np.exp(-np.asarray(sh)[8])))), "(untrained head: arbitrary values, shape must be (9,))", flush=True)
 print("context liveness |a(ctx)-a(0)| max:", float(np.abs(a1 - a0).max()), "(expected 0.0 at fresh init)",
       "| |a(none)-a(0)| max:", float(np.abs(a2 - a0).max()), flush=True)
 os._exit(0)

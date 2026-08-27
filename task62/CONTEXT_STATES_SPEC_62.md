@@ -34,19 +34,30 @@ trap-triple (`model.py` field + `from_dict` + `preprocess`; `b1k_policy.py` pack
 `training/config.py` repack) and attached post-flatten in `_preprocess_obs` at serve. Every dataset
 in the mix carries the `context` column (RepackTransform KeyError otherwise).
 
-## 3. Relabel procedure (per demo, on the sim box)
+## 3. Relabel procedure — OFFLINE, no simulator (revised 2026-08-27; `task62/relabel_offline.py`)
 
-1. Segment table from annotations (`task62/step0/demo_census.py` + annotation parser).
-2. Sequential restore stride 10 (pilot: 5; changed 2026-08-27 before the sweep, user decision) over the whole demo → AG-held + held-object per frame (#4, #5).
-3. Per-segment near-anchor replay (anchor = segment start − 30, ≤120 frames before any closure)
-   → `goal_status` q(t) at segment end and at each reward-spike frame (#2, #3). Post-slice segments
-   via slice-then-restore. Segments whose replay fails to reproduce the human outcome keep the
-   *human* spike-derived q but get sample weight 0.5 (anchor-quality).
-4. Write `context` (16-d float32) + `context_weight` (1-d) per frame into the LeRobot parquet
-   alongside the existing columns; verify with a liveness pre-check that c(t) is not constant
-   within an episode (>1 family transition, progress monotone except at rollbacks).
-Cost: MEASURED (pilot 620010, stride 5) 50.1 min/demo, dominated by the ~1,200 sequential restores, not the 4 replays → 198 demos ≈ 7 days on one box at stride 5; stride 10 (the sweep setting) expected ≈ 3.5 days. Original estimate (~3 min/demo, 2 days) was wrong.
-Can be sharded with a second sim box (driver skips demos with an existing npz).
+Finding (2026-08-27): every channel is already in the release; the sim sweep re-derived them worse.
+1. Skill family: organizers' `skill_annotation` (unchanged).
+2. AG-held + held-object per arm: decoded from the recorded `state` vector. OmniGibson's robot
+   `serialize()` appends `[_AG_MAGIC, arm_idx, obj_uuid, link_idx, 14 frame floats, joint_type]` per
+   grasping arm; `uuid = float32(md5(name) % 1e8)` resolves against the scene template (halves:
+   `half_hard_boiled_egg_231_{0,1}`). Frame-exact. Agreement with the sim labels on the 7 sim-labeled
+   demos: 99.3–99.8 % of frames (the residue is the sim's stride sampling). Adds a 4th class
+   `other` (fridge door — grasped in 197/200 demos, which relabel_v1 mislabeled as egg).
+3. Progress q(t): scoring segments in annotation order (chop +0.4, place-in knife +0.2, place-on half
+   +0.2 ×2), each matched to the nearest POSITIVE reward spike of the right size (a +0.4 also satisfies
+   a place-on: both halves flipping in one frame); q steps at the spike frame. Negative/flicker
+   rewards ignored. Result: 198/200 demos reach q = 1.0 (= the `task_success` set); the 2 non-success
+   demos are flagged `usable=False` and excluded. The spike precedes the annotation's segment end by a
+   median 97 frames, so timing is tighter than the sim labels (which stamped q at segment end).
+   Step 0's "reward not usable as q(t)" holds for the raw cumsum (flickers in 154/200 demos), not
+   for positive spikes matched in scoring order. On the 7 sim-labeled demos the sim replay stalled at
+   q = 0.8 in 4 where the recording (and task_success) reach 1.0 — the sim was the less reliable source.
+4. Post-slice: t ≥ chop spike frame.
+5. Anchor-quality sample weight: dropped (sim-only, lowest-value channel). `context_weight` = 1.0.
+Cost: ~1 min for all 200 demos on CPU. Output `/root/step0/relabel_offline/ep{raw}.npz` (+ `summary_offline.json`),
+consumed by `build_t62_dataset.py --v1 /root/step0/relabel_offline` unchanged.
+The sim sweep (`relabel_sweep.sh`, `relabel_v1.py`) was stopped 2026-08-27 02:5x UTC after 7 demos; kept for reference only.
 
 ## 4. Data mix (Run-3 / task-62)
 

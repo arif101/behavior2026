@@ -12,7 +12,7 @@ PY=/root/miniconda3/envs/behavior/bin/python
 unset DISPLAY; export XDG_RUNTIME_DIR=/tmp/xdg OMNI_KIT_ALLOW_ROOT=1 OMNIGIBSON_HEADLESS=1 PYTHONPATH=/root/behavior2026
 mkdir -p "$OUT" /tmp/xdg
 echo "[sweep] $(date -u +%FT%TZ) start; out=$OUT chunk=$CHUNK stride=$STRIDE"
-while pgrep -f "relabel_v1.py" >/dev/null; do sleep 60; done
+while pgrep -f "envs/behavior/bin/python -u task62/relabel_v1" >/dev/null; do sleep 60; done   # match the sim process only, never a shell whose cmdline mentions the script
 echo "[sweep] $(date -u +%FT%TZ) prior relabel process gone; starting"
 ALL=$(ls /root/rawdemos/task-0062/episode_*.hdf5 | sed -E 's/.*episode_0*([0-9]+)\.hdf5/\1/' | sort -n)
 todo=(); for ep in $ALL; do [ -f "$OUT/ep$ep.npz" ] || todo+=("$ep"); done
@@ -26,6 +26,6 @@ while [ $i -lt ${#todo[@]} ]; do
   rc=$?; done_n=$(ls "$OUT"/ep*.npz 2>/dev/null | wc -l)
   echo "[sweep] $(date -u +%FT%TZ) chunk $ids rc=$rc; $done_n/$(echo "$ALL" | wc -l) labeled"
   # sim leftovers from a crashed/timed-out chunk would block the next one
-  pkill -f "relabel_v1.py" 2>/dev/null; sleep 5
+  pkill -f "envs/behavior/bin/python -u task62/relabel_v1" 2>/dev/null; sleep 5
 done
 echo "[sweep] $(date -u +%FT%TZ) SWEEP_DONE $(ls "$OUT"/ep*.npz | wc -l) labeled"

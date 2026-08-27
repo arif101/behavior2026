@@ -45,8 +45,8 @@ in the mix carries the `context` column (RepackTransform KeyError otherwise).
 4. Write `context` (16-d float32) + `context_weight` (1-d) per frame into the LeRobot parquet
    alongside the existing columns; verify with a liveness pre-check that c(t) is not constant
    within an episode (>1 family transition, progress monotone except at rollbacks).
-Cost: MEASURED (pilot 620010, stride 5) 50.1 min/demo, dominated by the ~1,200 sequential restores, not the 4 replays → 198 demos ≈ 7 days on one box at stride 5; stride 10 (the sweep setting) expected ≈ 3.5 days. Original estimate (~3 min/demo, 2 days) was wrong. Still shardable to
-one box; can be sharded with a second sim box.
+Cost: MEASURED (pilot 620010, stride 5) 50.1 min/demo, dominated by the ~1,200 sequential restores, not the 4 replays → 198 demos ≈ 7 days on one box at stride 5; stride 10 (the sweep setting) expected ≈ 3.5 days. Original estimate (~3 min/demo, 2 days) was wrong.
+Can be sharded with a second sim box (driver skips demos with an existing npz).
 
 ## 4. Data mix (Run-3 / task-62)
 

@@ -22,7 +22,7 @@ moment the first training run launches; they never move after data arrives.
 | 1 | skill family one-hot | 8 | organizers' `skill_annotation` frame ranges: {navigate, open_door, pick_up_from, place_on, chop, place_in, close_door, other}. Boundaries ±30 frames are label-smoothed. | stage head (existing aux head, currently 4-way; retrained 8-way on these labels). Fallback: last predicted family. | p=0.2 |
 | 2 | progress q(t) | 1 | `goal_status` from **per-segment near-anchor replay** (never spike sums, never continuous replay); piecewise-constant in {0,.2,.4,.6,.8,1}. | stage head progress output (already exists). | p=0.2 |
 | 3 | composition: post-slice | 1 | 1 for t ≥ slice frame (reward spike +0.4 / replay). | 1 if live progress ≥ 0.4 (the two `real(half)` conjuncts are the first 0.4). | tied to #2 |
-| 4 | AG-held per arm | 2 | `_ag_obj_in_hand` from the recorded state (sequential restore stride 5, ~90 s/demo) | gripper qpos + closure latch (proxy; error measured offline vs #4 labels before use). | p=0.2 |
+| 4 | AG-held per arm | 2 | `_ag_obj_in_hand` from the recorded state (sequential restore stride 10 — pilot ran stride 5, but AG changes only at the ~8 closures per demo, so stride 10 loses nothing) | gripper qpos + closure latch (proxy; error measured offline vs #4 labels before use). | p=0.2 |
 | 5 | held-object class per arm | 2×2 | {none, egg/half, knife} from the AG object name (2 bits per arm). | from stage head family + #4 (a pick_up_from(knife) family with AG-held ⇒ knife). | tied |
 | — | anchor-quality / replay-drift label | 0 | per-segment replay outcome from the sweep | **not an input** (no live counterpart). Used as a per-frame **sample weight**: segments whose near-anchor replay reproduces the human outcome get weight 1.0, others 0.5; frames inside rollback branches are excluded. | — |
 | — | assist regime | 0 | — | **dropped**: no evidence on task-62 (Step 0). Revisit only if a family shows rig-assisted closures in the recordings. | — |
@@ -37,7 +37,7 @@ in the mix carries the `context` column (RepackTransform KeyError otherwise).
 ## 3. Relabel procedure (per demo, on the sim box)
 
 1. Segment table from annotations (`task62/step0/demo_census.py` + annotation parser).
-2. Sequential restore stride 5 over the whole demo → AG-held + held-object per frame (#4, #5).
+2. Sequential restore stride 10 (pilot: 5; changed 2026-08-27 before the sweep, user decision) over the whole demo → AG-held + held-object per frame (#4, #5).
 3. Per-segment near-anchor replay (anchor = segment start − 30, ≤120 frames before any closure)
    → `goal_status` q(t) at segment end and at each reward-spike frame (#2, #3). Post-slice segments
    via slice-then-restore. Segments whose replay fails to reproduce the human outcome keep the
@@ -45,7 +45,7 @@ in the mix carries the `context` column (RepackTransform KeyError otherwise).
 4. Write `context` (16-d float32) + `context_weight` (1-d) per frame into the LeRobot parquet
    alongside the existing columns; verify with a liveness pre-check that c(t) is not constant
    within an episode (>1 family transition, progress monotone except at rollbacks).
-Cost: ~3 min/demo of sim (restore 90 s + ~1,500 replay steps ≈ 12 min) → ~200 demos ≈ 2 days on
+Cost: MEASURED (pilot 620010, stride 5) 50.1 min/demo, dominated by the ~1,200 sequential restores, not the 4 replays → 198 demos ≈ 7 days on one box at stride 5; stride 10 (the sweep setting) expected ≈ 3.5 days. Original estimate (~3 min/demo, 2 days) was wrong. Still shardable to
 one box; can be sharded with a second sim box.
 
 ## 4. Data mix (Run-3 / task-62)

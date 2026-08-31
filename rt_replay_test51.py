@@ -36,6 +36,7 @@ def main():
     ap.add_argument("--tol", type=float, default=0.006)
     ap.add_argument("--settle", type=int, default=40)
     a = ap.parse_args()
+    globals()["OUT"] = f"/root/rt51_film/d{a.demo:03d}"
 
     import h5py
     import imageio
@@ -152,8 +153,16 @@ def main():
 
     # phase 1: verified weld (R17/18 recipe)
     t0 = closure + 6
+    try:
+        fm = json.load(open(f"/root/factory_clips/d{a.demo:03d}_meta.json"))
+        if fm.get("ok") and fm.get("closure") is not None:
+            t0 = closure + int(fm["t0"] - fm["closure"])
+            print(f"ANCHOR from factory meta: t0off={t0 - closure}", flush=True)
+    except FileNotFoundError:
+        pass
     restore_to_frame(wrapper, 0, t0)
     rob._refresh_rigid_contact_view()
+    rq_rest0 = _np(radio.get_position_orientation()[1]).copy()
     q = q61()
     qL0, qR0 = q[P["left"]["arm_qpos"]].copy(), q[P["right"]["arm_qpos"]].copy()
     tr0 = q[P["trunk_qpos"]].copy()
@@ -299,7 +308,32 @@ def main():
         bxy = _np(bp_base)[:2]
         tow = bxy - p_gt_radio[:2]
         tow = tow / (np.linalg.norm(tow) + 1e-9)
-        place_tgt = p_gt_radio[:2] + 0.10 * tow
+
+        # support-surface check: only bias the set-down spot as far toward the
+        # base as a downward ray still finds a surface near rest height
+        def supported(xy):
+            try:
+                from omnigibson.utils.sampling_utils import raytest
+                hit = raytest(
+                    th.tensor([xy[0], xy[1], 0.520], dtype=th.float32),
+                    th.tensor([xy[0], xy[1], 0.220], dtype=th.float32))
+                ok = bool(hit["hit"]) if isinstance(hit, dict) else bool(hit.hit)
+                pos = (hit.get("position") if isinstance(hit, dict)
+                       else getattr(hit, "position", None))
+                if ok and pos is not None:
+                    ok = (0.520 - float(_np(pos)[2])) < 0.20
+                return ok
+            except Exception as ex:  # noqa: BLE001
+                print(f"RAYTEST unavailable ({ex}); accepting spot", flush=True)
+                return True
+
+        bias = 0.10
+        while bias > 0.0 and not supported(p_gt_radio[:2] + bias * tow):
+            bias = round(bias - 0.02, 2)
+            print(f"SUPPORT shrink: bias -> {bias:.2f}", flush=True)
+        bias = max(bias, 0.0)
+        print(f"PLACE bias={bias:.2f} toward base", flush=True)
+        place_tgt = p_gt_radio[:2] + bias * tow
         for k2 in range(220):
             rp_now = _np(radio.get_position_orientation()[0])
             herr = place_tgt - rp_now[:2]
@@ -360,6 +394,18 @@ def main():
         rp_set, rq_set = radio.get_position_orientation()
         print(f"SETDOWN done: radio z={float(_np(rp_set)[2]):.3f} "
               f"ag={native_ag()} tg={toggled()}", flush=True)
+
+        # set-down quality gate (logged + recorded, not enforced): near rest
+        # height and upright relative to the radio's t0 rest attitude
+        def _upax(q_):
+            x, y, z, w = [float(v) for v in q_]
+            return np.array([2 * (x * z + w * y), 2 * (y * z - w * x),
+                             1 - 2 * (x * x + y * y)])
+        sd_dz = abs(float(_np(rp_set)[2]) - rest_z)
+        sd_up = float(np.dot(_upax(_np(rq_set)), _upax(rq_rest0)))
+        setdown_ok = bool(sd_dz < 0.035 and sd_up > 0.8)
+        print(f"SETDOWN gate: dz={sd_dz:.3f} upright_dot={sd_up:.2f} "
+              f"ok={setdown_ok}", flush=True)
         frames.append(grab(_np(rp_set)))
 
     # phase 3B: 11-DOF TORSO+ARM aimed press on the resting radio
@@ -452,7 +498,10 @@ def main():
     s = dict(toggled=bool(tgl_frame is not None), toggle_frame=tgl_frame,
              press0=press0, ag_intact=bool(native_ag()), ag_lost=ag_lost,
              lifted=bool(_np(radio.get_position_orientation()[0])[2]
-                         > lift_z + 0.02))
+                         > lift_z + 0.02),
+             setdown_ok=bool(locals().get("setdown_ok", False)),
+             setdown_dz=float(locals().get("sd_dz", -1.0)),
+             setdown_upright=float(locals().get("sd_up", -2.0)))
     print("SUMMARY", json.dumps(s), flush=True)
     json.dump(s, open(f"{OUT}/rt51_d{a.demo}.json", "w"), indent=1)
     imageio.mimsave(f"{OUT}/rt51_chain.mp4", frames, fps=5)

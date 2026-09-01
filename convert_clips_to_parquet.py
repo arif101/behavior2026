@@ -335,6 +335,26 @@ def encode_stream(out_path, frames_per_ep, size, is_depth):
     count = 0
     for ep_frames in frames_per_ep:
         for buf in ep_frames:
+            if isinstance(buf, np.ndarray) and buf.ndim >= 2:
+                # raw-array clip family (factory v2): rgb uint8 HxWx3, depth
+                # float METERS HxW
+                if is_depth:
+                    arr = (np.asarray(buf, np.float32) * 1000.0).astype(np.uint16)
+                    if arr.shape[0] != size:
+                        arr = np.asarray(
+                            Image.fromarray(arr).resize((size, size), Image.NEAREST))
+                    frame = quantize_depth(arr, input_unit="mm", video_backend="pyav")
+                else:
+                    img = Image.fromarray(np.asarray(buf, np.uint8)[..., :3])
+                    if img.size != (size, size):
+                        img = img.resize((size, size), Image.LANCZOS)
+                    frame = av.VideoFrame.from_image(img)
+                frame.pts = count
+                frame.time_base = Fraction(1, FPS)
+                for pkt in stream.encode(frame):
+                    container.mux(pkt)
+                count += 1
+                continue
             img = Image.open(io.BytesIO(buf))
             if is_depth:
                 arr = np.asarray(img)
@@ -564,6 +584,24 @@ def main():
         rows["map_tokens_blind"] += [np.zeros(576, np.float32)] * n
         rows["stage"] += stage.tolist()
         rows["aux_pixels"] += list(aux)
+        # gt_depth_ds: 3 cams x 16x16 masked patch-mean metric depth (same label
+        # contract as add_depth_aux_labels.py, computed from the clip's raw depth
+        # instead of the encoded videos; absent stream stays 0.0 = invalid)
+        gtd = np.zeros((n, 768), np.float32)
+        for ci, dk in enumerate(("head_depth", "left_depth", "right_depth")):
+            if dk not in d.files or not np.asarray(d[dk]).size:
+                continue
+            darr = np.asarray(d[dk], np.float32)
+            H2, W2 = darr.shape[1] // 16 * 16, darr.shape[2] // 16 * 16
+            oy, ox = (darr.shape[1] - H2) // 2, (darr.shape[2] - W2) // 2
+            dcr = darr[:, oy:oy + H2, ox:ox + W2].reshape(
+                n, 16, H2 // 16, 16, W2 // 16)
+            val = dcr > 0.01
+            ssum = np.where(val, dcr, 0.0).sum(axis=(2, 4))
+            cnt = val.sum(axis=(2, 4))
+            gtd[:, ci * 256:(ci + 1) * 256] = np.where(
+                cnt > 0, ssum / np.maximum(cnt, 1), 0.0).reshape(n, 256)
+        rows["gt_depth_ds"] += list(gtd)
 
         for npz_key, vkey, _, is_dep in VIDEO_STREAMS:
             vid_frames[vkey].append(list(d[npz_key]) if npz_key in d.files else [])

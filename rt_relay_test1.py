@@ -75,6 +75,13 @@ def main():
     from omnigibson.object_states import ToggledOn
     toggled = lambda: bool(radio.states[ToggledOn].get_value())  # noqa: E731
 
+    def button_pos():
+        return _np(radio.states[ToggledOn].link.get_position_orientation()[0])
+
+    def fingers(arm):
+        return np.mean([_np(l.get_position_orientation()[0])
+                        for l in rob.finger_links[arm]], axis=0)
+
     def get_obs():
         obs = wrapper.env.get_obs()[0]
         out_ = {"pro": None, "zed": None, "l": None, "r": None}
@@ -183,16 +190,29 @@ def main():
             time.sleep(0.01)
         chunk = np.load(ACT); os.remove(ACT)
         act_norms.append(float(np.linalg.norm(np.diff(chunk[:a.execute], axis=0))))
+        dl_min, dr_min = 9.9, 9.9
         for k in range(min(a.execute, len(chunk))):
             wrapper.env.step(np.asarray(chunk[k], np.float32))
             steps += 1
+            bp = button_pos()
+            dl = float(np.linalg.norm(fingers("left") - bp))
+            dr = float(np.linalg.norm(fingers("right") - bp))
+            dl_min, dr_min = min(dl_min, dl), min(dr_min, dr)
+            if steps % 4 == 0:
+                img = grab(); frames.append(img)
+                imageio.imwrite(f"{out}/s{steps:04d}.png", img)
             if toggled():
+                print(f"TOGGLE_CONTACT step={steps} dl={dl:.4f} dr={dr:.4f} "
+                      f"nearer={'LEFT' if dl < dr else 'RIGHT'}", flush=True)
+                img = grab(); frames.append(img)
+                imageio.imwrite(f"{out}/toggle{steps:04d}.png", img)
                 break
         chunks += 1
         rp = _np(radio.get_position_orientation()[0])
         ag = rob._ag_obj_constraint_params.get("right") is not None
         print(f"RELAY chunk={chunks} steps={steps} radio_z={rp[2]:.3f} ag={ag} "
-              f"tg={toggled()} dnorm={act_norms[-1]:.3f}", flush=True)
+              f"tg={toggled()} dnorm={act_norms[-1]:.3f} "
+              f"dl_min={dl_min:.3f} dr_min={dr_min:.3f}", flush=True)
         img = grab(); frames.append(img)
         imageio.imwrite(f"{out}/ch{chunks:03d}.png", img)
 

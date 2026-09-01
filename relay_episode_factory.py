@@ -122,6 +122,9 @@ def main():
         worker.kill(); os._exit(1)
 
     n_saved = 0
+    handoff_snap = None
+    R_clip = None
+    n_clip = 0
     for trial in range(a.tries):
         R = {k: [] for k in ("p", "act", "hz", "hd", "lz", "ld", "rz", "rd",
                              "rp", "bp")}
@@ -147,40 +150,63 @@ def main():
             R["bp"].append(base_pose())
             return True
 
-        # phase 1: certified clip replay with obs at distinct-command boundaries
-        restore_to_frame(wrapper, 0, meta["t0"])
-        try:
-            rob._refresh_rigid_contact_view()
-        except Exception:  # noqa: BLE001
-            pass
-        welded = False
-        prev_cmd = None
-        for i, cmd in enumerate(cmds):
-            cmd = np.asarray(cmd, np.float32)
-            if prev_cmd is None or not np.array_equal(cmd, prev_cmd):
-                capture(cmd)
-                prev_cmd = cmd.copy()
-            wrapper.env.step(cmd)
-            if (not welded and i >= meta["weld_k"]
-                    and rob._ag_obj_constraint_params.get("right") is None):
+        # phase 1: certified clip replay (trial 0) or ~1s snapshot restore
+        # (later trials) — the handoff state is identical either way
+        if handoff_snap is None:
+            restore_to_frame(wrapper, 0, meta["t0"])
+            try:
+                rob._refresh_rigid_contact_view()
+            except Exception:  # noqa: BLE001
+                pass
+            welded = False
+            prev_cmd = None
+            for i, cmd in enumerate(cmds):
+                cmd = np.asarray(cmd, np.float32)
+                if prev_cmd is None or not np.array_equal(cmd, prev_cmd):
+                    capture(cmd)
+                    prev_cmd = cmd.copy()
+                wrapper.env.step(cmd)
+                if (not welded and i >= meta["weld_k"]
+                        and rob._ag_obj_constraint_params.get("right") is None):
+                    ft = _np(th.stack([l.get_position_orientation()[0]
+                                       for l in rob.finger_links["right"]]
+                                      ).mean(dim=0))
+                    rob._establish_grasp(radio, radio.root_link_name, "right",
+                                         th.as_tensor(ft, dtype=th.float32),
+                                         "FixedJoint")
+                    welded = True
+                elif (not welded
+                      and rob._ag_obj_constraint_params.get("right") is not None):
+                    welded = True
+            n_clip = len(R["p"])
+            R_clip = {k: list(v) for k, v in R.items()}
+            import omnigibson as og2
+            handoff_snap = og2.sim.dump_state(serialized=False)
+        else:
+            import omnigibson as og2
+            og2.sim.load_state(handoff_snap, serialized=False)
+            if rob._ag_obj_constraint_params.get("right") is None:
                 ft = _np(th.stack([l.get_position_orientation()[0]
-                                   for l in rob.finger_links["right"]]).mean(dim=0))
+                                   for l in rob.finger_links["right"]]
+                                  ).mean(dim=0))
                 rob._establish_grasp(radio, radio.root_link_name, "right",
                                      th.as_tensor(ft, dtype=th.float32),
                                      "FixedJoint")
-                welded = True
-            elif (not welded
-                  and rob._ag_obj_constraint_params.get("right") is not None):
-                welded = True
-        n_clip = len(R["p"])
+            settle = np.asarray(cmds[-1], np.float32)
+            for _ in range(30):
+                wrapper.env.step(settle)
+            R = {k: list(v) for k, v in R_clip.items()}
         ag0 = rob._ag_obj_constraint_params.get("right") is not None
-        print(f"EF t{trial}: clip replayed, {n_clip} obs steps, ag={ag0} "
+        print(f"EF t{trial}: handoff ready ({n_clip} clip obs, "
+              f"{'replayed' if trial == 0 else 'snapshot'}) ag={ag0} "
               f"tg={toggled()}", flush=True)
         if not ag0 or toggled():
             print(f"EF t{trial}: bad handoff, skip trial", flush=True)
+            handoff_snap = None
             continue
-        if trial == 0:
+        if not getattr(wait_worker, "done", False):
             wait_worker()
+            wait_worker.done = True
 
         # phase 2: policy finish, capture per executed action
         steps = 0

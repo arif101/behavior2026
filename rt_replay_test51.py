@@ -346,13 +346,20 @@ def main():
             return bool(sup_lo[0] + marg <= xy[0] <= sup_hi[0] - marg
                         and sup_lo[1] + marg <= xy[1] <= sup_hi[1] - marg)
 
-        bias = 0.10
-        while bias > 0.0 and not supported(p_gt_radio[:2] + bias * tow):
-            bias = round(bias - 0.02, 2)
-            print(f"SUPPORT shrink: bias -> {bias:.2f}", flush=True)
-        bias = max(bias, 0.0)
-        print(f"PLACE bias={bias:.2f} toward base", flush=True)
-        place_tgt = p_gt_radio[:2] + bias * tow
+        # p_gt_radio is the demo's press-time x,y — a HELD position that can
+        # hover past the table lip (d190/d260 did). Clamp the desired spot into
+        # the support surface's valid interior instead of hoping a shrinking
+        # bias ray re-enters it.
+        desired = p_gt_radio[:2] + 0.10 * tow
+        if sup_lo is not None:
+            in_lo, in_hi = sup_lo[:2] + marg, sup_hi[:2] - marg
+            place_tgt = (np.clip(desired, in_lo, in_hi) if np.all(in_lo < in_hi)
+                         else 0.5 * (sup_lo[:2] + sup_hi[:2]))
+            print(f"PLACE clamp: desired={np.round(desired, 3).tolist()} -> "
+                  f"{np.round(place_tgt, 3).tolist()} on support", flush=True)
+        else:
+            place_tgt = desired
+            print("PLACE no support object found; using desired spot", flush=True)
         for k2 in range(220):
             rp_now = _np(radio.get_position_orientation()[0])
             herr = place_tgt - rp_now[:2]

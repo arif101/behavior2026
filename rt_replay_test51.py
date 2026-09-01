@@ -329,11 +329,22 @@ def main():
         print(f"SUPPORT surface: {sup_name} "
               f"top={sup_hi[2] if sup_hi is not None else None}", flush=True)
 
+        # margin = half the radio's max horizontal extent + slack: the RELEASE
+        # POINT is the radio's center, so a 6cm margin still left ~9cm of radio
+        # overhanging d260's table edge -> tip-over
+        try:
+            rlo, rhi = radio.aabb
+            r_half = float(max(_np(rhi)[0] - _np(rlo)[0],
+                               _np(rhi)[1] - _np(rlo)[1])) / 2.0
+        except Exception:  # noqa: BLE001
+            r_half = 0.145
+        marg = r_half + 0.05
+
         def supported(xy):
             if sup_lo is None:
                 return True
-            return bool(sup_lo[0] + 0.06 <= xy[0] <= sup_hi[0] - 0.06
-                        and sup_lo[1] + 0.06 <= xy[1] <= sup_hi[1] - 0.06)
+            return bool(sup_lo[0] + marg <= xy[0] <= sup_hi[0] - marg
+                        and sup_lo[1] + marg <= xy[1] <= sup_hi[1] - marg)
 
         bias = 0.10
         while bias > 0.0 and not supported(p_gt_radio[:2] + bias * tow):

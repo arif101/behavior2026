@@ -309,23 +309,31 @@ def main():
         tow = bxy - p_gt_radio[:2]
         tow = tow / (np.linalg.norm(tow) + 1e-9)
 
-        # support-surface check: only bias the set-down spot as far toward the
-        # base as a downward ray still finds a surface near rest height
-        def supported(xy):
+        # support-surface check: find the actual support object under the demo's
+        # rest spot (AABB containment — immune to the self-hits that fooled the
+        # raycast: robot chassis / held radio underside)
+        sup_lo = sup_hi = sup_name = None
+        for o in wrapper.scene.objects:
+            if o is radio or "robot" in o.name.lower():
+                continue
             try:
-                from omnigibson.utils.sampling_utils import raytest
-                hit = raytest(
-                    th.tensor([xy[0], xy[1], 0.520], dtype=th.float32),
-                    th.tensor([xy[0], xy[1], 0.220], dtype=th.float32))
-                ok = bool(hit["hit"]) if isinstance(hit, dict) else bool(hit.hit)
-                pos = (hit.get("position") if isinstance(hit, dict)
-                       else getattr(hit, "position", None))
-                if ok and pos is not None:
-                    ok = (0.520 - float(_np(pos)[2])) < 0.20
-                return ok
-            except Exception as ex:  # noqa: BLE001
-                print(f"RAYTEST unavailable ({ex}); accepting spot", flush=True)
+                lo_, hi_ = o.aabb
+                lo_, hi_ = _np(lo_), _np(hi_)
+            except Exception:  # noqa: BLE001
+                continue
+            if (lo_[0] - 0.02 <= p_gt_radio[0] <= hi_[0] + 0.02
+                    and lo_[1] - 0.02 <= p_gt_radio[1] <= hi_[1] + 0.02
+                    and 0.30 < hi_[2] < 0.53):
+                if sup_hi is None or hi_[2] > sup_hi[2]:
+                    sup_lo, sup_hi, sup_name = lo_, hi_, o.name
+        print(f"SUPPORT surface: {sup_name} "
+              f"top={sup_hi[2] if sup_hi is not None else None}", flush=True)
+
+        def supported(xy):
+            if sup_lo is None:
                 return True
+            return bool(sup_lo[0] + 0.06 <= xy[0] <= sup_hi[0] - 0.06
+                        and sup_lo[1] + 0.06 <= xy[1] <= sup_hi[1] - 0.06)
 
         bias = 0.10
         while bias > 0.0 and not supported(p_gt_radio[:2] + bias * tow):

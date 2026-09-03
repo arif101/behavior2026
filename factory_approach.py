@@ -223,10 +223,24 @@ def main():
     print(f"RCAL3 sel={best} worst={bsc:.2f} | angular blk {ablk} cos {np.round(acos, 2).tolist()} "
           f"sign {asign:+.0f} use_orn={use_orn}", flush=True)
 
-    def J6():
+    # trunk block: probe the 4 trunk action channels (position + rotation of
+    # the right eef) — the reach lever (R51): the radio's REST spot is ~35cm
+    # farther than where the human's hand stopped
+    Tp, Ta = [], []
+    for jch in range(3, 7):
+        qs = q61(); e0, R0 = poseR()
+        pr = hold.copy(); pr[15:22] = qs[P["right"]["arm_qpos"]]
+        pr[A_TORSO] = qs[P["trunk_qpos"]]; pr[jch] += 0.05
+        step_cmd(pr); e1, R1 = poseR()
+        Tp.append((e1 - e0) / 0.05); Ta.append((R1 * R0.inv()).as_rotvec() / 0.05)
+        un = pr.copy(); un[jch] -= 0.05; step_cmd(un)
+    Jtp, Jta = np.stack(Tp, 1), np.stack(Ta, 1)
+    print(f"TCAL trunk pos-col norms {[round(float(np.linalg.norm(c)), 3) for c in Tp]}", flush=True)
+
+    def J11():
         Jf = _np(rob.get_jacobian())
-        Jp = Jf[row, pblk:pblk + 3, :][:, armR_idx]
-        Ja = asign * Jf[row, ablk:ablk + 3, :][:, armR_idx]
+        Jp = np.concatenate([Jf[row, pblk:pblk + 3, :][:, armR_idx], Jtp], axis=1)
+        Ja = np.concatenate([asign * Jf[row, ablk:ablk + 3, :][:, armR_idx], Jta], axis=1)
         return Jp, Ja
 
     def servo(target_p, target_R, budget, tag, stride=0.012, w_orn=0.3, done=0.015):
@@ -241,7 +255,7 @@ def main():
             if not native_ag() and tag == "CARRY":
                 print(f"{tag} AG_LOST it={it}", flush=True)
                 return False, best_d
-            Jp, Ja = J6()
+            Jp, Ja = J11()
             v = (target_p - pE) / (d + 1e-9) * min(stride, d)
             w = (target_R * RE.inv()).as_rotvec() if use_orn else np.zeros(3)
             w = np.clip(w, -0.05, 0.05) * w_orn
@@ -249,16 +263,17 @@ def main():
             rhs = np.concatenate([v, np.sqrt(w_orn) * w if use_orn else np.zeros(3)])
             lam = 0.01
             dq = Jst.T @ np.linalg.solve(Jst @ Jst.T + lam * np.eye(6), rhs)
-            dq = np.clip(dq, -0.08, 0.08)
+            dq = np.concatenate([np.clip(dq[:7], -0.08, 0.08), np.clip(dq[7:], -0.03, 0.03)])
             q_ = q61()
             cmd = hold.copy()
-            cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq
+            cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]
+            cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
             step_cmd(cmd)
             moved = poseR()[0] - pE
             cos = float(np.dot(moved, target_p - pE) /
                         (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))
             if it % 10 == 0:
-                print(f"{tag} it={it} d={d:.4f} cos={cos:.2f} ag={native_ag()}", flush=True)
+                print(f"{tag} it={it} d={d:.4f} cos={cos:.2f} trunk_dq={np.linalg.norm(dq[7:]):.3f} ag={native_ag()}", flush=True)
                 grab(f"{tag.lower()}{it:03d}")
         print(f"{tag} budget exhausted best={best_d:.4f}", flush=True)
         return False, best_d
@@ -309,6 +324,28 @@ def main():
     ok_c, best_c = servo(carry_tgt, RE, 200, "CARRY", stride=0.010)
     print(f"CARRY done ok={ok_c} best={best_c:.3f} radio->post |"
           f"{np.linalg.norm(radio_pose()[0] - p_rad_post):.3f}| m", flush=True)
+    # phase C2: return the trunk to the demo's closure+t0off posture while the
+    # arm compensates to hold the eef (so the absolute-target transport replay
+    # starts from the demo's configuration, radio still in hand)
+    tr_demo = q_post[P["trunk_qpos"]]
+    pE_hold = poseR()[0].copy()
+    for k2 in range(60):
+        q_ = q61()
+        dqt = np.clip(tr_demo - q_[P["trunk_qpos"]], -0.02, 0.02)
+        if np.abs(dqt).max() < 1e-3:
+            break
+        Jp, _ = J11()
+        pred = Jp[:, 7:] @ dqt
+        Ja7 = Jp[:, :7]
+        dqa = -Ja7.T @ np.linalg.solve(Ja7 @ Ja7.T + 0.01 * np.eye(3), pred)
+        cmd = hold.copy()
+        cmd[15:22] = q_[P["right"]["arm_qpos"]] + np.clip(dqa, -0.08, 0.08)
+        cmd[A_TORSO] = q_[P["trunk_qpos"]] + dqt
+        step_cmd(cmd)
+        if k2 % 10 == 0:
+            print(f"POSTURE k={k2} trunk_err={np.abs(tr_demo - q61()[P['trunk_qpos']]).max():.3f} "
+                  f"eef_drift={np.linalg.norm(poseR()[0] - pE_hold):.3f} ag={native_ag()}", flush=True)
+    grab("posture_end")
     carry_end = len(cmds_log)
 
     # ---- phase D: proven transport replay from closure+t0off -------------------

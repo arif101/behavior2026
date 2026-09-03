@@ -334,6 +334,9 @@ def encode_stream(out_path, frames_per_ep, size, is_depth):
 
     count = 0
     for ep_frames in frames_per_ep:
+        if isinstance(ep_frames, tuple) and ep_frames[0] == "lazy":
+            # raw-array clips: decompress this episode's stream now, free after
+            ep_frames = list(np.load(ep_frames[1])[ep_frames[2]])
         for buf in ep_frames:
             if isinstance(buf, np.ndarray) and buf.ndim >= 2:
                 # raw-array clip family (factory v2): rgb uint8 HxWx3, depth
@@ -604,7 +607,7 @@ def main():
         rows["gt_depth_ds"] += list(gtd)
 
         for npz_key, vkey, _, is_dep in VIDEO_STREAMS:
-            vid_frames[vkey].append(list(d[npz_key]) if npz_key in d.files else [])
+            vid_frames[vkey].append(("lazy", fp, npz_key) if npz_key in d.files else [])
         if is_rac:
             tid = int(d["task_instance_id"]) if "task_instance_id" in d.files else -1
         else:

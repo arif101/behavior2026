@@ -37,7 +37,7 @@ def main():
 
     import h5py
     import torch as th
-    import omnigibson as og  # noqa: F401
+    import omnigibson as og
     from omnigibson.macros import gm
     gm.HEADLESS = True; gm.ENABLE_TRANSITION_RULES = False
     from omnigibson.envs.hdf5_data_wrapper import HDF5PlaybackWrapper
@@ -114,6 +114,27 @@ def main():
     def radio_pose():
         p, q_ = radio.get_position_orientation()
         return _np(p).copy(), R.from_quat(_np(q_))
+
+    import imageio
+    cam = og.sim.viewer_camera
+    FILM = f"/root/rt_approach_film/d{a.demo:03d}"
+    os.makedirs(FILM, exist_ok=True)
+
+    def grab(tag):
+        rp = _np(radio.get_position_orientation()[0]); ft = poseR()[0]
+        target = 0.5 * (rp + ft); pos = target + np.array([0.55, -0.5, 0.35])
+        f = target - pos; f /= np.linalg.norm(f); up = np.array([0.0, 0.0, 1.0])
+        r = np.cross(f, up); r /= np.linalg.norm(r); u = np.cross(r, f)
+        m = np.stack([r, u, -f], axis=1)
+        w = np.sqrt(max(1e-9, 1 + m[0, 0] + m[1, 1] + m[2, 2])) / 2
+        q = np.array([(m[2, 1] - m[1, 2]) / (4 * w), (m[0, 2] - m[2, 0]) / (4 * w),
+                      (m[1, 0] - m[0, 1]) / (4 * w), w])
+        cam.set_position_orientation(th.as_tensor(pos, dtype=th.float32),
+                                     th.as_tensor(q, dtype=th.float32))
+        for _ in range(2):
+            og.sim.render()
+        o, _ = cam.get_obs()
+        imageio.imwrite(f"{FILM}/{tag}.png", np.asarray(o["rgb"])[..., :3].astype(np.uint8))
 
     cmds_log = []
 
@@ -238,11 +259,17 @@ def main():
                         (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))
             if it % 10 == 0:
                 print(f"{tag} it={it} d={d:.4f} cos={cos:.2f} ag={native_ag()}", flush=True)
+                grab(f"{tag.lower()}{it:03d}")
         print(f"{tag} budget exhausted best={best_d:.4f}", flush=True)
         return False, best_d
 
     # ---- phase A: honest approach, gripper open --------------------------------
-    ok_a, best_a = servo(tgt_p, tgt_R, 200, "APPROACH")
+    grab("pre")
+    stage_p = tgt_p + np.array([0.0, 0.0, 0.10])
+    ok_s, best_s = servo(stage_p, tgt_R, 150, "STAGE")
+    print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
+    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008)
+    grab("approach_end")
     if not ok_a:
         print(f"RESULT d{a.demo} APPROACH_FAILED best={best_a:.3f}", flush=True)
         os._exit(0)

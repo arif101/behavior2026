@@ -26,6 +26,9 @@ OUT = "/root/factory_obs2"
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--demo", type=int, required=True)
+    ap.add_argument("--clipdir", default="/root/factory_clips")
+    ap.add_argument("--suffix", default="grasp_transport")
+    ap.add_argument("--tag", default="0", help="output rac_<demo>_<tag>.npz")
     a2 = ap.parse_args()
 
     import torch as th
@@ -37,7 +40,7 @@ def main():
     from skill_env_wrapper import _np
 
     os.makedirs(OUT, exist_ok=True)
-    z = np.load(f"/root/factory_clips/d{a2.demo:03d}_grasp_transport.npz",
+    z = np.load(f"{a2.clipdir}/d{a2.demo:03d}_{a2.suffix}.npz",
                 allow_pickle=True)
     cmds = z["cmds"]
     meta = json.loads(str(z["meta"]))
@@ -129,7 +132,7 @@ def main():
             return np.zeros(0)
         return np.stack(v)
     np.savez_compressed(
-        f"{OUT}/rac_{a2.demo}_0.npz",
+        f"{OUT}/rac_{a2.demo}_{a2.tag}.npz",
         proprio=np.stack(R["p"]), actions=np.stack(R["a"]),
         head_rgb=np.stack(R["hz"]), head_depth=stk("hd"),
         left_rgb=stk("lz"), left_depth=stk("ld"),

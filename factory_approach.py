@@ -1,0 +1,317 @@
+"""Approach factory: manufacture the MISSING segment — the pre-contact approach.
+
+The grasp+transport clips start at closure+4..8, hand already on the radio: they
+repair closure/hold/lift but contain no approach. In the demos the rig slid the
+radio ~25cm INTO the closing hand, so the human tape never shows a hand crossing
+those centimeters either. This factory produces it honestly:
+
+  restore closure-K (radio at rest, pre-pull; gripper open)
+  -> RCAL3 (3-probe native-J row select, + angular-block probe)
+  -> servo the open right hand to the grasp pose = demo's certified post-pull
+     hand-relative-to-radio geometry applied to the radio's REST pose
+     (6-DOF DLS: position primary, orientation HELD at its start value)
+  -> close gripper, streak-gated verified weld (or native AG)
+  -> servo the HELD radio to the demo's closure+6 radio pose (the pull vector,
+     now caused by the hand)  -> proven demo transport replay from closure+6.
+Exports cmds + meta (weld_k = absolute cmd index) to /root/factory_clips_approach.
+Run:  OG_PLAYBACK_REAL_FREQS=1 PYTHONPATH=/root OMNIGIBSON_HEADLESS=1 \
+      python -u /root/factory_approach.py --demo 20
+"""
+import argparse
+import json
+import os
+
+import numpy as np
+
+os.environ.setdefault("OMNI_KIT_ALLOW_ROOT", "1")
+OUT = "/root/factory_clips_approach"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--demo", type=int, required=True)
+    ap.add_argument("--K", type=int, default=30, help="restore at closure-K")
+    ap.add_argument("--tol", type=float, default=0.006)
+    ap.add_argument("--settle", type=int, default=40)
+    a = ap.parse_args()
+
+    import h5py
+    import torch as th
+    import omnigibson as og  # noqa: F401
+    from omnigibson.macros import gm
+    gm.HEADLESS = True; gm.ENABLE_TRANSITION_RULES = False
+    from omnigibson.envs.hdf5_data_wrapper import HDF5PlaybackWrapper
+    from reverse_curriculum_collect import EVAL_PROPRIO_KEYS, restore_to_frame
+    from skill_env_wrapper import _np, P, A_TORSO
+    from scipy.spatial.transform import Rotation as R
+
+    os.makedirs(OUT, exist_ok=True)
+    man = json.load(open(f"/root/snapshot_bank_v21/manifest_d{a.demo}.json"))
+    G = next(r for r in man["entries"] if str(r["stage"]) == "G")
+    closure = G["grasp_closure_frame"]
+    lift_z = G["lift_z"]
+    press = [int(r["frame"]) for r in man["entries"] if r.get("family") == "press"]
+    horizon_end = (max(press) - 60) if press else (closure + 280)
+    t0off = 6
+    try:
+        fm = json.load(open(f"/root/factory_clips/d{a.demo:03d}_meta.json"))
+        if fm.get("ok"):
+            t0off = int(fm["t0"] - fm["closure"])
+    except FileNotFoundError:
+        pass
+    t_post = closure + t0off
+
+    wrapper = HDF5PlaybackWrapper.create_from_hdf5(
+        input_path=f"/root/rawdemos/task-0000/episode_{a.demo:08d}.hdf5",
+        output_path=f"/root/fap_tmp_{a.demo}.hdf5",
+        robot_obs_modalities=("proprio",), robot_proprio_keys=EVAL_PROPRIO_KEYS)
+    radio = [o for o in wrapper.scene.objects if "radio" in o.name.lower()][0]
+    rob = wrapper.scene.robots[0]
+    eefR = rob.eef_links["right"]
+    armR_idx = np.asarray(_np(rob.arm_control_idx["right"]), int)
+
+    with h5py.File(f"/root/rawdemos/task-0000/episode_{a.demo:08d}.hdf5", "r") as f:
+        key = sorted(k for k in f["data"].keys() if k.startswith("demo_"))[0]
+        acts = f[f"data/{key}/action"][:]
+    horizon_end = min(horizon_end, len(acts) - 1)
+
+    def q61():
+        obs = wrapper.env.get_obs()[0]
+        def find(node, sub):
+            if isinstance(node, dict):
+                for k, v in node.items():
+                    r = find(v, sub)
+                    if r is not None:
+                        return r
+                    if sub in str(k):
+                        return v
+            return None
+        return _np(find(obs, "proprio")).reshape(-1)
+
+    def links():
+        return [_np(l.get_position_orientation()[0]) for l in rob.finger_links["right"]]
+
+    def contact():
+        try:
+            cs, _ = rob._find_gripper_contacts(arm="right")
+            return any(radio.name in c for c in cs)
+        except Exception:  # noqa: BLE001
+            return False
+
+    def inhand():
+        try:
+            return rob._calculate_in_hand_object(arm="right") is not None
+        except Exception:  # noqa: BLE001
+            return False
+
+    def native_ag():
+        return rob._ag_obj_constraint_params.get("right") is not None
+
+    def poseR():
+        p, q_ = eefR.get_position_orientation()
+        return _np(p).copy(), R.from_quat(_np(q_))
+
+    def radio_pose():
+        p, q_ = radio.get_position_orientation()
+        return _np(p).copy(), R.from_quat(_np(q_))
+
+    cmds_log = []
+
+    def step_cmd(cmd):
+        q = q61()
+        for _ in range(a.settle):
+            wrapper.env.step(cmd)
+            cmds_log.append(np.asarray(cmd, np.float32).copy())
+            q = q61()
+            if (np.abs(q[P["left"]["arm_qpos"]] - cmd[7:14]).max() < a.tol
+                    and np.abs(q[P["right"]["arm_qpos"]] - cmd[15:22]).max() < a.tol
+                    and np.abs(q[P["trunk_qpos"]] - cmd[A_TORSO]).max() < a.tol):
+                break
+
+    # ---- GT: certified post-pull grasp geometry (hand relative to radio) and the
+    # demo's closure+t0off radio pose (transport handoff) -----------------------
+    restore_to_frame(wrapper, 0, t_post)
+    pE, RE = poseR()
+    pRad, RRad = radio_pose()
+    rel_p = RRad.inv().apply(pE - pRad)
+    rel_R = RRad.inv() * RE
+    p_rad_post = pRad.copy()
+    q_post = q61()
+    print(f"GT post-pull: |hand-radio| {np.linalg.norm(pE - pRad):.3f} m", flush=True)
+
+    # ---- restore PRE-pull: radio at rest, hand short of it ---------------------
+    t_pre = closure - a.K
+    restore_to_frame(wrapper, 0, t_pre)
+    rob._refresh_rigid_contact_view()
+    pRest, RRest = radio_pose()
+    pull = p_rad_post - pRest
+    tgt_p = pRest + RRest.apply(rel_p)
+    tgt_R = RRest * rel_R
+    pE0, RE0 = poseR()
+    gap0 = float(np.linalg.norm(tgt_p - pE0))
+    print(f"PRE t={t_pre}: pull |{np.linalg.norm(pull):.3f}| m; hand->grasp-pose gap "
+          f"{gap0:.3f} m; radio z {pRest[2]:.3f}", flush=True)
+
+    q = q61()
+    hold = np.asarray(acts[t_pre], np.float32).copy()
+    hold[0:3] = 0.0
+    hold[7:14] = q[P["left"]["arm_qpos"]]
+    hold[15:22] = q[P["right"]["arm_qpos"]]
+    hold[A_TORSO] = q[P["trunk_qpos"]]
+    hold[22] = 1.0  # open
+
+    # ---- RCAL3: 3-probe native-J row/block select (position), + angular block --
+    pairs = []
+    qb0 = q61()[P["right"]["arm_qpos"]].copy()
+    for jidx in (16, 18, 20):
+        qs = q61()[P["right"]["arm_qpos"]].copy()
+        es, Rs = poseR()
+        pr = hold.copy(); pr[15:22] = qs; pr[jidx] += 0.05
+        step_cmd(pr)
+        e1, R1 = poseR()
+        pairs.append((q61()[P["right"]["arm_qpos"]] - qs, e1 - es,
+                      (R1 * Rs.inv()).as_rotvec()))
+        un = pr.copy(); un[15:22] = qs
+        step_cmd(un)
+    Jf0 = _np(rob.get_jacobian())
+    best, bsc = None, -2.0
+    for row in range(Jf0.shape[0]):
+        for blk in (0, 3):
+            sc, ok = [], True
+            for dq, de, _ in pairs:
+                pred = Jf0[row, blk:blk + 3, :][:, armR_idx] @ dq
+                n = np.linalg.norm(pred) * np.linalg.norm(de)
+                if n < 1e-12:
+                    ok = False; break
+                c = float(np.dot(pred, de) / n)
+                m = min(np.linalg.norm(pred), np.linalg.norm(de)) / (
+                    max(np.linalg.norm(pred), np.linalg.norm(de)) + 1e-12)
+                sc.append(c * m)
+            if ok and min(sc) > bsc:
+                bsc, best = min(sc), (row, blk)
+    row, pblk = best
+    ablk = 3 if pblk == 0 else 0
+    acos = []
+    for dq, _, dr in pairs:
+        pred = Jf0[row, ablk:ablk + 3, :][:, armR_idx] @ dq
+        n = np.linalg.norm(pred) * np.linalg.norm(dr)
+        acos.append(float(np.dot(pred, dr) / n) if n > 1e-12 else 0.0)
+    asign = 1.0 if np.mean(acos) >= 0 else -1.0
+    use_orn = min(abs(c) for c in acos) > 0.5
+    rest = hold.copy(); rest[15:22] = qb0; step_cmd(rest)
+    print(f"RCAL3 sel={best} worst={bsc:.2f} | angular blk {ablk} cos {np.round(acos, 2).tolist()} "
+          f"sign {asign:+.0f} use_orn={use_orn}", flush=True)
+
+    def J6():
+        Jf = _np(rob.get_jacobian())
+        Jp = Jf[row, pblk:pblk + 3, :][:, armR_idx]
+        Ja = asign * Jf[row, ablk:ablk + 3, :][:, armR_idx]
+        return Jp, Ja
+
+    def servo(target_p, target_R, budget, tag, stride=0.012, w_orn=0.3, done=0.015):
+        """6-DOF DLS servo of the right eef; orientation held to target_R."""
+        best_d = 9.9
+        for it in range(budget):
+            pE, RE = poseR()
+            d = float(np.linalg.norm(target_p - pE)); best_d = min(best_d, d)
+            if d < done:
+                print(f"{tag} reached it={it} d={d:.4f}", flush=True)
+                return True, best_d
+            if not native_ag() and tag == "CARRY":
+                print(f"{tag} AG_LOST it={it}", flush=True)
+                return False, best_d
+            Jp, Ja = J6()
+            v = (target_p - pE) / (d + 1e-9) * min(stride, d)
+            w = (target_R * RE.inv()).as_rotvec() if use_orn else np.zeros(3)
+            w = np.clip(w, -0.05, 0.05) * w_orn
+            Jst = np.concatenate([Jp, np.sqrt(w_orn) * Ja if use_orn else 0 * Ja], axis=0)
+            rhs = np.concatenate([v, np.sqrt(w_orn) * w if use_orn else np.zeros(3)])
+            lam = 0.01
+            dq = Jst.T @ np.linalg.solve(Jst @ Jst.T + lam * np.eye(6), rhs)
+            dq = np.clip(dq, -0.08, 0.08)
+            q_ = q61()
+            cmd = hold.copy()
+            cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq
+            step_cmd(cmd)
+            moved = poseR()[0] - pE
+            cos = float(np.dot(moved, target_p - pE) /
+                        (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))
+            if it % 10 == 0:
+                print(f"{tag} it={it} d={d:.4f} cos={cos:.2f} ag={native_ag()}", flush=True)
+        print(f"{tag} budget exhausted best={best_d:.4f}", flush=True)
+        return False, best_d
+
+    # ---- phase A: honest approach, gripper open --------------------------------
+    ok_a, best_a = servo(tgt_p, tgt_R, 200, "APPROACH")
+    if not ok_a:
+        print(f"RESULT d{a.demo} APPROACH_FAILED best={best_a:.3f}", flush=True)
+        os._exit(0)
+    approach_end = len(cmds_log)
+
+    # ---- phase B: close + streak-gated verified weld ---------------------------
+    q = q61()
+    hold[15:22] = q[P["right"]["arm_qpos"]]
+    hold[22] = -1.0
+    green, gap, weld_k = 0, 0, None
+    for k in range(400):
+        wrapper.env.step(hold)
+        cmds_log.append(hold.copy())
+        if contact() and inhand():
+            green += 1; gap = 0
+        else:
+            gap += 1
+            if gap > 4:
+                green = 0
+        if native_ag():
+            weld_k = len(cmds_log) - 1
+            print(f"NATIVE_AG k={k} (abs {weld_k})", flush=True)
+            break
+        if k >= 320 and green >= 296:
+            cp = th.as_tensor(np.mean(links(), axis=0), dtype=th.float32)
+            rob._establish_grasp(radio, radio.root_link_name, "right", cp, "FixedJoint")
+            weld_k = len(cmds_log) - 1
+            print(f"VERIFIED_WELD k={k} streak={green} (abs {weld_k})", flush=True)
+            break
+    if not native_ag():
+        print(f"RESULT d{a.demo} WELD_FAILED streak={green}", flush=True)
+        os._exit(0)
+
+    # ---- phase C: carry the held radio to the demo's post-pull radio pose ------
+    pE, RE = poseR()
+    carry_tgt = pE + pull  # hand displacement == the pull vector
+    ok_c, best_c = servo(carry_tgt, RE, 200, "CARRY", stride=0.010)
+    print(f"CARRY done ok={ok_c} best={best_c:.3f} radio->post |"
+          f"{np.linalg.norm(radio_pose()[0] - p_rad_post):.3f}| m", flush=True)
+    carry_end = len(cmds_log)
+
+    # ---- phase D: proven transport replay from closure+t0off -------------------
+    lifted, ag_lost = False, None
+    for t in range(t_post + 1, horizon_end):
+        cmd = np.asarray(acts[t], np.float32).copy()
+        cmd[22] = -1.0
+        step_cmd(cmd)
+        tp = _np(radio.get_position_orientation()[0])
+        lifted = lifted or tp[2] > lift_z + 0.05
+        if not native_ag() and ag_lost is None:
+            ag_lost = t
+            print(f"AG_LOST t={t}", flush=True)
+            break
+        if t % 40 == 0:
+            print(f"CH t={t} z={tp[2]:.3f}", flush=True)
+    ok = bool(native_ag() and lifted and ag_lost is None)
+    meta = dict(demo=a.demo, t0=t_pre, closure=closure, K=a.K, t_post=t_post,
+                weld_k=weld_k, streak=green, approach_end=approach_end,
+                carry_end=carry_end, gap0=round(gap0, 4), pull=np.round(pull, 4).tolist(),
+                carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
+                ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok,
+                n_cmds=len(cmds_log), kind="approach",
+                radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))
+    if ok:
+        np.savez_compressed(f"{OUT}/d{a.demo:03d}_approach.npz",
+                            cmds=np.stack(cmds_log), meta=json.dumps(meta))
+    json.dump(meta, open(f"{OUT}/d{a.demo:03d}_meta.json", "w"), indent=1)
+    print("RESULT", json.dumps(meta), flush=True)
+    os._exit(0)
+
+
+main()

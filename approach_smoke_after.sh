@@ -1,7 +1,9 @@
 #!/bin/bash
-# Run the approach-factory smoke on d20 once the episode converter releases the
-# 50GB cgroup (sim + converter cannot coexist).
-while pgrep -f "convert_clips_to_parque[t]|convert_episodes_afte[r]" >/dev/null; do sleep 120; done
+# Approach-factory smoke on d20 once no converter python is running (50GB cgroup).
+# Pattern anchored to the interpreter path: lingering bash -c launcher wrappers
+# (whose cmdline contains script text) can never match it.
+PAT='^/root/miniconda3/envs/behavior/bin/python -u /root/convert_clips_to_parquet.py'
+while pgrep -f "$PAT" >/dev/null; do sleep 120; done
 sleep 30
 find /tmp -mindepth 1 -maxdepth 1 -type d -user root -name 'tmp????????' -mmin +120 -exec rm -rf {} + 2>/dev/null
 echo "=== APPROACH d20 $(date -u +%H:%M:%S) ===" >> /root/approach_runs.log

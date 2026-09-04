@@ -20,3 +20,11 @@ map 1.0 / factory 4.78 / episodes 2.0 (factory weight matches the map's stage-1-
 Arms (single-variable, pre-registered): A0 demos-only (map, no down-weighting) · A1 map+down-weighting ·
 A2 A1+factory · A3 A1+episodes · A4 A1+factory+episodes. Bars: held-out instance grasp completion (fingertip
 closes the last 10cm and the weld condition triggers), copycat guard, liveness probes; 2025 winner = 26%.
+
+## Source 4 (added 2026-09-04): `b1k_radio_approach` — honest pre-contact approach episodes
+Manufactured by `factory_approach_cap.py` (restore pre-pull, 11-DOF servo across the rig's gap, finger-aligned closure,
+verified weld, carry-in, transport). Convert with `--clips "/root/factory_obs2/rac_*_200.npz" --out /root/b1k_radio_approach`.
+Validated on d20: converts cleanly; right-EE-to-button 0.427 m at frame 0 -> 0.136 m (the approach is present); stage 43% acquire.
+Meta carries the causal-honesty certificate (first_contact, radio_disp_approach) + verified weld + bit-exact re-render.
+Covers the reachable subset (arm+trunk, pull <= ~0.55 m); demos with larger rig pulls (d10: 1.04 m) need the base-drive variant.
+Arm A5 = A1 + factory + episodes + approach. Known residual: in-hand attitude ~13 deg off the demo grip (v5 recipe; v7 fixes).

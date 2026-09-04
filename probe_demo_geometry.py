@@ -33,7 +33,22 @@ def main():
                  prim=str(getattr(radio, "prim_path", "?")))
     def pose(o):
         p, q = o.get_position_orientation(); return _np(p).copy(), R.from_quat(_np(q))
+    def articulation():
+        info = {"links": list(getattr(radio, "links", {}).keys()) if hasattr(radio, "links") else [],
+                "root_link": getattr(radio, "root_link_name", "?"), "joints": {}}
+        try:
+            for jn, j in getattr(radio, "joints", {}).items():
+                info["joints"][jn] = dict(pos=float(_np(j.get_state()[0]).reshape(-1)[0]) if hasattr(j, "get_state") else None,
+                                          type=str(getattr(j, "joint_type", "?")))
+        except Exception as e:  # noqa: BLE001
+            info["joints_err"] = repr(e)
+        try:
+            info["link_poses"] = {ln: (_np(l.get_position_orientation()[0]).round(3).tolist()) for ln, l in radio.links.items()}
+        except Exception as e:  # noqa: BLE001
+            info["link_poses_err"] = repr(e)
+        return info
     restore_to_frame(w, 0, closure + t0off)
+    art_post = articulation()
     pE, RE = pose(rob.eef_links["right"]); pR1, RR1 = pose(radio)
     fingers = [_np(l.get_position_orientation()[0]) for l in rob.finger_links["right"]]
     rel_f = [RR1.inv().apply(f - pR1).tolist() for f in fingers]
@@ -41,18 +56,21 @@ def main():
                 rel_p=RR1.inv().apply(pE - pR1).tolist(), rel_R_quat=(RR1.inv() * RE).as_quat().tolist(), rel_f=rel_f,
                 hand_z_axis_world=RE.apply([0, 0, 1]).tolist())
     restore_to_frame(w, 0, closure - a.K)
+    art_rest = articulation()
     pR0, RR0 = pose(radio); pE0, RE0 = pose(rob.eef_links["right"])
     rest = dict(radio_pos=pR0.tolist(), radio_up_world=RR0.apply([0, 0, 1]).tolist(),
                 hand_to_radio=float(np.linalg.norm(pE0 - pR0)), hand_z_axis_world=RE0.apply([0, 0, 1]).tolist())
     pull = dict(pos=(pR1 - pR0).tolist(), norm=float(np.linalg.norm(pR1 - pR0)),
                 rot_deg=float((RR1 * RR0.inv()).magnitude() * 180 / np.pi),
                 hand_rot_deg=float((RE * RE0.inv()).magnitude() * 180 / np.pi))
-    out = dict(demo=d, closure=closure, t0off=t0off, K=a.K, model=model, post=post, rest=rest, pull=pull)
+    out = dict(demo=d, closure=closure, t0off=t0off, K=a.K, model=model, post=post, rest=rest, pull=pull, articulation_rest=art_rest, articulation_post=art_post)
     json.dump(out, open(f"/root/factory_clips_approach/d{d:03d}_probe.json", "w"), indent=1)
     print("PROBE", json.dumps(dict(demo=d, model=model["model"], name=model["name"], pull_m=round(pull["norm"], 3),
           pull_rot_deg=round(pull["rot_deg"], 1), hand_rot_deg=round(pull["hand_rot_deg"], 1),
           rest_up=[round(x, 2) for x in rest["radio_up_world"]], post_up=[round(x, 2) for x in post["radio_up_world"]],
-          rel_fm=[round(x, 3) for x in np.mean(np.array(rel_f), axis=0)])), flush=True)
+          rel_fm=[round(x, 3) for x in np.mean(np.array(rel_f), axis=0)],
+          links=art_rest.get("links"), joints_rest={k: (round(v["pos"], 3) if v.get("pos") is not None else None) for k, v in art_rest.get("joints", {}).items()},
+          joints_post={k: (round(v["pos"], 3) if v.get("pos") is not None else None) for k, v in art_post.get("joints", {}).items()})), flush=True)
     os._exit(0)
 
 main()

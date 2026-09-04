@@ -353,7 +353,7 @@ def main():
     # ORIENT v7 (gentle): converge the wrist to the certified grasp attitude at the
     # staging point with small rotation steps and a firm position hold. v6's
     # 0.12 rad/step + 0.10 dq clip swung the arm 42cm off the point.
-    for it in range(150):
+    for it in range(360):
         pE, RE = poseR()
         oerr_v = (tgt_R * RE.inv()).as_rotvec(); oerr = float(np.linalg.norm(oerr_v))
         pdrift = float(np.linalg.norm(pE - stage_p))

@@ -350,7 +350,33 @@ def main():
     stage_p = tgt_p + np.array([0.0, 0.0, 0.10])
     ok_s, best_s = servo(stage_p, tgt_R, 150, "STAGE")
     print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
-    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008)
+    # ORIENT v7 (gentle): converge the wrist to the certified grasp attitude at the
+    # staging point with small rotation steps and a firm position hold. v6's
+    # 0.12 rad/step + 0.10 dq clip swung the arm 42cm off the point.
+    for it in range(360):
+        pE, RE = poseR()
+        oerr_v = (tgt_R * RE.inv()).as_rotvec(); oerr = float(np.linalg.norm(oerr_v))
+        pdrift = float(np.linalg.norm(pE - stage_p))
+        if it % 10 == 0:
+            print(f"ORIENT it={it} orn_err={oerr:.3f} pos_drift={pdrift:.4f}", flush=True)
+        if oerr < 0.05 and pdrift < 0.02:
+            print(f"ORIENT converged it={it} orn_err={oerr:.3f} pos_drift={pdrift:.4f}", flush=True)
+            break
+        if pdrift > 0.08:
+            print(f"ORIENT abort: drift {pdrift:.3f} m at it={it} (orn_err {oerr:.3f})", flush=True)
+            break
+        Jp, Ja = J11()
+        v = np.clip(stage_p - pE, -0.02, 0.02) * 2.0          # position hold (gain 2)
+        w = oerr_v / (oerr + 1e-9) * min(0.03, oerr)           # <= 0.03 rad per step
+        Jst = np.concatenate([2.0 * Jp, Ja], axis=0); rhs = np.concatenate([2.0 * v, w])
+        dq = Jst.T @ np.linalg.solve(Jst @ Jst.T + 0.02 * np.eye(6), rhs)
+        dq = np.concatenate([np.clip(dq[:7], -0.04, 0.04), np.clip(dq[7:], -0.015, 0.015)])
+        q_ = q61(); cmd = hold.copy()
+        cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
+        step_cmd(cmd)
+    grab("orient_end")
+    ok_s2, best_s2 = servo(stage_p, tgt_R, 60, "RESTAGE")   # re-center after orienting
+    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6)
     grab("approach_end")
     if not ok_a:
         print(f"RESULT d{a.demo} APPROACH_FAILED best={best_a:.3f}", flush=True)

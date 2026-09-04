@@ -605,6 +605,8 @@ def main():
             gtd[:, ci * 256:(ci + 1) * 256] = np.where(
                 cnt > 0, ssum / np.maximum(cnt, 1), 0.0).reshape(n, 256)
         rows["gt_depth_ds"] += list(gtd)
+        if "sample_weight" in ref_schema.names:
+            rows["sample_weight"] += [1.0] * n
 
         for npz_key, vkey, _, is_dep in VIDEO_STREAMS:
             vid_frames[vkey].append(("lazy", fp, npz_key) if npz_key in d.files else [])

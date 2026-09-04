@@ -317,6 +317,11 @@ def main():
             cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]
             cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
             step_cmd(cmd)
+            if tag in ("STAGE", "APPROACH", "PUSH", "ALIGN"):
+                HON["n"] += 1
+                HON["max_disp"] = max(HON["max_disp"], float(np.linalg.norm(radio_pose()[0] - HON["radio_rest"])))
+                if HON["first_contact"] is None and contact():
+                    HON["first_contact"] = f"{tag}:{it}"
             moved = poseR()[0] - pE
             cos = float(np.dot(moved, target_p - pE) /
                         (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))
@@ -329,6 +334,7 @@ def main():
     # ---- phase A: honest approach, gripper open --------------------------------
     grab("pre")
     CAP[0] = True
+    HON = {"radio_rest": radio_pose()[0].copy(), "max_disp": 0.0, "first_contact": None, "n": 0}
     stage_p = tgt_p + np.array([0.0, 0.0, 0.10])
     ok_s, best_s = servo(stage_p, tgt_R, 150, "STAGE")
     print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
@@ -360,6 +366,9 @@ def main():
         pE_, RE_ = poseR()
         servo(pE_ + delta_w, tgt_R, 30, "ALIGN", stride=0.006, done=0.004)
     grab("align_end")
+
+    print(f"APPROACH_HONESTY radio_disp_max={HON['max_disp']:.4f} m first_contact={HON['first_contact']} "
+          f"servo_steps={HON['n']}", flush=True)
 
     # ---- phase B: close + streak-gated verified weld ---------------------------
     q = q61()
@@ -446,6 +455,7 @@ def main():
                 weld_k=weld_k, streak=green, approach_end=approach_end,
                 carry_end=carry_end, gap0=round(gap0, 4), pull=np.round(pull, 4).tolist(),
                 carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
+                radio_disp_approach=round(HON['max_disp'], 4), first_contact=HON['first_contact'],
                 ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok,
                 n_cmds=len(cmds_log), kind="approach",
                 radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))

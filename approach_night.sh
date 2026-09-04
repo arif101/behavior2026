@@ -7,12 +7,12 @@ for f in /root/factory_clips/d*_grasp_transport.npz; do
   [ -f "/root/factory_obs2/rac_${D}_200.npz" ] && continue
   M="/root/factory_clips_approach/d$(printf %03d $D).attempted"
   if [ "${APPROACH_PASS:-1}" = "1" ] && [ -f "$M" ]; then continue; fi   # first pass: don't redo failures
-  touch "$M"
   find /tmp -mindepth 1 -maxdepth 1 -type d -user root -name 'tmp????????' -mmin +120 -exec rm -rf {} + 2>/dev/null
   echo "=== APPROACH-NIGHT d$D $(date -u +%H:%M:%S) ===" >> /root/approach_runs.log
   OG_PLAYBACK_REAL_FREQS=1 PYTHONPATH=/root OMNI_KIT_ALLOW_ROOT=1 OMNIGIBSON_HEADLESS=1 \
     timeout 9000 /root/miniconda3/envs/behavior/bin/python -u /root/factory_approach_cap.py --demo "$D" \
     >> /root/approach_runs.log 2>&1
   rm -f "/root/fap_tmp_${D}.hdf5"
+  touch "$M"   # marked only after the demo actually ran to its own exit (slot-killed demos get retried)
 done
 echo "APPROACH_NIGHT_COMPLETE" >> /root/approach_runs.log

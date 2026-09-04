@@ -67,6 +67,7 @@ def main():
         robot_obs_modalities=("proprio", "rgb", "depth_linear"), robot_proprio_keys=EVAL_PROPRIO_KEYS)
     radio = [o for o in wrapper.scene.objects if "radio" in o.name.lower()][0]
     rob = wrapper.scene.robots[0]
+    print(f"RADIO_MODEL name={radio.name} category={getattr(radio, 'category', '?')} model={getattr(radio, 'model', '?')}", flush=True)
     eefR = rob.eef_links["right"]
     armR_idx = np.asarray(_np(rob.arm_control_idx["right"]), int)
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Approach factory across all factory-clip demos (v5 recipe). Single sim; anchored waits.
-PY='^/root/miniconda3/envs/behavior/bin/python -u /root/factory_approach_cap.py'
+PY='^/root/miniconda3/envs/behavior/bin/python -u /root/(factory_approach_cap|relay_episode_factory).py'
 while pgrep -f "$PY|^/root/miniconda3/envs/behavior/bin/python -u /root/obs_render_factory2.py" >/dev/null; do sleep 60; done
 for f in /root/factory_clips/d*_grasp_transport.npz; do
   D=$((10#$(basename "$f" | sed 's/d\([0-9]*\)_.*/\1/')))

@@ -36,6 +36,10 @@ def main():
     ap.add_argument("--tries", type=int, default=2)
     ap.add_argument("--execute", type=int, default=16)
     ap.add_argument("--budget", type=int, default=400)
+    ap.add_argument("--clipdir", default="/root/factory_clips")
+    ap.add_argument("--suffix", default="grasp_transport")
+    ap.add_argument("--tag", type=int, default=100, help="output rac_<demo>_<tag+trial>.npz")
+    ap.add_argument("--film", action="store_true", help="third-person frames every 6 steps")
     a = ap.parse_args()
     for p in (REQF, ACT):
         if os.path.exists(p):
@@ -49,14 +53,14 @@ def main():
 
     from PIL import Image
     import torch as th
-    import omnigibson as og  # noqa: F401
+    import omnigibson as og
     from omnigibson.macros import gm
     gm.HEADLESS = True; gm.ENABLE_TRANSITION_RULES = False
     from omnigibson.envs.hdf5_data_wrapper import HDF5PlaybackWrapper
     from reverse_curriculum_collect import EVAL_PROPRIO_KEYS, restore_to_frame
     from skill_env_wrapper import _np
 
-    z = np.load(f"/root/factory_clips/d{a.demo:03d}_grasp_transport.npz",
+    z = np.load(f"{a.clipdir}/d{a.demo:03d}_{a.suffix}.npz",
                 allow_pickle=True)
     cmds = z["cmds"]
     meta = json.loads(str(z["meta"]))
@@ -70,6 +74,31 @@ def main():
     rob = wrapper.scene.robots[0]
     from omnigibson.object_states import ToggledOn
     toggled = lambda: bool(radio.states[ToggledOn].get_value())  # noqa: E731
+    FILM = f"/root/relay_film/d{a.demo:03d}_full"
+    os.makedirs(FILM, exist_ok=True)
+    NF = [0]
+
+    def film():
+        if not a.film:
+            return
+        NF[0] += 1
+        if NF[0] % 6:
+            return
+        cam = og.sim.viewer_camera
+        rp = _np(radio.get_position_orientation()[0])
+        ft = _np(th.stack([l.get_position_orientation()[0] for l in rob.finger_links["right"]]).mean(dim=0))
+        target = 0.5 * (rp + ft); pos = target + np.array([0.55, -0.5, 0.35])
+        f = target - pos; f /= np.linalg.norm(f); up = np.array([0.0, 0.0, 1.0])
+        r = np.cross(f, up); r /= np.linalg.norm(r); u = np.cross(r, f)
+        m = np.stack([r, u, -f], axis=1)
+        w = np.sqrt(max(1e-9, 1 + m[0, 0] + m[1, 1] + m[2, 2])) / 2
+        q = np.array([(m[2, 1] - m[1, 2]) / (4 * w), (m[0, 2] - m[2, 0]) / (4 * w), (m[1, 0] - m[0, 1]) / (4 * w), w])
+        cam.set_position_orientation(th.as_tensor(pos, dtype=th.float32), th.as_tensor(q, dtype=th.float32))
+        for _ in range(2):
+            og.sim.render()
+        o, _ = cam.get_obs()
+        from PIL import Image as _Im
+        _Im.fromarray(np.asarray(o["rgb"])[..., :3].astype(np.uint8)).save(f"{FILM}/f{NF[0]:05d}.jpg", quality=85)
 
     def get_obs():
         obs = wrapper.env.get_obs()[0]
@@ -166,6 +195,7 @@ def main():
                     capture(cmd)
                     prev_cmd = cmd.copy()
                 wrapper.env.step(cmd)
+                film()
                 if (not welded and i >= meta["weld_k"]
                         and rob._ag_obj_constraint_params.get("right") is None):
                     ft = _np(th.stack([l.get_position_orientation()[0]
@@ -232,6 +262,7 @@ def main():
                 capture(chunk[k])
                 wrapper.env.step(np.asarray(chunk[k], np.float32))
                 steps += 1
+                film()
                 if toggled():
                     break
         ag1 = rob._ag_obj_constraint_params.get("right") is not None
@@ -240,7 +271,7 @@ def main():
               f"ag={ag1} ok={ok} total_obs={len(R['p'])}", flush=True)
         if ok:
             np.savez_compressed(
-                f"{OUT}/rac_{a.demo}_r{trial}.npz",
+                f"{OUT}/rac_{a.demo}_{a.tag + trial}.npz",
                 proprio=np.stack(R["p"]), actions=np.stack(R["act"]),
                 head_rgb=np.stack(R["hz"]), head_depth=np.stack(R["hd"]),
                 left_rgb=np.stack(R["lz"]), left_depth=np.stack(R["ld"]),
@@ -251,7 +282,7 @@ def main():
                                  "policy_steps": steps, "n_clip_obs": n_clip,
                                  "trial": trial}))
             n_saved += 1
-            print(f"EF_SAVED rac_{a.demo}_r{trial}.npz "
+            print(f"EF_SAVED rac_{a.demo}_{a.tag + trial}.npz "
                   f"({len(R['p'])} steps)", flush=True)
     print(f"EF_DONE d{a.demo}: saved {n_saved}/{a.tries}", flush=True)
     worker.kill()

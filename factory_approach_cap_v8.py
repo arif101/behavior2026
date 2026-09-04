@@ -217,8 +217,9 @@ def main():
     tgt_R = RRest * rel_R
     pE0, RE0 = poseR()
     gap0 = float(np.linalg.norm(tgt_p - pE0))
-    print(f"PRE t={t_pre}: pull |{np.linalg.norm(pull):.3f}| m; hand->grasp-pose gap "
-          f"{gap0:.3f} m; radio z {pRest[2]:.3f}", flush=True)
+    pull_rot = float((RRad * RRest.inv()).magnitude() * 180 / np.pi)
+    print(f"PRE t={t_pre}: pull |{np.linalg.norm(pull):.3f}| m, rig ROTATED the radio {pull_rot:.1f} deg; "
+          f"hand->grasp-pose gap {gap0:.3f} m; radio z {pRest[2]:.3f}", flush=True)
     if gap0 > 0.55:
         # arm+trunk reach envelope (~0.5 m of approach): beyond it the demo needs base
         # motion first (d10: pull 1.04 m). Log and skip — a base-drive variant is the fix.
@@ -334,6 +335,7 @@ def main():
                 if tag in ("STAGE", "APPROACH", "RESTAGE"):
                     # open-air phases only: the PUSH/ALIGN touch is deliberate
                     HON["pre_disp"] = max(HON["pre_disp"], _d)
+                    HON["pre_rot"] = max(HON["pre_rot"], float((radio_pose()[1] * HON["R_rest"].inv()).magnitude() * 180 / np.pi))
             moved = poseR()[0] - pE
             cos = float(np.dot(moved, target_p - pE) /
                         (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))
@@ -346,7 +348,8 @@ def main():
     # ---- phase A: honest approach, gripper open --------------------------------
     grab("pre")
     CAP[0] = True
-    HON = {"radio_rest": radio_pose()[0].copy(), "max_disp": 0.0, "pre_disp": 0.0, "first_contact": None, "n": 0}
+    HON = {"radio_rest": radio_pose()[0].copy(), "R_rest": radio_pose()[1], "max_disp": 0.0, "pre_disp": 0.0,
+           "pre_rot": 0.0, "first_contact": None, "n": 0}
     stage_p = tgt_p + np.array([0.0, 0.0, 0.10])
     ok_s, best_s = servo(stage_p, tgt_R, 150, "STAGE")
     print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
@@ -405,8 +408,8 @@ def main():
         servo(pE_ + delta_w, tgt_R, 30, "ALIGN", stride=0.006, done=0.004)
     grab("align_end")
 
-    print(f"APPROACH_HONESTY radio_disp_precontact={HON['pre_disp']:.4f} m radio_disp_max={HON['max_disp']:.4f} m "
-          f"first_contact={HON['first_contact']} servo_steps={HON['n']}", flush=True)
+    print(f"APPROACH_HONESTY radio_disp_precontact={HON['pre_disp']:.4f} m radio_rot_precontact={HON['pre_rot']:.1f} deg "
+          f"radio_disp_max={HON['max_disp']:.4f} m first_contact={HON['first_contact']} servo_steps={HON['n']}", flush=True)
 
     # ---- phase B: close + streak-gated verified weld ---------------------------
     q = q61()
@@ -494,7 +497,7 @@ def main():
             break
         if t % 40 == 0:
             print(f"CH t={t} z={tp[2]:.3f}", flush=True)
-    honest = HON['pre_disp'] <= 0.02 and HON['max_disp'] <= 0.10  # undisturbed until touched; no bulldozing
+    honest = HON['pre_disp'] <= 0.02 and HON['pre_rot'] <= 15.0 and HON['max_disp'] <= 0.10  # undisturbed until touched; no bulldozing
     if not honest:
         print(f"HONESTY_REJECT radio moved {HON['max_disp']:.3f} m before closure", flush=True)
     ok = bool(native_ag() and lifted and ag_lost is None and honest)
@@ -502,7 +505,7 @@ def main():
                 weld_k=weld_k, streak=green, approach_end=approach_end,
                 carry_end=carry_end, gap0=round(gap0, 4), pull=np.round(pull, 4).tolist(),
                 carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
-                radio_disp_approach=round(HON['max_disp'], 4), radio_disp_precontact=round(HON['pre_disp'], 4), first_contact=HON['first_contact'], honest=bool(honest),
+                radio_disp_approach=round(HON['max_disp'], 4), radio_disp_precontact=round(HON['pre_disp'], 4), radio_rot_precontact=round(HON['pre_rot'], 2), pull_rot_deg=round(pull_rot, 2), first_contact=HON['first_contact'], honest=bool(honest),
                 ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok,
                 n_cmds=len(cmds_log), kind="approach",
                 radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))

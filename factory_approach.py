@@ -324,7 +324,7 @@ def main():
     hold[A_TORSO] = q[P["trunk_qpos"]]
     hold[22] = -1.0
     green, gap, weld_k = 0, 0, None
-    for k in range(400):
+    for k in range(800):  # late-starting streaks need room (v4: 213 by k=400)
         wrapper.env.step(hold)
         cmds_log.append(hold.copy())
         c_, i_ = contact(), inhand()

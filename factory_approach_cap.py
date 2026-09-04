@@ -338,7 +338,27 @@ def main():
     stage_p = tgt_p + np.array([0.0, 0.0, 0.10])
     ok_s, best_s = servo(stage_p, tgt_R, 150, "STAGE")
     print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
-    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008)
+    # ORIENT at the staging point (open air): converge the wrist to the certified
+    # grasp attitude BEFORE descending — v5's 0.384 rad residual at closure put the
+    # radio in the hand 12.7 deg off the demo grip and the learned press missed 7/7
+    for it in range(80):
+        pE, RE = poseR()
+        oerr_v = (tgt_R * RE.inv()).as_rotvec(); oerr = float(np.linalg.norm(oerr_v))
+        if it % 10 == 0:
+            print(f"ORIENT it={it} orn_err={oerr:.3f} pos_drift={np.linalg.norm(pE - stage_p):.4f}", flush=True)
+        if oerr < 0.05:
+            print(f"ORIENT converged it={it} orn_err={oerr:.3f}", flush=True)
+            break
+        Jp, Ja = J11()
+        v = np.clip(stage_p - pE, -0.01, 0.01); w = np.clip(oerr_v, -0.12, 0.12)
+        Jst = np.concatenate([Jp, Ja], axis=0); rhs = np.concatenate([v, w])
+        dq = Jst.T @ np.linalg.solve(Jst @ Jst.T + 0.01 * np.eye(6), rhs)
+        dq = np.concatenate([np.clip(dq[:7], -0.10, 0.10), np.clip(dq[7:], -0.03, 0.03)])
+        q_ = q61(); cmd = hold.copy()
+        cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
+        step_cmd(cmd)
+    grab("orient_end")
+    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6)
     grab("approach_end")
     if not ok_a:
         print(f"RESULT d{a.demo} APPROACH_FAILED best={best_a:.3f}", flush=True)

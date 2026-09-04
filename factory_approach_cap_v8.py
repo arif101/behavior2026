@@ -329,11 +329,11 @@ def main():
                 HON["n"] += 1
                 _d = float(np.linalg.norm(radio_pose()[0] - HON["radio_rest"]))
                 HON["max_disp"] = max(HON["max_disp"], _d)
-                if HON["first_contact"] is None:
-                    if contact():
-                        HON["first_contact"] = f"{tag}:{it}"
-                    else:
-                        HON["pre_disp"] = max(HON["pre_disp"], _d)
+                if HON["first_contact"] is None and contact():
+                    HON["first_contact"] = f"{tag}:{it}"
+                if tag in ("STAGE", "APPROACH", "RESTAGE"):
+                    # open-air phases only: the PUSH/ALIGN touch is deliberate
+                    HON["pre_disp"] = max(HON["pre_disp"], _d)
             moved = poseR()[0] - pE
             cos = float(np.dot(moved, target_p - pE) /
                         (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))

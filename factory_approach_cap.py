@@ -137,7 +137,7 @@ def main():
         imageio.imwrite(f"{FILM}/{tag}.png", np.asarray(o["rgb"])[..., :3].astype(np.uint8))
 
     cmds_log = []
-    R = {k: [] for k in ("p", "act", "hz", "hd", "lz", "ld", "rz", "rd", "rp", "bp")}
+    REC = {k: [] for k in ("p", "act", "hz", "hd", "lz", "ld", "rz", "rd", "rp", "bp")}
 
     def get_obs():
         obs = wrapper.env.get_obs()[0]
@@ -166,15 +166,15 @@ def main():
         o = get_obs()
         if o["pro"] is None or o["zed_rgb"] is None:
             return
-        R["p"].append(o["pro"].astype(np.float32)); R["act"].append(np.asarray(cmd, np.float32).copy())
-        R["hz"].append(o["zed_rgb"][..., :3].astype(np.uint8))
-        R["hd"].append(np.zeros((2, 2), np.float16) if o["zed_dep"] is None else o["zed_dep"].astype(np.float16))
+        REC["p"].append(o["pro"].astype(np.float32)); REC["act"].append(np.asarray(cmd, np.float32).copy())
+        REC["hz"].append(o["zed_rgb"][..., :3].astype(np.uint8))
+        REC["hd"].append(np.zeros((2, 2), np.float16) if o["zed_dep"] is None else o["zed_dep"].astype(np.float16))
         for c, kz, kd in (("l", "lz", "ld"), ("r", "rz", "rd")):
-            R[kz].append(np.zeros((2, 2, 3), np.uint8) if o[f"{c}_rgb"] is None else o[f"{c}_rgb"][..., :3].astype(np.uint8))
-            R[kd].append(np.zeros((2, 2), np.float16) if o[f"{c}_dep"] is None else o[f"{c}_dep"].astype(np.float16))
+            REC[kz].append(np.zeros((2, 2, 3), np.uint8) if o[f"{c}_rgb"] is None else o[f"{c}_rgb"][..., :3].astype(np.uint8))
+            REC[kd].append(np.zeros((2, 2), np.float16) if o[f"{c}_dep"] is None else o[f"{c}_dep"].astype(np.float16))
         rp_, rq_ = radio.get_position_orientation(); bp_, bq_ = rob.get_position_orientation()
-        R["rp"].append(np.concatenate([_np(rp_), _np(rq_)]).astype(np.float32))
-        R["bp"].append(np.concatenate([_np(bp_), _np(bq_)]).astype(np.float32))
+        REC["rp"].append(np.concatenate([_np(rp_), _np(rq_)]).astype(np.float32))
+        REC["bp"].append(np.concatenate([_np(bp_), _np(bq_)]).astype(np.float32))
 
     CAP = [False]  # capture switched on at the pre-pull restore (probes excluded)
 
@@ -484,14 +484,14 @@ def main():
                             cmds=np.stack(cmds_log), meta=json.dumps(meta))
         np.savez_compressed(
             f"/root/factory_obs2/rac_{a.demo}_200.npz",
-            proprio=np.stack(R["p"]), actions=np.stack(R["act"]),
-            head_rgb=np.stack(R["hz"]), head_depth=np.stack(R["hd"]),
-            left_rgb=np.stack(R["lz"]), left_depth=np.stack(R["ld"]),
-            right_rgb=np.stack(R["rz"]), right_depth=np.stack(R["rd"]),
-            objpose_radio_89=np.stack(R["rp"]), base_pose=np.stack(R["bp"]),
+            proprio=np.stack(REC["p"]), actions=np.stack(REC["act"]),
+            head_rgb=np.stack(REC["hz"]), head_depth=np.stack(REC["hd"]),
+            left_rgb=np.stack(REC["lz"]), left_depth=np.stack(REC["ld"]),
+            right_rgb=np.stack(REC["rz"]), right_depth=np.stack(REC["rd"]),
+            objpose_radio_89=np.stack(REC["rp"]), base_pose=np.stack(REC["bp"]),
             radio_rest_z=np.float64(pRest[2]), success=np.bool_(True),
-            meta=json.dumps({**meta, "episode": "approach_single_pass", "n_obs": len(R["p"])}))
-        print(f"OBS_SAVED rac_{a.demo}_200.npz ({len(R['p'])} steps)", flush=True)
+            meta=json.dumps({**meta, "episode": "approach_single_pass", "n_obs": len(REC["p"])}))
+        print(f"OBS_SAVED rac_{a.demo}_200.npz ({len(REC['p'])} steps)", flush=True)
     json.dump(meta, open(f"{OUT}/d{a.demo:03d}_meta.json", "w"), indent=1)
     print("RESULT", json.dumps(meta), flush=True)
     os._exit(0)

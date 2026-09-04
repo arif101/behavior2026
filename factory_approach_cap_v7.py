@@ -484,12 +484,15 @@ def main():
             break
         if t % 40 == 0:
             print(f"CH t={t} z={tp[2]:.3f}", flush=True)
-    ok = bool(native_ag() and lifted and ag_lost is None)
+    honest = HON['max_disp'] <= 0.03  # object undisturbed until the deliberate push
+    if not honest:
+        print(f"HONESTY_REJECT radio moved {HON['max_disp']:.3f} m before closure", flush=True)
+    ok = bool(native_ag() and lifted and ag_lost is None and honest)
     meta = dict(demo=a.demo, t0=t_pre, closure=closure, K=a.K, t_post=t_post,
                 weld_k=weld_k, streak=green, approach_end=approach_end,
                 carry_end=carry_end, gap0=round(gap0, 4), pull=np.round(pull, 4).tolist(),
                 carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
-                radio_disp_approach=round(HON['max_disp'], 4), first_contact=HON['first_contact'],
+                radio_disp_approach=round(HON['max_disp'], 4), first_contact=HON['first_contact'], honest=bool(honest),
                 ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok,
                 n_cmds=len(cmds_log), kind="approach",
                 radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))

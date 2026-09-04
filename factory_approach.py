@@ -156,6 +156,11 @@ def main():
     pRad, RRad = radio_pose()
     rel_p = RRad.inv().apply(pE - pRad)
     rel_R = RRad.inv() * RE
+    rel_f = [RRad.inv().apply(f - pRad) for f in links()]
+    rel_fm = np.mean(rel_f, axis=0)
+    gt_gap = float(np.linalg.norm(rel_f[0] - rel_f[1]))
+    print(f"GT fingers in radio frame: {[np.round(f, 3).tolist() for f in rel_f]} "
+          f"midpoint {np.round(rel_fm, 3).tolist()} gap {gt_gap:.3f}", flush=True)
     p_rad_post = pRad.copy()
     q_post = q61()
     print(f"GT post-pull: |hand-radio| {np.linalg.norm(pE - pRad):.3f} m", flush=True)
@@ -250,7 +255,8 @@ def main():
             pE, RE = poseR()
             d = float(np.linalg.norm(target_p - pE)); best_d = min(best_d, d)
             if d < done:
-                print(f"{tag} reached it={it} d={d:.4f}", flush=True)
+                oerr = float(np.linalg.norm((target_R * RE.inv()).as_rotvec()))
+                print(f"{tag} reached it={it} d={d:.4f} orn_err={oerr:.3f} rad", flush=True)
                 return True, best_d
             if not native_ag() and tag == "CARRY":
                 print(f"{tag} AG_LOST it={it}", flush=True)
@@ -290,15 +296,44 @@ def main():
         os._exit(0)
     approach_end = len(cmds_log)
 
+    # ---- phase B0: compliance push — settle the open tines down onto/around the
+    # rail (v3 "reached" at 1.39cm looked like tine tips resting ON the rail)
+    okp, _ = servo(tgt_p + np.array([0.0, 0.0, -0.015]), tgt_R, 25, "PUSH", stride=0.006, done=0.008)
+    grab("push_end")
+    pR_, RR_ = radio_pose()
+    fl = [RR_.inv().apply(f - pR_) for f in links()]
+    print(f"PUSH ok={okp} finger tips in radio frame: {[np.round(f, 3).tolist() for f in fl]} "
+          f"| certified rel_p {np.round(rel_p, 3).tolist()}", flush=True)
+
+    # ---- phase B1: ALIGN the finger midpoint onto the certified one (radio frame)
+    for k3 in range(4):
+        pR_, RR_ = radio_pose()
+        fm_now = RR_.inv().apply(np.mean(links(), axis=0) - pR_)
+        delta_w = RR_.apply(rel_fm - fm_now)
+        print(f"ALIGN pass {k3}: finger-midpoint err {np.round(rel_fm - fm_now, 3).tolist()} "
+              f"|{np.linalg.norm(delta_w):.4f}| m", flush=True)
+        if np.linalg.norm(delta_w) < 0.004:
+            break
+        pE_, RE_ = poseR()
+        servo(pE_ + delta_w, tgt_R, 30, "ALIGN", stride=0.006, done=0.004)
+    grab("align_end")
+
     # ---- phase B: close + streak-gated verified weld ---------------------------
     q = q61()
     hold[15:22] = q[P["right"]["arm_qpos"]]
+    hold[A_TORSO] = q[P["trunk_qpos"]]
     hold[22] = -1.0
     green, gap, weld_k = 0, 0, None
     for k in range(400):
         wrapper.env.step(hold)
         cmds_log.append(hold.copy())
-        if contact() and inhand():
+        c_, i_ = contact(), inhand()
+        if k < 60 and k % 5 == 0:
+            fl_ = links()
+            print(f"CLOSE k={k} contact={c_} inhand={i_} finger_gap={np.linalg.norm(fl_[0] - fl_[1]):.3f} (GT {gt_gap:.3f})", flush=True)
+        if k in (0, 20, 40, 80, 160):
+            grab(f"weld{k:03d}")
+        if c_ and i_:
             green += 1; gap = 0
         else:
             gap += 1

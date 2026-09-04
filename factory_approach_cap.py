@@ -219,6 +219,14 @@ def main():
     gap0 = float(np.linalg.norm(tgt_p - pE0))
     print(f"PRE t={t_pre}: pull |{np.linalg.norm(pull):.3f}| m; hand->grasp-pose gap "
           f"{gap0:.3f} m; radio z {pRest[2]:.3f}", flush=True)
+    if gap0 > 0.55:
+        # arm+trunk reach envelope (~0.5 m of approach): beyond it the demo needs base
+        # motion first (d10: pull 1.04 m). Log and skip — a base-drive variant is the fix.
+        json.dump(dict(demo=a.demo, t0=t_pre, closure=closure, K=a.K, gap0=round(gap0, 4),
+                       pull=np.round(pull, 4).tolist(), ok=False, skip="REACH"),
+                  open(f"{OUT}/d{a.demo:03d}_meta.json", "w"), indent=1)
+        print(f"RESULT d{a.demo} SKIP_REACH gap0={gap0:.3f} pull={np.linalg.norm(pull):.3f}", flush=True)
+        os._exit(0)
 
     q = q61()
     hold = np.asarray(acts[t_pre], np.float32).copy()

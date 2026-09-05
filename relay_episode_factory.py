@@ -40,6 +40,7 @@ def main():
     ap.add_argument("--suffix", default="grasp_transport")
     ap.add_argument("--tag", type=int, default=100, help="output rac_<demo>_<tag+trial>.npz")
     ap.add_argument("--film", action="store_true", help="third-person frames every 6 steps")
+    ap.add_argument("--widecam", action="store_true", help="fixed wide camera framing the whole robot (base+torso+arm)")
     a = ap.parse_args()
     for p in (REQF, ACT):
         if os.path.exists(p):
@@ -87,7 +88,12 @@ def main():
         cam = og.sim.viewer_camera
         rp = _np(radio.get_position_orientation()[0])
         ft = _np(th.stack([l.get_position_orientation()[0] for l in rob.finger_links["right"]]).mean(dim=0))
-        target = 0.5 * (rp + ft); pos = target + np.array([0.55, -0.5, 0.35])
+        if a.widecam:
+            bp = _np(rob.get_position_orientation()[0])
+            mid = 0.5 * (bp + rp); mid[2] = 0.75
+            target = mid; pos = mid + np.array([1.35, -1.15, 0.95])
+        else:
+            target = 0.5 * (rp + ft); pos = target + np.array([0.55, -0.5, 0.35])
         f = target - pos; f /= np.linalg.norm(f); up = np.array([0.0, 0.0, 1.0])
         r = np.cross(f, up); r /= np.linalg.norm(r); u = np.cross(r, f)
         m = np.stack([r, u, -f], axis=1)

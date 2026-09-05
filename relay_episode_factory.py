@@ -41,6 +41,7 @@ def main():
     ap.add_argument("--tag", type=int, default=100, help="output rac_<demo>_<tag+trial>.npz")
     ap.add_argument("--film", action="store_true", help="third-person frames every 6 steps")
     ap.add_argument("--widecam", action="store_true", help="fixed wide camera framing the whole robot (base+torso+arm)")
+    ap.add_argument("--nav", type=int, default=0, help="prepend N demo frames of base navigation before the manufactured clip")
     a = ap.parse_args()
     for p in (REQF, ACT):
         if os.path.exists(p):
@@ -65,6 +66,12 @@ def main():
                 allow_pickle=True)
     cmds = z["cmds"]
     meta = json.loads(str(z["meta"]))
+    demo_acts = None
+    if a.nav > 0:
+        import h5py as _h5
+        with _h5.File(f"/root/rawdemos/task-0000/episode_{a.demo:08d}.hdf5", "r") as _f:
+            _k = sorted(k for k in _f["data"].keys() if k.startswith("demo_"))[0]
+            demo_acts = _f[f"data/{_k}/action"][:]
 
     wrapper = HDF5PlaybackWrapper.create_from_hdf5(
         input_path=f"/root/rawdemos/task-0000/episode_{a.demo:08d}.hdf5",
@@ -188,6 +195,17 @@ def main():
         # phase 1: certified clip replay (trial 0) or ~1s snapshot restore
         # (later trials) — the handoff state is identical either way
         if handoff_snap is None:
+            if a.nav > 0 and demo_acts is not None:
+                nav0 = max(0, int(meta["t0"]) - a.nav)
+                restore_to_frame(wrapper, 0, nav0)
+                try:
+                    rob._refresh_rigid_contact_view()
+                except Exception:  # noqa: BLE001
+                    pass
+                for _t in range(nav0, int(meta["t0"])):
+                    wrapper.env.step(np.asarray(demo_acts[_t], np.float32))
+                    film()
+                print(f"NAV replayed {int(meta['t0']) - nav0} demo frames (base navigation)", flush=True)
             restore_to_frame(wrapper, 0, meta["t0"])
             try:
                 rob._refresh_rigid_contact_view()

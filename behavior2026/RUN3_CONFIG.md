@@ -99,3 +99,15 @@ tmp-checkpoint size every 10 s for the whole run.
 `run3_driver.sh` arms a0 → a2 → a1 → a3 → a4 → (a5 when its mix exists), 15k steps each,
 `--keep-period 5000`, off-box push of the newest committed checkpoint every 5 min to
 `arif101/b26-run3-params/<arm>/ckpt_<step>/`, per-arm finalize to `<arm>/params|assets|provenance`.
+
+## A5 wired 2026-09-06 20:10 UTC (while A2 trains)
+`b1k_radio_approach` pulled (12 eps / 6,942 frames, HF 05:37 UTC); **source weight 2.0** (same as the
+other complete-episode manufactured source; 1.0 would make A5-vs-A4 a 1.5 %-mass perturbation that
+cannot be read — operator may override with `W_APPROACH` and re-run the a5 steps before A5 starts
+≈ 09-09). Mix a5 = 308 eps / 471,184 frames, depth de-registered, columns registered. Preflight a5
+PASS: tree identity; effective mass map 67.6 % · factory 15.1 % · episodes 12.7 % · approach 4.6 %
+(mean w 4.70); poison 2.12 % at 0.1; one real batch drawn. The driver picks a5 up after a4.
+
+## Progress
+- A0 DONE 2026-09-06 19:02 UTC — 14,999 steps, 3.6 s/it, loss 0.029→0.017; `arif101/b26-run3-params/a0/`.
+- A2 launched 19:02 UTC (loader lines verified); ETA ≈ 10:10 UTC 09-07. Then a1 → a3 → a4 → a5.

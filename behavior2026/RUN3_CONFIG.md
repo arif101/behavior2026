@@ -81,3 +81,21 @@ driver (`RUN3_DRIVER_FAILED`).
 | a3 | 454,722 | 2.15 % | map 84.2 % · episodes 15.8 % (3.67) |
 | a4 | 464,242 | 2.15 % | map 70.9 % · factory 15.9 % · episodes 13.3 % |
   (factory mean weight 11.4 = 4.78 × the ×8 oversample landing on the clips' own grasp transitions.)
+
+## Checkpoint-save stall on the single GPU (found + fixed 2026-09-06, before launch)
+The first 20-step smoke finished its steps (3.5 s/it on real data, loss 0.05-0.065 from the
+warm start) and then hung in orbax's train_state device→host transfer: params item written in
+24 s, train_state still 0 bytes after 19 min, one thread at 100 % CPU, RSS growing ~10 MB/s
+(≈70 min per 40 GB save). Isolated `save_test.py` on the same state: default path 93 s, pinned
+33 s — so the stall needs the training-process context (8 loader workers + page cache; the
+cgroup peaked at 231 GB of its 251 GB limit during a save). Raw `np.asarray` on this box:
+0.63 GB/s pageable (kernel-time bound) vs 2.5 GB/s via the GPU's `pinned_host` memory kind.
+**Fix:** `patch_pinned_ckpt.py` → `save_state` uses `PyTreeSave(enable_pinned_host_transfer=True)`
+for both items (same on-disk format; restore untouched). Second smoke: 20 steps + committed
+checkpoint, save ≈ 35 s, SMOKE_OK. `ckpt_sampler.sh` logs cgroup usage / busiest thread /
+tmp-checkpoint size every 10 s for the whole run.
+
+## LAUNCHED 2026-09-06 03:46 UTC
+`run3_driver.sh` arms a0 → a2 → a1 → a3 → a4 → (a5 when its mix exists), 15k steps each,
+`--keep-period 5000`, off-box push of the newest committed checkpoint every 5 min to
+`arif101/b26-run3-params/<arm>/ckpt_<step>/`, per-arm finalize to `<arm>/params|assets|provenance`.

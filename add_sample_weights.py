@@ -25,6 +25,8 @@ def main():
     ap.add_argument("--root", required=True)
     ap.add_argument("--poison", default=None, help="poison_windows.json (human-demo root only)")
     ap.add_argument("--poison-weight", type=float, default=0.1)
+    ap.add_argument("--default-weight", type=float, default=1.0,
+                    help="baseline weight for every frame (source-level weight, e.g. the advisory 4.78 for factory)")
     ap.add_argument("--overwrite-col", action="store_true")
     a = ap.parse_args()
     pw = json.load(open(a.poison)) if a.poison else None
@@ -38,7 +40,7 @@ def main():
                 print(f"SKIP {f}: sample_weight present"); continue
             t = t.drop(["sample_weight"])
         ep = t["episode_index"].to_numpy(); fi = t["frame_index"].to_numpy()
-        w = np.ones(len(ep), np.float32)
+        w = np.full(len(ep), a.default_weight, np.float32)
         if pw is not None:
             pre, post = int(pw["window_pre"]), int(pw["window_post"])
             for k, rec in pw["episodes"].items():
@@ -46,9 +48,16 @@ def main():
                 w[m] = a.poison_weight
         t = t.append_column("sample_weight", pa.array(w, type=pa.float32()))
         pq.write_table(t, f)
-        tot += len(w); down += int((w < 1).sum())
-        print(f"{f}: {len(w)} rows, {int((w < 1).sum())} down-weighted")
-    print(f"DONE {a.root}: {tot} rows, {down} down-weighted ({100 * down / max(tot, 1):.2f}%)")
+        tot += len(w); down += int((w < a.default_weight).sum())
+        print(f"{f}: {len(w)} rows, {int((w < a.default_weight).sum())} down-weighted")
+    print(f"DONE {a.root}: {tot} rows, {down} down-weighted ({100 * down / max(tot, 1):.2f}%), default weight {a.default_weight}")
+    # register the column (LeRobot rejects unregistered parquet columns; surfaces as a bogus HF 401)
+    ip = pathlib.Path(a.root) / "meta" / "info.json"
+    info = json.loads(ip.read_text())
+    if "sample_weight" not in info["features"]:
+        info["features"]["sample_weight"] = {"dtype": "float32", "shape": [1], "names": None}
+        ip.write_text(json.dumps(info, indent=4))
+        print(f"registered sample_weight in {ip}")
 
 
 main()

@@ -28,3 +28,5 @@ Validated on d20: converts cleanly; right-EE-to-button 0.427 m at frame 0 -> 0.1
 Meta carries the causal-honesty certificate (first_contact, radio_disp_approach) + verified weld + bit-exact re-render.
 Covers the reachable subset (arm+trunk, pull <= ~0.55 m); demos with larger rig pulls (d10: 1.04 m) need the base-drive variant.
 Arm A5 = A1 + factory + episodes + approach. Known residual: in-hand attitude ~13 deg off the demo grip (v5 recipe; v7 fixes).
+
+**A5 data is READY (2026-09-06):** `b1k_radio_approach` = 12 honest pre-contact approach episodes / 6,942 frames, on HF arif101/b26-radio-manufactured:b1k_radio_approach. Validated: gt_depth_ds + sample_weight present, right-EE-to-button starts 0.36m (approach present), stage 54/46. Covers the mainstream-upright demo subset (high-yaw instances did not generalize). Pull it, add_sample_weights.py --root /root/b1k_radio_approach, include as A5 = A4 + approach.

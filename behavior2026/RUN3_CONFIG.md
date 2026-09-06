@@ -63,3 +63,21 @@ ckpt and push the newest params off-box to `arif101/b26-run3-params/<arm>/ckpt_<
 ≤2 auto-resumes; finalize = upload `<arm>/params`, `<arm>/assets`, `<arm>/provenance/`
 (logs, preflight JSON), verify ≥10 GB, slim local to params-only. Any failure stops the
 driver (`RUN3_DRIVER_FAILED`).
+
+## Bring-up log 2026-09-06 (token landed 03:00 UTC; all gates green)
+- Downloads: map backup 6.3 G, manufactured 34 G (incl. raw segments), Run-2 params+assets 12 G — 4 min.
+- Prep: dry run **296 eps / 464,242 frames** (exact); map 10,000 rows (2.33 %) → 0.1; factory 4.78;
+  episodes 2.0. Mixes: a1 200/429,928 · a2 238/439,448 · a3 258/454,722 · a4 296/464,242.
+- Holdout provenance: raw factory segments = demos {10,20,40,...,420} (38 demos), **no d200**;
+  instance 301 is an eval instance and never enters any mix. Manufactured `raw_episode_id = -1`.
+- Preflight A: run3 model tree == Run-2 checkpoint tree (92 leaves, nothing fresh).
+- Preflight B (real sampler weights read back; stage oversample ×8 on strict 1→2 transitions):
+
+| arm | frames | poison rows | source → effective sampling mass (mean w) |
+|---|---|---|---|
+| a0 | 429,928 | none (0 %) | map 100 % (1.21) |
+| a1 | 429,928 | 2.33 % at 0.1 | map 100 % (1.13) |
+| a2 | 439,448 | 2.28 % | map 81.7 % (1.13) · factory **18.3 %** (11.4) |
+| a3 | 454,722 | 2.15 % | map 84.2 % · episodes 15.8 % (3.67) |
+| a4 | 464,242 | 2.15 % | map 70.9 % · factory 15.9 % · episodes 13.3 % |
+  (factory mean weight 11.4 = 4.78 × the ×8 oversample landing on the clips' own grasp transitions.)

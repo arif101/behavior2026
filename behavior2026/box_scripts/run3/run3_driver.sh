@@ -24,7 +24,7 @@ say(){ echo "[driver $(date -u +%m-%dT%H:%M:%S)] $*" | tee -a $DRV; }
 committed_steps(){ ls -d $CKDIR/*/ 2>/dev/null | grep -v "orbax-checkpoint-tmp" | sed "s|$CKDIR/||; s|/||" | grep -E "^[0-9]+$" | sort -n; }
 launch(){
   cd $FORK
-  setsid nohup env $ENVS XLA_PYTHON_CLIENT_MEM_FRACTION=0.92 \
+  setsid nohup env $ENVS PYTHONUNBUFFERED=1 XLA_PYTHON_CLIENT_MEM_FRACTION=0.92 \
     $PY scripts/b1k/train_b1k.py $CFG --exp_name $EXP --keep-period $KEEP --no-wandb-enabled $1 >> $LOG 2>&1 &
   echo $! > $LOGDIR/$ARM.pid
   say "$ARM: launched pid=$(cat $LOGDIR/$ARM.pid) args='$1' env='$ENVS'"

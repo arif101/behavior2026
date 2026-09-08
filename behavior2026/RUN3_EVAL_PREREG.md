@@ -66,3 +66,33 @@ not from the video. **n = 25 rollouts per arm, same seeds across arms, default t
 - First eval on each arm's FINAL checkpoint only; mid-checkpoint evals are exploratory.
 - Eval needs an RT-core sim box (`/setup-sim-box`); the A100 trainer never renders.
 - Checkpoints leave the box continuously (arif101/b26-run3-params/<arm>/...).
+
+## Serving-spec clarification (logged 2026-09-08, before any Run-3 arm rollout; no bar changes)
+Driver: `behavior2026/box_scripts/run3/run3_eval_arm.sh` (serve line from rate_legal.sh, eval loop
+from campaign_run1.sh — the committed Run-2 pieces). Identical for every arm:
+- Wrapper `behavior2026_eval.affordance_map_fullres.AffordanceMapFullRes` (+ patch_wrapper_arms):
+  LEGAL affordance-head target points → AdaLN, online FoveatedMap → map tokens. NOT the oracle
+  wrapper (sim-state reads; G3 diagnostic only) and NOT the default EnvironmentWrapper (delivers
+  no points: the policy then gets the null sentinel and wanders — the "drives to the TV" failure).
+- Evaluator must carry patch_point_passthrough + patch_map_passthrough2: without them the wrapper's
+  target_points/map_tokens are dropped before the websocket payload (measured, docstring).
+- `MAP_ARM=B` (live map tokens). Ambiguity on record: RUN2_EVAL_REPORT says "prefix map tokens
+  zeroed" AND "live FoveatedMap geometry → AdaLN", but both routes read the same `obs.map_tokens`
+  array (pi0.py), so the committed code can only deliver both-live (MAP_ARM=B) or both-zero
+  (MAP_ARM=A); the only mechanism for prefix-null + geometry-live is `MAP_TOKENS_INVISIBLE=1` on
+  the server. Choice for Run-3: MAP_ARM=B, flag unset — the training-time observation convention
+  (tokens present with live content 70 % of the time, zeros under dropout); the frozen prefix route
+  contributes through map_alpha = 0.036 (read from the params, identical in run2@49999 and a0)
+  exactly as in training. Harness validity is established by reproducing Run-2's approach on the
+  Run-2 checkpoint under this same config BEFORE any arm is scored.
+- `--policy.config pi05_radio_run2` (architecturally identical; serve-time it only supplies model
+  flags, transforms, asset_id) with `--repo-id b1k_radio` (REQUIRED: default is the task name and
+  would resolve the wrong assets path); `--policy.dir` = `<arm>/` from HF (params/ +
+  assets/b1k_radio/norm_stats.json, md5 a6053883b29666925566ec02c433e562 = Run-2's stats, identical
+  across arms). Serving tree = /root/openpi_fork built by serve_run2.sh (NOT /root/openpi_adaln,
+  the G3/Phase-A tree without stage_head/map_geo/depth_aux modules).
+- No `--max-steps` (task default 3,225 steps, as Run-2). `run_eval_arm.sh`'s 500 was Phase-A only.
+- Harness validation gate (Run-2 checkpoint, this config, ≥5 rollouts): affordance stats
+  n_inject > 0 with conf_p50 ≈ 0.7–0.8; per-rollout min EE-to-target ≤ ~0.15 m (Run-2 rollouts
+  worked the 5–10 cm shell); campaign minimum over 25 was L 0.021 / R 0.030 m. 0.5–0.8 m = no
+  points delivered. Metric = EE-to-affordance-target (radio), the wrapper's dist_L/dist_R series.

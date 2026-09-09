@@ -111,3 +111,23 @@ PASS: tree identity; effective mass map 67.6 % · factory 15.1 % · episodes 12.
 ## Progress
 - A0 DONE 2026-09-06 19:02 UTC — 14,999 steps, 3.6 s/it, loss 0.029→0.017; `arif101/b26-run3-params/a0/`.
 - A2 launched 19:02 UTC (loader lines verified); ETA ≈ 10:10 UTC 09-07. Then a1 → a3 → a4 → a5.
+
+## A4 DONE · A5 VOID (2026-09-09)
+- A4 finalized 08:21 UTC (loss →0.017; `arif101/b26-run3-params/a4/`). Four arms + control on HF: a0 a1 a2 a3 a4.
+- **A5 diverged from step 0 (loss 6.4e7, grad norm 2e4; 4e8 by step 1600) and was stopped at 10:24 UTC;
+  no checkpoint was written; the run dir was removed.** Root cause (measured, `normcheck.py` /
+  `torsocheck.py` in box_scripts/run3): Run-2's action norm stats have **std = 6.38e-10 on action dim 6
+  (torso joint 4)** — every teleop demo holds it at exactly 0, factory/episode clips too — while the
+  approach clips command it over **−0.30…1.76 rad on 54 % of frames, all 12 episodes** (action == state
+  d56, corr 1.000: the 11-DOF servo's trunk flex lives on that joint). openpi normalizes by
+  (std + 1e-6) → targets ≈ 1.8e6 → loss ≈ 1e7–1e8. Every other column of the approach parquet is in
+  range (schema-identical, no NaN/inf).
+- Consequence beyond normalization: the served policy un-normalizes dim 6 with the same std, so it can
+  NEVER output that joint — the approach clips teach a trunk-flex the policy's action space cannot
+  execute. Fix options: (1) re-manufacture the approach clips with torso joint 4 locked at 0 (the
+  demo convention; arm 7 + torso 1–3 = 10 DOF) — the principled fix; (2) stopgap: zero action dim 6
+  (and state d56) in the approach parquet and rerun a5 prep + preflight — trains, but the observed
+  trunk poses are then unexplained by the labels. Not chosen unilaterally; trainer idle (GPU 0 %).
+- A5 preflight (which draws one batch and checks depth/stage/points) did not catch this: add a
+  per-source **max |normalized action| / |normalized state| gate** to preflight_run3.py before any
+  future source is admitted (threshold e.g. 50).

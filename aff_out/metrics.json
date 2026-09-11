@@ -1,0 +1,19 @@
+{
+ "n_visible_evald": 3160,
+ "conf_auc": 0.917,
+ "all": {
+  "median_cm": 2.89,
+  "p90_cm": 8.67,
+  "n": 3160
+ },
+ "near_1p5m": {
+  "median_cm": 2.88,
+  "p90_cm": 8.63,
+  "n": 3155
+ },
+ "far": {
+  "median_cm": 23.27,
+  "p90_cm": 26.03,
+  "n": 5
+ }
+}

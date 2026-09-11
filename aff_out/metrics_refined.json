@@ -1,0 +1,16 @@
+{
+ "hard": {
+  "median_cm": 2.89,
+  "p90_cm": 8.67,
+  "frac_under_2cm": 0.328,
+  "frac_under_5cm": 0.742,
+  "n": 3160
+ },
+ "soft": {
+  "median_cm": 2.6,
+  "p90_cm": 8.03,
+  "frac_under_2cm": 0.366,
+  "frac_under_5cm": 0.774,
+  "n": 3160
+ }
+}

@@ -53,3 +53,20 @@ autonomously -> generates more honest full-task episodes -> better data).
 3. Retrain from Run-2 init on the idle A100 (add_stage_labels + button target + gated history).
 4. Re-eval on the button-aware harness. Success = a hand drives <5cm to the toggle and turns it on.
 5. Strengthen grasp in the same mix (grasp is only ~10%; it caps success even once press works).
+
+## Full-stack build (one retrain, per user 2026-09-12) — status
+Target: stage-cond + progress-cond + temporal forcing + granular stage-dependent targets, ONE retrain.
+- [x] F2 stage_conditioning: config flag ON + b1k_policy derives stage_tokens from 'stage' (was zeros=no-op). CODE READY.
+- [x] progress_conditioning: NEW flag; sinusoidal scalar -> zero-init MLP -> adaRMS (mirrors point/stage); progress already plumbed by the stage_head branch. CODE READY (config pi05_radio_press has it on).
+- [ ] Granular targets: grasp-stage -> radio centroid (from captured objpose_radio), press-stage -> togglebutton metalink. Switch target_points by stage in the data repack + eval wrapper. (Optional upgrade: a grasp affordance if the radio lacks a grasp metalink — needs a sim check.) DATA/CPU + wrapper.
+- [ ] Temporal forcing (the crux, multi-day): 
+      * Observation: add history field (last K frames' prefix features/tokens) + serve-side ring buffer.
+      * pi0.py: retain past prefix KV; add a ZERO-INIT GATED cross-frame attention pathway so the action
+        expert attends to history KV alongside the current-frame kv_cache (line ~593). Zero-init gate =>
+        no-op at start, safe graft onto the pretrained (A4) checkpoint; model LEARNS to use history.
+      * 4D alignment loss: supervise temporal/spatial consistency of the cross-frame features.
+      * compute_loss + sample_actions: thread history through both train and serve.
+      NOTE: this is real transformer surgery + needs its own smoke + likely a short validation run;
+      it is the item most likely to need iteration. A100 stays DOWN until the whole stack smoke-tests.
+- [ ] Combined config: add temporal-forcing + granular-target flags to pi05_radio_press when built.
+- [ ] Smoke-test each component (build model, dummy forward, verify zero-init no-op + finite) BEFORE the retrain.

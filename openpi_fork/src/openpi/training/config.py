@@ -1064,6 +1064,7 @@ _CONFIGS = [
             point_conditioning=True,
             point_noise_std=0.02,
             stage_conditioning=True,   # <-- THE FIX (was False/default for all Run-3 arms)
+            progress_conditioning=True,   # continuous [0,1] progress into adaRMS (code ready)
             map_tokens_k=8,
             anti_shortcut=False,
             modality_dropout_p=0.2,

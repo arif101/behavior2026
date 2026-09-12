@@ -315,26 +315,40 @@ def create_b1k_data_loader(
     # ACQUIRE->MANIPULATE boundary (grasp-descent initiations). Env-gated for clean A/B.
     sampler = None
     _ov = float(os.environ.get("B1K_STAGE_OVERSAMPLE", "0") or 0)
-    if _ov > 1 and shuffle:
+    # Per-frame sample weights (Run-3, poison_windows.json): a `sample_weight`
+    # parquet column (1.0 default; rigged-grasp windows down-weighted) multiplied
+    # into the sampler. Env-gated: B1K_SAMPLE_WEIGHT_COL=sample_weight enables.
+    _swc = os.environ.get("B1K_SAMPLE_WEIGHT_COL", "")
+    if (_ov > 1 or _swc) and shuffle:
         import glob as _glob
 
         import numpy as _np
         import pyarrow.parquet as _pq
         import torch.utils.data as _tud
 
-        _eps, _stg = [], []
+        _eps, _stg, _sws = [], [], []
         for _fp in sorted(_glob.glob(os.path.join(data_config.dataset_root, "data", "**", "*.parquet"),
                                      recursive=True)):
-            _t = _pq.read_table(_fp, columns=["episode_index", "stage"])
+            _cols = ["episode_index", "stage"]
+            _has_sw = bool(_swc) and _swc in _pq.ParquetFile(_fp).schema_arrow.names
+            _t = _pq.read_table(_fp, columns=_cols + ([_swc] if _has_sw else []))
             _eps.append(_t["episode_index"].to_numpy())
             _stg.append(_t["stage"].to_numpy())
+            _sws.append(_t[_swc].to_numpy().astype(_np.float64) if _has_sw
+                        else _np.ones(len(_t), _np.float64))
         _eps = _np.concatenate(_eps)
         _stg = _np.concatenate(_stg)
+        _sw = _np.concatenate(_sws)
         _w = _np.ones(len(_stg), _np.float64)
         _trans = _np.where((_stg[1:] == 2) & (_stg[:-1] == 1) & (_eps[1:] == _eps[:-1]))[0] + 1
-        for _ti in _trans:
-            _lo, _hi = max(0, _ti - 25), min(len(_w), _ti + 26)
-            _w[_lo:_hi] = _ov
+        if _ov > 1:
+            for _ti in _trans:
+                _lo, _hi = max(0, _ti - 25), min(len(_w), _ti + 26)
+                _w[_lo:_hi] = _ov
+        _w = _w * _sw
+        if _swc:
+            print(f"[sample-weight] column {_swc}: {(_sw < 1).mean():.2%} of frames down-weighted "
+                  f"(min {_sw.min():.2f})")
         _n = len(dataset)
         assert _n == len(_w), f"sampler/dataset misalignment: {_n} vs {len(_w)}"
         sampler = _tud.WeightedRandomSampler(_w.tolist(), num_samples=_n, replacement=True)

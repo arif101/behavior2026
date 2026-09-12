@@ -750,6 +750,69 @@ class TrainConfig:
 
 
 # Use `get_config` if you need to get a config by name in your code.
+
+# ---- RUN 3 (patch_run3_configs.py): pre-registered DATA arms -------------------------------------
+# Identical model / optimizer / schedule / seed / batch / steps; all warm-started from the
+# Run-2 final params (arif101/b26-run2-params @49999, every module present => missing_regex
+# admits nothing but lora). Norm stats = Run-2's, copied per arm (NOT recomputed per mix, so
+# input normalisation is identical across arms and matches the init checkpoint).
+# Launch env: B1K_STAGE_OVERSAMPLE=8 for every arm (Run-2 setting);
+#             B1K_SAMPLE_WEIGHT_COL=sample_weight for a1..a5, UNSET for a0.
+_RUN3_STEPS = 15000
+_RUN3_WARMUP = 500
+_RUN3_SAVE = 2500
+_RUN3_WARMSTART = "/root/warmstart_run3/params"
+_RUN3_ARMS = {
+    "a0": "/root/b1k_radio_mix_a1",  # map only, NO poison down-weight (control / floor)
+    "a1": "/root/b1k_radio_mix_a1",  # map only + poison down-weight (sample_weight col)
+    "a2": "/root/b1k_radio_mix_a2",  # a1 + b1k_radio_factory   (honest grasp+transport)
+    "a3": "/root/b1k_radio_mix_a3",  # a1 + b1k_radio_episodes  (honest grasp + learned press)
+    "a4": "/root/b1k_radio_mix_a4",  # a1 + factory + episodes  (full mix)
+    "a5": "/root/b1k_radio_mix_a5",  # a4 + b1k_radio_approach  (data lands later)
+}
+
+
+def _run3_cfg(arm: str, dataset_root: str) -> "TrainConfig":
+    return TrainConfig(
+        name=f"pi05_radio_run3_{arm}",
+        model=pi0_config.Pi0Config(
+            action_horizon=32,
+            pi05=True,
+            point_conditioning=True,
+            point_noise_std=0.02,
+            map_tokens_k=8,
+            anti_shortcut=False,
+            modality_dropout_p=0.2,
+            map_geo_conditioning=True,
+            depth_aux=True,
+            stage_head=True,
+        ),
+        data=LeRobotB1KDataConfig(
+            repo_id="b1k_radio",
+            base_config=DataConfig(
+                data_cls=_lerobot_compat.LeRobotDataset,
+                dataset_root=dataset_root,
+                prompt_from_task=True,
+                dataset_kwargs={"tolerance_s": 5e-4},
+            ),
+            robot_config_name="b1k/R1Pro",
+            extra_delta_transform=False,
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(_RUN3_WARMSTART, missing_regex=".*lora.*"),
+        freeze_filter=nnx_utils.PathRegex(".*map_(proj|registers|alpha|recon).*"),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=_RUN3_WARMUP, peak_lr=2.5e-5, decay_steps=_RUN3_STEPS, decay_lr=2.5e-6),
+        batch_size=32,
+        num_train_steps=_RUN3_STEPS,
+        save_interval=_RUN3_SAVE,
+        log_interval=100,
+        num_workers=8,
+        exp_name=f"radio_run3_{arm}",
+        assets_base_dir="./outputs/assets",
+        checkpoint_base_dir="./outputs/checkpoints",
+    )
+
+
 _CONFIGS = [
     #
     # Inference Aloha configs.
@@ -1048,6 +1111,7 @@ _CONFIGS = [
         assets_base_dir="./outputs/assets",
         checkpoint_base_dir="./outputs/checkpoints",
     ),
+    *[_run3_cfg(_a, _r) for _a, _r in _RUN3_ARMS.items()],  # patch_run3_configs
     TrainConfig(
         # PRESS FIX (2026-09-12): A4 recipe (map + factory + episodes + poison-downweight) with
         # stage_conditioning ENABLED — the one flag that was OFF for every Run-3 arm. Feeds the

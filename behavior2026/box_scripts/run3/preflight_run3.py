@@ -95,6 +95,24 @@ def main(arms):
             assert (w < 1).sum() == 0, "a0 must not be down-weighted"
         else:
             assert (w < 1).sum() > 0, f"{arm}: expected poison down-weighting"
+        # NORMALIZED-MAGNITUDE GATE (added 2026-09-12 after the A5 divergence): a source whose
+        # action/state differs on a dim that is ~constant in the norm stats (std ~ 1e-10, e.g. torso
+        # joint 4) normalizes to ~1e6 and blows the loss up from step 0. Fail early, per source.
+        import json as _json
+        _ns = _json.loads((pathlib.Path(cfg.assets_dirs) / "b1k_radio" / "norm_stats.json").read_text())["norm_stats"]
+        _am, _as = np.asarray(_ns["actions"]["mean"]), np.asarray(_ns["actions"]["std"])
+        _sm, _ss = np.asarray(_ns["state"]["mean"]), np.asarray(_ns["state"]["std"])
+        import pyarrow.compute as _pc
+        for s in srcs:
+            _fs = sorted(glob.glob(str(pathlib.Path(s["source"]) / "data" / "**" / "*.parquet"), recursive=True))
+            _t = pq.read_table(_fs[0], columns=["action", "observation.state"])
+            _a = _pc.list_flatten(_t["action"]).to_numpy(zero_copy_only=False).reshape(_t.num_rows, -1)
+            _st = _pc.list_flatten(_t["observation.state"]).to_numpy(zero_copy_only=False).reshape(_t.num_rows, -1)
+            _za = np.abs((_a[:, :_am.size] - _am) / (_as + 1e-6)).max(0)
+            _zs = np.abs((_st[:, :_sm.size] - _sm) / (_ss + 1e-6)).max(0)
+            _bad = [(f"action d{i}", float(v)) for i, v in enumerate(_za) if v > 50] + [(f"state d{i}", float(v)) for i, v in enumerate(_zs) if v > 5000]
+            assert not _bad, f"{arm}: {pathlib.Path(s['source']).name} has normalized magnitudes that would explode the loss: {_bad}"
+            print(f"    norm-gate {pathlib.Path(s['source']).name:22s} max|z| action {_za.max():.1f} state {_zs.max():.1f}", flush=True)
         obs, act = next(iter(dl))
         gd = np.asarray(obs.gt_depth)
         assert gd.shape[-1] == 768 and (gd > 0).mean() > 0.5, f"gt_depth implausible {gd.shape} valid {(gd>0).mean():.3f}"

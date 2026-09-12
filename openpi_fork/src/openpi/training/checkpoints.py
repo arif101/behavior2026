@@ -79,12 +79,16 @@ def save_state(
     # Split params that can be used for inference into a separate item.
     with at.disable_typechecking():
         train_state, params = _split_params(state)
-    items = {
-        "assets": save_assets,
-        "train_state": train_state,
-        "params": {"params": params},
-    }
-    checkpoint_manager.save(step, items)
+    # patch_pinned_ckpt: pinned-host D2H transfer (default pageable path crawled at ~10 MB/s on a
+    # single-GPU box: 70 min per save; pinned = 33 s). Same on-disk format; restore unchanged.
+    checkpoint_manager.save(
+        step,
+        args=ocp.args.Composite(
+            assets=CallbackSave(save_assets),
+            train_state=ocp.args.PyTreeSave(train_state, enable_pinned_host_transfer=True),
+            params=ocp.args.PyTreeSave({"params": params}, enable_pinned_host_transfer=True),
+        ),
+    )
 
 
 def restore_state(

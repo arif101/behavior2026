@@ -1149,7 +1149,7 @@ _CONFIGS = [
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
             "/root/ckpt_a4/a4/params",   # warm-start from A4 (keeps the grasp); confirm path on training box
-            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*",
+            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
         ),
         freeze_filter=nnx_utils.PathRegex(".*map_(proj|registers|alpha|recon).*"),
         batch_size=32,

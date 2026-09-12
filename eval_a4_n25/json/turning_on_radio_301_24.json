@@ -1,0 +1,13 @@
+{
+  "task": "turning_on_radio",
+  "instance_id": 301,
+  "rollout_id": 24,
+  "steps": 3225,
+  "success": false,
+  "grasp_completed": false,
+  "fingertip_min_m": 0.5491,
+  "ee_button_min_m": 0.5576,
+  "q_score": {
+    "final": 0.0
+  }
+}

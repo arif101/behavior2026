@@ -1,0 +1,338 @@
+{
+  "summary": {
+    "arm": "a0",
+    "n": 25,
+    "grasp_completed": 0,
+    "success": 0,
+    "fingertip_min_median": 0.3091,
+    "fingertip_min_best": 0.1457,
+    "ee_button_min_best": 0.151
+  },
+  "rows": [
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 0,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.1457,
+      "ee_button_min_m": 0.1976,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 1,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3666,
+      "ee_button_min_m": 0.3626,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 10,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3591,
+      "ee_button_min_m": 0.3572,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 11,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3017,
+      "ee_button_min_m": 0.2991,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 12,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.4535,
+      "ee_button_min_m": 0.4467,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 13,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3275,
+      "ee_button_min_m": 0.3264,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 14,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.7035,
+      "ee_button_min_m": 0.718,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 15,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.1549,
+      "ee_button_min_m": 0.151,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 16,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.4361,
+      "ee_button_min_m": 0.3889,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 17,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.2929,
+      "ee_button_min_m": 0.3166,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 18,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3373,
+      "ee_button_min_m": 0.3324,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 19,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3034,
+      "ee_button_min_m": 0.2858,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 2,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.213,
+      "ee_button_min_m": 0.171,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 20,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.1917,
+      "ee_button_min_m": 0.2736,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 21,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.2342,
+      "ee_button_min_m": 0.2153,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 22,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3334,
+      "ee_button_min_m": 0.3055,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 23,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3986,
+      "ee_button_min_m": 0.3976,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 24,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3088,
+      "ee_button_min_m": 0.3238,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 3,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3364,
+      "ee_button_min_m": 0.3424,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 4,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3091,
+      "ee_button_min_m": 0.3296,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 5,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3002,
+      "ee_button_min_m": 0.2971,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 6,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.258,
+      "ee_button_min_m": 0.2517,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 7,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.1827,
+      "ee_button_min_m": 0.175,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 8,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3338,
+      "ee_button_min_m": 0.3035,
+      "q_score": {
+        "final": 0.0
+      }
+    },
+    {
+      "task": "turning_on_radio",
+      "instance_id": 301,
+      "rollout_id": 9,
+      "steps": 3225,
+      "success": false,
+      "grasp_completed": false,
+      "fingertip_min_m": 0.3119,
+      "ee_button_min_m": 0.3311,
+      "q_score": {
+        "final": 0.0
+      }
+    }
+  ]
+}

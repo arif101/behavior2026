@@ -23,7 +23,11 @@ videos/
 framecheck/
 outputs/
 ckpt_run2/
-openpi_fork/
+# openpi_fork is CODE -> tracked in git. Only its build-output/binaries stay out:
+openpi_fork/outputs/
+openpi_fork/.venv/
+openpi_fork/**/__pycache__/
+openpi_fork/**/*.pyc
 poses_x/
 metalink_labels/
 behavior2026/v21_skill_films.html

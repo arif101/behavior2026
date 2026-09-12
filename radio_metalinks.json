@@ -1,0 +1,17 @@
+{
+  "radio_aabb_extent": [
+    0.14315128326416016,
+    0.32120180130004883,
+    0.23506173491477966
+  ],
+  "metalinks": {
+    "meta__base_link_togglebutton_0_0_link": {
+      "offset_root_frame": [
+        0.0447,
+        0.0421,
+        -0.0125
+      ]
+    }
+  },
+  "has_grasp_metalink": false
+}

@@ -70,3 +70,17 @@ Target: stage-cond + progress-cond + temporal forcing + granular stage-dependent
       it is the item most likely to need iteration. A100 stays DOWN until the whole stack smoke-tests.
 - [ ] Combined config: add temporal-forcing + granular-target flags to pi05_radio_press when built.
 - [ ] Smoke-test each component (build model, dummy forward, verify zero-init no-op + finite) BEFORE the retrain.
+
+## FOLDED IN (2026-09-12): approach-clip re-manufacture — attacks grasp Bottleneck 1
+Weak-grasp root cause (A4 n=25): 12/25 reach <=0.18m but only 2 grasp (17% execution), and 9/25
+STALL >0.45m (approach fails). Two bottlenecks: (1) unreliable approach [void approach clips + far
+affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by granular target].
+- Fix applied: factory_approach_cap_v10.py now LOCKS torso joint 4 (action dim 6, A_TORSO pos 3) at 0
+  after each captured trunk command/hold -> 10-DOF demo convention (arm7 + torso1-3). Backup:
+  factory_approach_cap_v10.py.pre_joint4fix. This kills the A5 divergence (degenerate-std joint 4).
+- TODO (sim): re-run the factory to regenerate the 12 approach clips (now 10-DOF), convert with the
+  granular stage-dependent targets (grasp->centroid, press->togglebutton metalink) + stage/progress
+  labels, un-quarantine, add to the mix. Then the single retrain trains on approach+factory+episodes+map.
+
+## Radio metalinks (settles grasp target): only 'togglebutton' exists (no grasp metalink).
+=> grasp-stage target = radio CENTROID (from objpose_radio); press-stage = togglebutton (radio+P_OFF).

@@ -248,6 +248,7 @@ def main():
     hold[7:14] = q[P["left"]["arm_qpos"]]
     hold[15:22] = q[P["right"]["arm_qpos"]]
     hold[A_TORSO] = q[P["trunk_qpos"]]
+    hold[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention)
     hold[22] = 1.0  # open
 
     # ---- RCAL3: 3-probe native-J row/block select (position), + angular block --
@@ -338,6 +339,7 @@ def main():
             cmd = hold.copy()
             cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]
             cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
+            cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention; A5 joint-4 degenerate-std fix)
             step_cmd(cmd)
             if tag in ("STAGE", "APPROACH", "PUSH", "ALIGN"):
                 HON["n"] += 1
@@ -397,6 +399,7 @@ def main():
         dq = np.concatenate([np.clip(dq[:7], -0.04, 0.04), np.clip(dq[7:], -0.015, 0.015)])
         q_ = q61(); cmd = hold.copy()
         cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
+        cmd[6] = 0.0  # LOCK torso joint 4 (10-DOF)
         step_cmd(cmd)
     grab("orient_end")
     ok_s2, best_s2 = servo(stage_p, tgt_R, 60, "RESTAGE")   # re-center after orienting
@@ -436,6 +439,7 @@ def main():
     q = q61()
     hold[15:22] = q[P["right"]["arm_qpos"]]
     hold[A_TORSO] = q[P["trunk_qpos"]]
+    hold[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention)
     hold[22] = -1.0
     green, gap, weld_k = 0, 0, None
     capture(hold)
@@ -491,6 +495,7 @@ def main():
         cmd = hold.copy()
         cmd[15:22] = q_[P["right"]["arm_qpos"]] + np.clip(dqa, -0.08, 0.08)
         cmd[A_TORSO] = q_[P["trunk_qpos"]] + dqt
+        cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention; A5 joint-4 degenerate-std fix)
         step_cmd(cmd)
         if k2 % 10 == 0:
             print(f"POSTURE k={k2} trunk_err={np.abs(tr_demo - q61()[P['trunk_qpos']]).max():.3f} "

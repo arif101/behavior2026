@@ -118,10 +118,10 @@ new_gate = '''    q = q61()
     stage_p = tgt_p + 0.20 * stage_dir_w          # base landing point: 20 cm back along the corridor (the gripper is
                                                   # longer than 10 cm; at 10 cm side-approaches started in contact)
 
-    def hand_drive(target_hand_p, tag, max_steps=900):
+    def hand_drive(target_hand_p, tag, max_steps=900, tol=0.03):
         """Drive the base so the (held) hand lands at target_hand_p (planar); returns drive_base's result."""
         pB, _ = base_xy_yaw(); goal = pB[:2] + (np.asarray(target_hand_p)[:2] - poseR()[0][:2])
-        return drive_base(goal, tag, watch_radio=pRest.copy(), max_steps=max_steps)
+        return drive_base(goal, tag, watch_radio=pRest.copy(), max_steps=max_steps, tol=tol)
 
     grab("predrive")
     CAP[0] = True                                  # the base approach IS part of the manufactured clip
@@ -223,13 +223,13 @@ rep('''        cmd[A_TORSO] = q_[P["trunk_qpos"]] + dqt
 
 rep('''    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6)
     grab("approach_end")
-''', '''    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6)
+''', '''    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6, done=0.025)
     if not ok_a and best_a < 0.10:
         # v11: the arm stalled short (joint limits at the demo's extended closure posture; d110 4 cm short):
         # let the BASE close the planar residual, then retry the gated arm approach for the rest
-        okb2, leftb2, nb2 = hand_drive(tgt_p, "BASE_APPROACH", max_steps=300)
+        okb2, leftb2, nb2 = hand_drive(tgt_p, "BASE_APPROACH", max_steps=300, tol=0.01)
         print(f"BASE_APPROACH ok={okb2} left={leftb2:.3f} steps={nb2}", flush=True)
-        ok_a, best_a = servo(tgt_p, tgt_R, 80, "APPROACH", stride=0.006, w_orn=0.6)
+        ok_a, best_a = servo(tgt_p, tgt_R, 80, "APPROACH", stride=0.006, w_orn=0.6, done=0.025)
     grab("approach_end")
 ''')
 

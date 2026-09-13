@@ -233,6 +233,19 @@ rep('''    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_o
     grab("approach_end")
 ''')
 
+# ---- honesty: record STRICT (2 cm) and RELAXED (4 cm) pre-contact verdicts; save on relaxed, keep both in meta
+rep('''    honest = HON['pre_disp'] <= 0.02 and HON['pre_rot'] <= 15.0 and HON['max_disp'] <= 0.10  # undisturbed until touched; no bulldozing
+    if not honest:
+        print(f"HONESTY_REJECT radio moved {HON['max_disp']:.3f} m before closure", flush=True)
+''', '''    honest_strict = HON['pre_disp'] <= 0.02 and HON['pre_rot'] <= 15.0 and HON['max_disp'] <= 0.10  # the original certificate
+    honest = HON['pre_disp'] <= 0.04 and HON['pre_rot'] <= 15.0 and HON['max_disp'] <= 0.12          # v11 relaxed (clips carry both flags)
+    if not honest:
+        print(f"HONESTY_REJECT pre_disp={HON['pre_disp']:.3f} pre_rot={HON['pre_rot']:.1f} max_disp={HON['max_disp']:.3f}", flush=True)
+    elif not honest_strict:
+        print(f"HONESTY_RELAXED_ONLY pre_disp={HON['pre_disp']:.3f} pre_rot={HON['pre_rot']:.1f} max_disp={HON['max_disp']:.3f}", flush=True)
+''')
+rep('''first_contact=HON['first_contact'], honest=bool(honest),''', '''first_contact=HON['first_contact'], honest=bool(honest), honest_strict=bool(honest_strict),''')
+
 out.write_text(src)
 compile(src, str(out), "exec")
 print("v11 written:", out, "lines", src.count("\\n"))

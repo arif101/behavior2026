@@ -84,3 +84,19 @@ affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by 
 
 ## Radio metalinks (settles grasp target): only 'togglebutton' exists (no grasp metalink).
 => grasp-stage target = radio CENTROID (from objpose_radio); press-stage = togglebutton (radio+P_OFF).
+
+## 2026-09-13 — approach data: torso joint 4 stays LOCKED; the reach comes from the BASE (v11)
+- Joint 4 is exactly 0 in all 430k demo frames (the demos flex joints 1-3 only), so the policy never needs
+  it; the old approach clips used it only because the factory's 11-DOF servo found reach there. Keeping the
+  lock, the reach shortfall is covered the way the humans covered it: `factory_approach_cap_v11.py` drives
+  the holonomic base along the pull line to a 15 cm standoff (BCAL in-place calibration, closed loop,
+  honesty-tracked, aborts if the radio moves), runs the unchanged staging/servo/closure/weld, then drives
+  back to the demo's stance with the radio in hand before the demo's transport replay. The drive IS part of
+  the captured clip (base actions + base_pose recorded).
+- ROOT CAUSE of "the base cannot be driven in playback": the OmniGibson playback wrapper hard-codes 1000 Hz
+  stepping; `patch_playback_freqs.py` (honours OG_PLAYBACK_REAL_FREQS=1) was NOT applied on the new box.
+  Measured: demo action replay moved the base 0.009 m over 40 frames vs 0.252 m recorded; after the patch
+  0.257 m (exact). Every restore-and-control script assumes the patch; simbox_bringup_v6.sh now applies it.
+  The 09-13 snapshot bank was built WITHOUT it (settle checks time-dilated) and is being rebuilt.
+- d10 (pull 1.04 m, previously SKIP_REACH): v11 drive 1.04 m in 131 steps, radio displacement 0.000,
+  hand->grasp-pose gap 0.99 -> 0.135 m at the standoff. Sweep yield pending.

@@ -68,6 +68,9 @@ grep -n 'name="robot_r1"' src/openpi/configs/robots/b1k.py | head -1
 BS=$REPO/behavior2026/box_scripts
 sed -i "s|/root/bw/BEHAVIOR-1K|$BW/BEHAVIOR-1K|g" $BS/patch_point_passthrough.py $BS/patch_map_passthrough2.py $BS/patch_action_logger.py 2>/dev/null
 for p in patch_point_passthrough patch_map_passthrough2 patch_action_logger; do python3 $BS/$p.py; done
+# playback-frequency patch: WITHOUT it every restore-and-control script (snapshot bank, factories) runs at
+# 1000 Hz stepping -> control time-dilated ~33x (base crawls, weld streaks last 0.3 s). Found 2026-09-13.
+OG_DATA_WRAPPER=$BW/BEHAVIOR-1K/OmniGibson/omnigibson/envs/data_wrapper.py python3 $BS/patch_playback_freqs.py
 mkdir -p /root/behavior2026_eval && touch /root/behavior2026_eval/__init__.py
 cp $REPO/behavior2026/eval/*.py /root/behavior2026_eval/
 python3 $BS/patch_wrapper_arms.py

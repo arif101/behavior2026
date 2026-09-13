@@ -279,7 +279,7 @@ def main():
             if watch_radio is not None:
                 _d = float(np.linalg.norm(radio_pose()[0] - watch_radio))
                 HON["pre_disp"] = max(HON["pre_disp"], _d); HON["max_disp"] = max(HON["max_disp"], _d)
-                if _d > 0.02:
+                if _d > 0.012:   # abort BELOW the 2 cm honesty certificate (d20 grazed to 2.13 cm and was rejected)
                     print(f"{tag} RADIO_TOUCHED it={it} disp={_d:.3f} dist={dist:.3f} -- stopping the drive", flush=True)
                     return False, dist, it
             moved = float(np.linalg.norm(base_xy_yaw()[0][:2] - pB[:2]))
@@ -296,46 +296,56 @@ def main():
     pull_h = np.array([pull[0], pull[1], 0.0])
     drive_dist = float(np.linalg.norm(pull_h))
     BASE = {"driven": False, "dist": 0.0, "steps": 0, "back_ok": None, "back_steps": 0, "gap_after": gap0}
+    HON = {"pre_disp": 0.0, "max_disp": 0.0}   # honesty accumulator for the base phases (folded into phase A's HON)
+    # BCAL: probe the two planar command channels for 8 steps each -> m/step per unit command (always)
+    Kc = []
+    for ch in (0, 1):
+        p0, y0 = base_xy_yaw(); pr = hold.copy(); pr[ch] = 0.15
+        for _ in range(8):
+            wrapper.env.step(pr); cmds_log.append(pr.copy())
+        p1, _ = base_xy_yaw(); dw = (p1[:2] - p0[:2]) / 8.0 / 0.15
+        c, s = np.cos(y0), np.sin(y0)
+        Kc.append(np.array([c * dw[0] + s * dw[1], -s * dw[0] + c * dw[1]]))  # base-frame m/step per unit
+        for _ in range(8):
+            wrapper.env.step(hold); cmds_log.append(hold.copy())
+    Kmat = np.stack(Kc, 1)
+    try:
+        BCAL_K = np.linalg.inv(Kmat) * np.linalg.norm(Kmat, ord=2)
+    except np.linalg.LinAlgError:
+        BCAL_K = np.eye(2)
+    print(f"BCAL base m/step per unit cmd: ch0 {np.round(Kc[0], 4).tolist()} ch1 {np.round(Kc[1], 4).tolist()}", flush=True)
+    drive_base(pB_demo[:2], "BCAL_RESET", tol=0.01, max_steps=200)
+    stage_p = tgt_p + 0.10 * stage_dir_w          # the approach corridor's staging point (as phase A)
+
+    def hand_drive(target_hand_p, tag, max_steps=900):
+        """Drive the base so the (held) hand lands at target_hand_p (planar); returns drive_base's result."""
+        pB, _ = base_xy_yaw(); goal = pB[:2] + (np.asarray(target_hand_p)[:2] - poseR()[0][:2])
+        return drive_base(goal, tag, watch_radio=pRest.copy(), max_steps=max_steps)
+
+    grab("predrive")
+    CAP[0] = True                                  # the base approach IS part of the manufactured clip
+    # A0.1: the rig's pull, minus a standoff (d10: arriving on the grasp pose nudged the radio 4 cm)
     if gap0 > TARGET_GAP and 0.05 < drive_dist <= MAX_DRIVE:
-        # BCAL: probe the two planar command channels for 8 steps each -> m/step per unit command
-        Kc = []
-        for ch in (0, 1):
-            p0, y0 = base_xy_yaw(); pr = hold.copy(); pr[ch] = 0.15
-            for _ in range(8):
-                wrapper.env.step(pr); cmds_log.append(pr.copy())
-            p1, _ = base_xy_yaw(); dw = (p1[:2] - p0[:2]) / 8.0 / 0.15
-            c, s = np.cos(y0), np.sin(y0)
-            Kc.append(np.array([c * dw[0] + s * dw[1], -s * dw[0] + c * dw[1]]))  # base-frame m/step per unit
-            for _ in range(8):
-                wrapper.env.step(hold); cmds_log.append(hold.copy())
-        Kmat = np.stack(Kc, 1)                       # base-frame displacement per unit command, per channel
-        try:
-            BCAL_K = np.linalg.inv(Kmat) * np.linalg.norm(Kmat, ord=2)   # command per unit base-frame direction (normalised)
-        except np.linalg.LinAlgError:
-            BCAL_K = np.eye(2)
-        print(f"BCAL base m/step per unit cmd: ch0 {np.round(Kc[0], 4).tolist()} ch1 {np.round(Kc[1], 4).tolist()}", flush=True)
-        # drive back to the exact demo stance first (the probes moved it a little), then to the goal
-        drive_base(pB_demo[:2], "BCAL_RESET", tol=0.01, max_steps=200)
-        # stop STANDOFF short of the full pull so the hand does not arrive on the radio (d10: arriving at
-        # the grasp pose nudged the radio 4 cm during the drive -> fingers closed on air)
         frac = max(0.0, 1.0 - STANDOFF / drive_dist) if drive_dist > STANDOFF + 0.05 else 0.0
-        goal_xy = pB_demo[:2] - pull_h[:2] * frac
-        HON0 = {"pre_disp": 0.0, "max_disp": 0.0}
-        HON = HON0  # temporary honesty accumulator for the drive (merged into the real HON below)
-        grab("predrive")
-        CAP[0] = True                      # the drive IS part of the manufactured clip
-        okd, left, nst = drive_base(goal_xy, "DRIVE", watch_radio=pRest.copy())
-        CAP[0] = False                     # the RCAL/TCAL probe jiggles that follow are not
-        grab("drive_end")
+        okd, left, nst = drive_base(pB_demo[:2] - pull_h[:2] * frac, "DRIVE", watch_radio=pRest.copy())
         BASE.update(driven=True, dist=drive_dist, steps=nst, drive_ok=bool(okd), dist_left=round(left, 3))
-        DRIVE_DISP = HON["pre_disp"]
-        pE0, RE0 = poseR()
-        gap0 = float(np.linalg.norm(tgt_p - pE0))
-        BASE["gap_after"] = round(gap0, 4)
-        print(f"DRIVE done ok={okd} dist={drive_dist:.3f} left={left:.3f} steps={nst} radio_disp={DRIVE_DISP:.4f} "
-              f"hand->grasp-pose gap now {gap0:.3f} m", flush=True)
-    else:
-        DRIVE_DISP = 0.0
+        print(f"DRIVE done ok={okd} dist={drive_dist:.3f} left={left:.3f} steps={nst} radio_disp={HON['pre_disp']:.4f} "
+              f"hand->grasp-pose gap now {np.linalg.norm(tgt_p - poseR()[0]):.3f} m", flush=True)
+    # A0.2: corridor RETREAT — back the whole robot 0.25 m along the approach corridor if the hand is
+    # near the radio (d20: a straight staging sweep from 0.33 m knocked the radio over)
+    if np.linalg.norm(poseR()[0] - tgt_p) < 0.45:
+        okr, leftr, nr = hand_drive(poseR()[0] + 0.25 * stage_dir_w, "BASE_RETREAT", max_steps=400)
+        BASE.update(retreat_ok=bool(okr), retreat_steps=nr)
+    # A0.3: corridor ADVANCE — land the hand on the staging point; the arm then owns only the last 10 cm
+    oka, lefta, na = hand_drive(stage_p, "BASE_STAGE", max_steps=600)
+    BASE.update(driven=True, stage_ok=bool(oka), stage_steps=na, stage_left=round(lefta, 3))
+    CAP[0] = False                                 # RCAL/TCAL probe jiggles are not part of the clip
+    grab("drive_end")
+    DRIVE_DISP = HON["pre_disp"]
+    pE0, RE0 = poseR()
+    gap0 = float(np.linalg.norm(tgt_p - pE0))
+    BASE["gap_after"] = round(gap0, 4)
+    print(f"BASE_STAGE done ok={oka} hand->stage_p {lefta:.3f} m hand->grasp-pose {gap0:.3f} m radio_disp={DRIVE_DISP:.4f}", flush=True)
     if gap0 > 0.55:
         json.dump(dict(demo=a.demo, t0=t_pre, closure=closure, K=a.K, gap0=round(gap0, 4),
                        pull=np.round(pull, 4).tolist(), base=BASE, ok=False, skip="REACH"),
@@ -394,7 +404,7 @@ def main():
     # the right eef) — the reach lever (R51): the radio's REST spot is ~35cm
     # farther than where the human's hand stopped
     Tp, Ta = [], []
-    for jch in range(3, 7):
+    for jch in range(3, 6):   # trunk joints 1-3 only (joint 4 locked)
         qs = q61(); e0, R0 = poseR()
         pr = hold.copy(); pr[15:22] = qs[P["right"]["arm_qpos"]]
         pr[A_TORSO] = qs[P["trunk_qpos"]]; pr[jch] += 0.05
@@ -435,8 +445,8 @@ def main():
             q_ = q61()
             cmd = hold.copy()
             cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]
-            cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
-            cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention; A5 joint-4 degenerate-std fix)
+            cmd[3:6] = q_[P["trunk_qpos"]][:3] + dq[7:10]
+            cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention)
             step_cmd(cmd)
             if tag in ("STAGE", "APPROACH", "PUSH", "ALIGN"):
                 HON["n"] += 1
@@ -495,7 +505,7 @@ def main():
         dq = Jst.T @ np.linalg.solve(Jst @ Jst.T + 0.02 * np.eye(6), rhs)
         dq = np.concatenate([np.clip(dq[:7], -0.04, 0.04), np.clip(dq[7:], -0.015, 0.015)])
         q_ = q61(); cmd = hold.copy()
-        cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[A_TORSO] = q_[P["trunk_qpos"]] + dq[7:]
+        cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[3:6] = q_[P["trunk_qpos"]][:3] + dq[7:10]
         cmd[6] = 0.0  # LOCK torso joint 4 (10-DOF)
         step_cmd(cmd)
     grab("orient_end")
@@ -598,13 +608,13 @@ def main():
         if np.abs(dqt).max() < 1e-3:
             break
         Jp, _ = J11()
-        pred = Jp[:, 7:] @ dqt
+        pred = Jp[:, 7:10] @ dqt[:3]
         Ja7 = Jp[:, :7]
         dqa = -Ja7.T @ np.linalg.solve(Ja7 @ Ja7.T + 0.01 * np.eye(3), pred)
         cmd = hold.copy()
         cmd[15:22] = q_[P["right"]["arm_qpos"]] + np.clip(dqa, -0.08, 0.08)
-        cmd[A_TORSO] = q_[P["trunk_qpos"]] + dqt
-        cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention; A5 joint-4 degenerate-std fix)
+        cmd[3:6] = q_[P["trunk_qpos"]][:3] + dqt[:3]
+        cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention)
         step_cmd(cmd)
         if k2 % 10 == 0:
             print(f"POSTURE k={k2} trunk_err={np.abs(tr_demo - q61()[P['trunk_qpos']]).max():.3f} "

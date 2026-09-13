@@ -1,5 +1,5 @@
 #!/bin/bash
-# Approach factory (v10 recipe, torso joint 4 LOCKED at 0 = 10-DOF demo convention) over all factory
+# Approach factory v11 (10-DOF servo, torso joint 4 locked; BASE drive-up / corridor retreat / corridor advance) over all factory
 # demos, two parallel sims. Outputs: /root/factory_obs2/rac_<demo>_200.npz (converter-ready renders,
 # 10-DOF) + /root/factory_clips_approach/ cmds+meta. Markers: /root/factory_clips_approach/dDDD.attempted.
 # Prereqs: /root/snapshot_bank_v21/manifest_d<demo>.json (G entry), /root/factory_clips/dDDD_meta.json,
@@ -17,7 +17,7 @@ run_queue(){
     echo "[q$q] d$d start $(date -u +%H:%M:%S)"
     find /tmp -mindepth 1 -maxdepth 1 -type d -user root -name 'tmp????????' -mmin +120 -exec rm -rf {} + 2>/dev/null
     OG_PLAYBACK_REAL_FREQS=1 PYTHONPATH=/root OMNI_KIT_ALLOW_ROOT=1 OMNIGIBSON_HEADLESS=1 XDG_RUNTIME_DIR=/tmp/xdg CUDA_VISIBLE_DEVICES=0 \
-      timeout 9000 $PY -u /root/factory_approach_cap_v10.py --demo $d > /root/approach_logs/d$d.log 2>&1
+      timeout 9000 $PY -u /root/factory_approach_cap_v11.py --demo $d > /root/approach_logs/d$d.log 2>&1
     rc=$?; rm -f /root/fap_tmp_$d.hdf5
     touch /root/factory_clips_approach/d$(printf %03d $d).attempted
     echo "[q$q] d$d done rc=$rc $(date -u +%H:%M:%S) $(grep -oE 'RESULT d[0-9]+ [A-Z_]+[^,]*|OBS_SAVED rac_[0-9]+_200.npz \([0-9]+ steps\)|APPROACH_HONESTY[^m]*m' /root/approach_logs/d$d.log | tail -2 | tr '\n' ' ')"

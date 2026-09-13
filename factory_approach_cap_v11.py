@@ -315,7 +315,8 @@ def main():
         BCAL_K = np.eye(2)
     print(f"BCAL base m/step per unit cmd: ch0 {np.round(Kc[0], 4).tolist()} ch1 {np.round(Kc[1], 4).tolist()}", flush=True)
     drive_base(pB_demo[:2], "BCAL_RESET", tol=0.01, max_steps=200)
-    stage_p = tgt_p + 0.10 * stage_dir_w          # the approach corridor's staging point (as phase A)
+    stage_p = tgt_p + 0.20 * stage_dir_w          # base landing point: 20 cm back along the corridor (the gripper is
+                                                  # longer than 10 cm; at 10 cm side-approaches started in contact)
 
     def hand_drive(target_hand_p, tag, max_steps=900):
         """Drive the base so the (held) hand lands at target_hand_p (planar); returns drive_base's result."""
@@ -511,6 +512,12 @@ def main():
     grab("orient_end")
     ok_s2, best_s2 = servo(stage_p, tgt_R, 60, "RESTAGE")   # re-center after orienting
     ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6)
+    if not ok_a and best_a < 0.10:
+        # v11: the arm stalled short (joint limits at the demo's extended closure posture; d110 4 cm short):
+        # let the BASE close the planar residual, then retry the gated arm approach for the rest
+        okb2, leftb2, nb2 = hand_drive(tgt_p, "BASE_APPROACH", max_steps=300)
+        print(f"BASE_APPROACH ok={okb2} left={leftb2:.3f} steps={nb2}", flush=True)
+        ok_a, best_a = servo(tgt_p, tgt_R, 80, "APPROACH", stride=0.006, w_orn=0.6)
     grab("approach_end")
     if not ok_a:
         print(f"RESULT d{a.demo} APPROACH_FAILED best={best_a:.3f}", flush=True)

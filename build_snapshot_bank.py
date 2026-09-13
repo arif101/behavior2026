@@ -104,9 +104,13 @@ def main():
 
     manifest = {"demo": a.demo_id, "entries": [], "scene": {}}
     for e in entries:
-        rec = {"stage": e["stage"], "frame": e["frame"], "family": e.get("family", "press"),
+        # Carry EVERY bank-entry field (grasp_closure_frame, lift_z, first_lift_frame, press_frame,
+        # holding_arm, ...): the approach factory + dump_canonical_grasp read them from the manifest.
+        # (Rebuild 2026-09-13: manifests written without them broke both consumers.)
+        rec = {k: v for k, v in e.items() if k != "demo"}
+        rec.update({"stage": e["stage"], "frame": e["frame"], "family": e.get("family", "press"),
                "holding_arm": e.get("holding_arm"), "active_arm": e["active_arm"],
-               "lift_z": e.get("lift_z"), "status": "INVALID", "attempts": 0}
+               "lift_z": e.get("lift_z"), "status": "INVALID", "attempts": 0})
         for attempt in range(a.retries):
             rec["attempts"] = attempt + 1
             try:

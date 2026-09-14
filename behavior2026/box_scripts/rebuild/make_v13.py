@@ -36,3 +36,6 @@ compile(src, str(out), "exec"); out.write_text(src); print("v13 written:", out)
 # 0.08->0.03 m, rotation step 0.03->0.02 rad, per-joint clip 0.04->0.02 (arm) / 0.015->0.01 (trunk); kind tag
 # approach_v13b_owngrasp. Reason: d60 ORIENT swung the hand into the radio (3.3 cm) at the 20 cm landing point,
 # d70 drifted 8 cm in 7 iterations for an 8-deg rotation; STAGE/APPROACH absorb residual rotation anyway (d50).
+# v13c (2026-09-14 23:40 UTC, in place): PUSH seats the rail along the gripper's tine axis (palm -> fingertips) instead
+# of world-down; per-phase radio displacement logged (servo prints, PUSH ok, ALIGN pass). d70: tines-up own grasp,
+# a downward PUSH drove the palm into the body, radio skidded 7.5 cm, ALIGN chased it to 3 cm, CLOSE missed the rail.

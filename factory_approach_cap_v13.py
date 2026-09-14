@@ -476,7 +476,7 @@ def main():
             cos = float(np.dot(moved, target_p - pE) /
                         (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))
             if it % 10 == 0:
-                print(f"{tag} it={it} d={d:.4f} cos={cos:.2f} trunk_dq={np.linalg.norm(dq[7:]):.3f} ag={native_ag()}", flush=True)
+                print(f"{tag} it={it} d={d:.4f} cos={cos:.2f} trunk_dq={np.linalg.norm(dq[7:]):.3f} ag={native_ag()} rdisp={np.linalg.norm(radio_pose()[0] - HON['radio_rest']) if 'radio_rest' in HON else -1:.4f}", flush=True)
                 grab(f"{tag.lower()}{it:03d}")
         print(f"{tag} budget exhausted best={best_d:.4f}", flush=True)
         return False, best_d
@@ -557,11 +557,15 @@ def main():
 
     # ---- phase B0: compliance push — settle the open tines down onto/around the
     # rail (v3 "reached" at 1.39cm looked like tine tips resting ON the rail)
-    okp, _ = servo(tgt_p + np.array([0.0, 0.0, -0.015]), tgt_R, 25, "PUSH", stride=0.006, done=0.008)
+    # v13c: seat the rail against the palm ALONG THE TINES (palm -> fingertips), not world-down: every own-grasp so far
+    # has the tines pointing up, and pushing down drove the palm into the body (d70: radio skidded 7.5 cm, weld missed)
+    _tine_w = RRest.apply(tine_axis); _tine_w = _tine_w / (np.linalg.norm(_tine_w) + 1e-9)
+    print(f"PUSH along tines (world) {np.round(_tine_w, 3).tolist()} radio_disp_before={np.linalg.norm(radio_pose()[0] - HON['radio_rest']):.4f}", flush=True)
+    okp, _ = servo(tgt_p + 0.015 * _tine_w, tgt_R, 25, "PUSH", stride=0.006, done=0.008)
     grab("push_end")
     pR_, RR_ = radio_pose()
     fl = [RR_.inv().apply(f - pR_) for f in links()]
-    print(f"PUSH ok={okp} finger tips in radio frame: {[np.round(f, 3).tolist() for f in fl]} "
+    print(f"PUSH ok={okp} radio_disp_after={np.linalg.norm(pR_ - HON['radio_rest']):.4f} finger tips in radio frame: {[np.round(f, 3).tolist() for f in fl]} "
           f"| certified rel_p {np.round(rel_p, 3).tolist()}", flush=True)
 
     # ---- phase B1: ALIGN the finger midpoint onto the certified one (radio frame)
@@ -569,7 +573,7 @@ def main():
         pR_, RR_ = radio_pose()
         fm_now = RR_.inv().apply(np.mean(links(), axis=0) - pR_)
         delta_w = RR_.apply(rel_fm - fm_now)
-        print(f"ALIGN pass {k3}: finger-midpoint err {np.round(rel_fm - fm_now, 3).tolist()} "
+        print(f"ALIGN pass {k3}: radio_disp={np.linalg.norm(radio_pose()[0] - HON['radio_rest']):.4f} finger-midpoint err {np.round(rel_fm - fm_now, 3).tolist()} "
               f"|{np.linalg.norm(delta_w):.4f}| m", flush=True)
         if np.linalg.norm(delta_w) < 0.004:
             break
@@ -687,7 +691,7 @@ def main():
                 carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
                 radio_disp_approach=round(HON['max_disp'], 4), radio_disp_precontact=round(HON['pre_disp'], 4), radio_rot_precontact=round(HON['pre_rot'], 2), pull_rot_deg=round(pull_rot, 2), first_contact=HON['first_contact'], honest=bool(honest), honest_strict=bool(honest_strict),
                 ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok, base=BASE,
-                n_cmds=len(cmds_log), kind="approach_v13b_owngrasp",
+                n_cmds=len(cmds_log), kind="approach_v13c_owngrasp",
                 radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))
     if ok:
         np.savez_compressed(f"{OUT}/d{a.demo:03d}_approach.npz",
@@ -700,7 +704,7 @@ def main():
             right_rgb=np.stack(REC["rz"]), right_depth=np.stack(REC["rd"]),
             objpose_radio_89=np.stack(REC["rp"]), base_pose=np.stack(REC["bp"]),
             radio_rest_z=np.float64(pRest[2]), success=np.bool_(True),
-            meta=json.dumps({**meta, "episode": "approach_v13b_owngrasp", "n_obs": len(REC["p"])}))
+            meta=json.dumps({**meta, "episode": "approach_v13c_owngrasp", "n_obs": len(REC["p"])}))
         print(f"OBS_SAVED rac_{a.demo}_200.npz ({len(REC['p'])} steps)", flush=True)
     json.dump(meta, open(f"{OUT}/d{a.demo:03d}_meta.json", "w"), indent=1)
     print("RESULT", json.dumps(meta), flush=True)

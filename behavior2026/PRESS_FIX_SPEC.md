@@ -100,3 +100,19 @@ affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by 
   The 09-13 snapshot bank was built WITHOUT it (settle checks time-dilated) and is being rebuilt.
 - d10 (pull 1.04 m, previously SKIP_REACH): v11 drive 1.04 m in 131 steps, radio displacement 0.000,
   hand->grasp-pose gap 0.99 -> 0.135 m at the standoff. Sweep yield pending.
+
+## 2026-09-14 — v11 sweep #3 (ORIENT-FIRST): why the 09-13 resweep yielded 1/38
+- Sweep #2 (v11, orient at the 10 cm staging point) saved only d20. Films: every base phase was clean
+  (drive-up, corridor retreat/advance, drive-back), but the ORIENT phase — rotating the wrist to the certified
+  grasp attitude while parked 10 cm from the grasp point — swept the gripper through the handle and flipped
+  the radio before the approach began (d110), and that phase was NOT honesty-tracked, so the clip was only
+  caught later by the weld gate. Back-resting / heavily rotated demos (d10, d160 ORIENT abort at 147 deg)
+  are a separate, still-open limitation of the body-frame canonical grasp.
+- Fix (`box_scripts/rebuild/make_v11_orient.py`, post-processes the generated v11): ORIENT runs FIRST at
+  the 20 cm base-landing point where the hand is clear, with honesty tracking + RADIO_TOUCHED abort at
+  1.2 cm inside the rotation loop; then STAGE to 10 cm; RESTAGE shortened 60 -> 30 steps and now
+  honesty-tracked too (it was missed by the servo's tag filter). Phase order is now
+  DRIVE -> RETREAT (if near) -> ORIENT -> STAGE -> RESTAGE -> APPROACH -> PUSH/ALIGN -> weld -> DRIVE_BACK.
+- Sweep #3 launched 19:18 UTC on the RTX box (two sims, ~16 h); previous outputs archived under
+  `/root/sweep_archive/`. Success bar: >= 12 honest clips (the original recipe's yield) — below that the
+  attitude-aware grasp becomes the blocking item, not the approach.

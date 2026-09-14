@@ -449,7 +449,7 @@ def main():
             cmd[3:6] = q_[P["trunk_qpos"]][:3] + dq[7:10]
             cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention)
             step_cmd(cmd)
-            if tag in ("STAGE", "APPROACH", "PUSH", "ALIGN"):
+            if tag in ("STAGE", "RESTAGE", "APPROACH", "PUSH", "ALIGN"):   # RESTAGE tracked too (was missed pre-09-14)
                 HON["n"] += 1
                 _d = float(np.linalg.norm(radio_pose()[0] - HON["radio_rest"]))
                 HON["max_disp"] = max(HON["max_disp"], _d)
@@ -481,8 +481,7 @@ def main():
         retreat_p = pE_now + 0.15 * stage_dir_w
         servo(retreat_p, RE_now, 60, "RETREAT", stride=0.010, w_orn=0.3, done=0.02)
         grab("retreat_end")
-    ok_s, best_s = servo(stage_p, tgt_R, 260, "STAGE")
-    print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
+    # ORIENT-FIRST (2026-09-14): attitude is set here at the 20 cm landing point (hand clear), then STAGE in.
     orient_anchor = poseR()[0].copy()  # hold HERE while orienting (d50: stage never converged, drift check vs stage_p aborted at it=0)
     # ORIENT v7 (gentle): converge the wrist to the certified grasp attitude at the
     # staging point with small rotation steps and a firm position hold. v6's
@@ -509,8 +508,19 @@ def main():
         cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[3:6] = q_[P["trunk_qpos"]][:3] + dq[7:10]
         cmd[6] = 0.0  # LOCK torso joint 4 (10-DOF)
         step_cmd(cmd)
+        HON["n"] += 1
+        _d = float(np.linalg.norm(radio_pose()[0] - HON["radio_rest"]))
+        HON["max_disp"] = max(HON["max_disp"], _d); HON["pre_disp"] = max(HON["pre_disp"], _d)
+        HON["pre_rot"] = max(HON["pre_rot"], float((radio_pose()[1] * HON["R_rest"].inv()).magnitude() * 180 / np.pi))
+        if HON["first_contact"] is None and contact():
+            HON["first_contact"] = f"ORIENT:{it}"
+        if _d > 0.012:
+            print(f"ORIENT RADIO_TOUCHED it={it} disp={_d:.3f} -- stopping", flush=True)
+            break
     grab("orient_end")
-    ok_s2, best_s2 = servo(stage_p, tgt_R, 60, "RESTAGE")   # re-center after orienting
+    ok_s, best_s = servo(stage_p, tgt_R, 260, "STAGE")
+    print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
+    ok_s2, best_s2 = servo(stage_p, tgt_R, 30, "RESTAGE")   # short re-center (attitude already set at the landing point)
     ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6, done=0.025)
     if not ok_a and best_a < 0.10:
         # v11: the arm stalled short (joint limits at the demo's extended closure posture; d110 4 cm short):

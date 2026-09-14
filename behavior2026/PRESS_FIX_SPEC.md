@@ -141,3 +141,14 @@ affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by 
 - Sweep #4 (v11 ORIENT-FIRST + fixed restore) launched 20:13 UTC; sweep #3's partial outputs archived under
   `/root/sweep_archive/*_templatebug_partial/`. With the radio in the right place the v11 phases degrade to:
   no DRIVE (gap < 0.40), BASE_RETREAT 0.25 m, BASE_STAGE to the 20 cm landing point, ORIENT, STAGE, APPROACH.
+- **v12 verified on d20 (21:23 UTC):** with the fixed restore the v11 corridor ("back off along the tines",
+  body frame) pointed INTO the radio on an upright radio (tine axis is world-up: 0.42, 0.12, 0.90) -> d20 STAGE
+  hit at it=4, 46 cm displacement. v12 corridor = the human's own approach line (grasp pose -> hand at the
+  restored pre-grasp frame): d20 pre-contact displacement 2.2 mm / 1.1 deg (STRICT), first contact APPROACH:4,
+  weld intact, carried to the post pose within 1.5 cm, transport replayed, clip saved (494 obs steps, 2589 cmds).
+  Sweep #5 (v12) launched 21:23 UTC over the 38 factory demos.
+- Blast radius of the template-pose bug, checked source by source: human demos (organizer obs; pose labels from
+  OG's SEQUENTIAL playback, which loads frame 0) — clean. Grasp+transport factory and the 58 complete episodes
+  restore at closure+6, where the radio is already awake in 38/38 demos — clean; the policy-relay 3/3 stands.
+  Only pre-contact restores were wrong: the A5 approach clips (rebuilding), snapshot-bank pre-grasp entries
+  (RL skill), and the Run-2 corrective corpus's pre-grasp starts (retired).

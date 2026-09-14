@@ -152,3 +152,10 @@ affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by 
   restore at closure+6, where the radio is already awake in 38/38 demos — clean; the policy-relay 3/3 stands.
   Only pre-contact restores were wrong: the A5 approach clips (rebuilding), snapshot-bank pre-grasp entries
   (RL skill), and the Run-2 corrective corpus's pre-grasp starts (retired).
+- **v13 = own grasp (22:12-22:36 UTC).** Sweep #5 (v12, d20-canonical grasp) failed d40 (12-deg approach, palm shoved
+  the body 9 cm, no finger contact) and d50 (ORIENT 62 deg short: d20's hand attitude is unreachable on a radio
+  yawed 135 deg). The canonical grasp existed only because the template bug made each demo's own grasp look
+  non-rest. v13 uses the demo's own certified grasp (rel_p/rel_R/fingers at closure+t0off; --grasp canon keeps
+  the old path): d40 and d50 both saved with 0.0000 m / 0.0 deg pre-contact displacement, fingers within 2 mm of
+  the human's, welded, carried, transported. Sweep #6 (v13) launched 22:36 UTC with d10/d20 (v12) + d40/d50
+  (v13) kept: 4/4 strict-honest so far.

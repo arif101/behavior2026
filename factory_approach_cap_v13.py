@@ -499,7 +499,7 @@ def main():
     # ORIENT v7 (gentle): converge the wrist to the certified grasp attitude at the
     # staging point with small rotation steps and a firm position hold. v6's
     # 0.12 rad/step + 0.10 dq clip swung the arm 42cm off the point.
-    for it in range(360):
+    for it in range(120):   # v13b: STAGE/APPROACH carry orientation weight too; ORIENT is pre-alignment only
         pE, RE = poseR()
         oerr_v = (tgt_R * RE.inv()).as_rotvec(); oerr = float(np.linalg.norm(oerr_v))
         pdrift = float(np.linalg.norm(pE - orient_anchor))
@@ -508,15 +508,15 @@ def main():
         if oerr < 0.05 and pdrift < 0.02:
             print(f"ORIENT converged it={it} orn_err={oerr:.3f} pos_drift={pdrift:.4f}", flush=True)
             break
-        if pdrift > 0.08:
+        if pdrift > 0.03:   # v13b: 8 cm let the swinging hand reach the radio from the 20 cm landing point (d60)
             print(f"ORIENT abort: drift {pdrift:.3f} m at it={it} (orn_err {oerr:.3f})", flush=True)
             break
         Jp, Ja = J11()
         v = np.clip(orient_anchor - pE, -0.02, 0.02) * 2.0    # position hold (gain 2)
-        w = oerr_v / (oerr + 1e-9) * min(0.03, oerr)           # <= 0.03 rad per step
+        w = oerr_v / (oerr + 1e-9) * min(0.02, oerr)           # <= 0.02 rad per step (v13b)
         Jst = np.concatenate([2.0 * Jp, Ja], axis=0); rhs = np.concatenate([2.0 * v, w])
         dq = Jst.T @ np.linalg.solve(Jst @ Jst.T + 0.02 * np.eye(6), rhs)
-        dq = np.concatenate([np.clip(dq[:7], -0.04, 0.04), np.clip(dq[7:], -0.015, 0.015)])
+        dq = np.concatenate([np.clip(dq[:7], -0.02, 0.02), np.clip(dq[7:], -0.01, 0.01)])   # v13b: half the per-joint step
         q_ = q61(); cmd = hold.copy()
         cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[3:6] = q_[P["trunk_qpos"]][:3] + dq[7:10]
         cmd[6] = 0.0  # LOCK torso joint 4 (10-DOF)
@@ -687,7 +687,7 @@ def main():
                 carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
                 radio_disp_approach=round(HON['max_disp'], 4), radio_disp_precontact=round(HON['pre_disp'], 4), radio_rot_precontact=round(HON['pre_rot'], 2), pull_rot_deg=round(pull_rot, 2), first_contact=HON['first_contact'], honest=bool(honest), honest_strict=bool(honest_strict),
                 ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok, base=BASE,
-                n_cmds=len(cmds_log), kind="approach_v13_owngrasp",
+                n_cmds=len(cmds_log), kind="approach_v13b_owngrasp",
                 radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))
     if ok:
         np.savez_compressed(f"{OUT}/d{a.demo:03d}_approach.npz",
@@ -700,7 +700,7 @@ def main():
             right_rgb=np.stack(REC["rz"]), right_depth=np.stack(REC["rd"]),
             objpose_radio_89=np.stack(REC["rp"]), base_pose=np.stack(REC["bp"]),
             radio_rest_z=np.float64(pRest[2]), success=np.bool_(True),
-            meta=json.dumps({**meta, "episode": "approach_v13_owngrasp", "n_obs": len(REC["p"])}))
+            meta=json.dumps({**meta, "episode": "approach_v13b_owngrasp", "n_obs": len(REC["p"])}))
         print(f"OBS_SAVED rac_{a.demo}_200.npz ({len(REC['p'])} steps)", flush=True)
     json.dump(meta, open(f"{OUT}/d{a.demo:03d}_meta.json", "w"), indent=1)
     print("RESULT", json.dumps(meta), flush=True)

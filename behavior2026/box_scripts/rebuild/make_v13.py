@@ -31,3 +31,8 @@ assert src.count(old_arg) == 1
 src = src.replace(old_arg, old_arg + '    ap.add_argument("--grasp", choices=("own", "canon"), default="own", help="v13: the demo\'s own grasp (default) or the d20 canonical")\n')
 src = src.replace('kind="approach_v12_humanline"', 'kind="approach_v13_owngrasp"').replace('"episode": "approach_v12_humanline"', '"episode": "approach_v13_owngrasp"')
 compile(src, str(out), "exec"); out.write_text(src); print("v13 written:", out)
+
+# v13b (2026-09-14 23:00 UTC, applied in place to the generated file): ORIENT budget 360->120 iterations, drift abort
+# 0.08->0.03 m, rotation step 0.03->0.02 rad, per-joint clip 0.04->0.02 (arm) / 0.015->0.01 (trunk); kind tag
+# approach_v13b_owngrasp. Reason: d60 ORIENT swung the hand into the radio (3.3 cm) at the 20 cm landing point,
+# d70 drifted 8 cm in 7 iterations for an 8-deg rotation; STAGE/APPROACH absorb residual rotation anyway (d50).

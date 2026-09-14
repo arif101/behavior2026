@@ -45,10 +45,10 @@ def initiation_frame(demo):
 
 
 def restore_to_frame(wrapper, episode_id, t):
-    """Jump the sim DIRECTLY to recorded frame t — no step-through. playback_episode is pure
+    """Jump the sim to recorded frame t without stepping physics. playback_episode is pure
     state playback (og.sim.load_state per frame), so we mirror its init sequence verbatim
-    (scene restore -> init_metadata -> play -> reset -> schema align) then load state[t]
-    instead of state[0]. include_robot_control=True (default) keeps controllers live for the
+    (scene restore -> init_metadata -> play -> reset -> schema align), then load state[0] plus every
+    awake-object frame up to t, then state[t] (see the 2026-09-14 note below). include_robot_control=True (default) keeps controllers live for the
     policy handoff."""
     import omnigibson as og
     from omnigibson.envs.data_wrapper import _align_scene_object_states_with_recorded_schema
@@ -85,7 +85,22 @@ def restore_to_frame(wrapper, episode_id, t):
     _align_scene_object_states_with_recorded_schema(
         scene=wrapper.scene, recorded_scene_file=wrapper.recorded_scene_file
     )
-    og.sim.load_state(state[t, : int(state_size[t])], serialized=True)
+    # 2026-09-14 FIX (template-pose bug): the recorder stores only AWAKE objects per frame (robot +
+    # whatever is moving), so a direct load of state[t] left every asleep object -- the radio before the
+    # human touches it -- at the SCENE-FILE pose, i.e. the task template's fixed pose, not this demo's
+    # sampled pose (5 cm .. 1.1 m and up to 178 deg of yaw away across the 38 factory demos; the approach
+    # factory's "pull" matched that template-vs-sampled offset to 4 mm on 37/38). Replay the full frame-0
+    # state and then every frame <= t that carries more than the robot-only baseline (an awake object),
+    # so each object ends at its last recorded pose before t; state[t] last so the robot is exact.
+    n_total = int(state.shape[0])
+    sizes_all = [int(state_size[k]) for k in range(n_total)]
+    base = min(sizes_all[1:]) if n_total > 1 else sizes_all[0]
+    og.sim.load_state(state[0, : sizes_all[0]], serialized=True)
+    replayed = [k for k in range(1, t + 1) if sizes_all[k] > base]
+    for k in replayed:
+        og.sim.load_state(state[k, : sizes_all[k]], serialized=True)
+    og.sim.load_state(state[t, : sizes_all[t]], serialized=True)
+    restore_to_frame.last_replayed = len(replayed)
     og.sim.render()  # refresh sensors from restored state without a physics step
     return t
 

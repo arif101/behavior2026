@@ -116,3 +116,28 @@ affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by 
 - Sweep #3 launched 19:18 UTC on the RTX box (two sims, ~16 h); previous outputs archived under
   `/root/sweep_archive/`. Success bar: >= 12 honest clips (the original recipe's yield) — below that the
   attitude-aware grasp becomes the blocking item, not the approach.
+
+## 2026-09-14 — ROOT CAUSE of the "reach shortfall", the base drive-up and the back-resting radios: the TEMPLATE-POSE restore bug
+- All 38 factory demos start with the radio UPRIGHT on the table (same 3 deg tilt in every demo; decoded from
+  frame 0 of the raw hdf5), at a per-demo sampled position/yaw. No demo begins with the radio on its back.
+- OmniGibson's recorder stores only AWAKE objects per frame; the radio is asleep until the human touches it,
+  so it is absent from every pre-grasp frame. `restore_to_frame` (reverse_curriculum_collect.py) loaded only
+  state[t], never state[0], so the radio stayed at the SCENE-FILE pose = the task template's fixed pose
+  (3.464, 4.886, 0.534) while the robot was posed for the demo's sampled spot. Proof: the factory's "pull"
+  (radio at t_pre vs t_post) equals the template-vs-sampled offset within 2 cm on 37/38 demos (median 4 mm),
+  and "rig ROTATED the radio N deg" equals the template-vs-sampled yaw. Offsets 5 cm .. 1.12 m, yaw 1..178 deg.
+- Consequences: the "pull line" the base drove along was the template offset (d10's 1.04 m drive); SKIP_REACH,
+  the torso-joint-4 reach debate and the original recipe's "high-yaw instances did not generalize" were this
+  bug (its 12 successes were the demos whose sampled pose happened to sit near the template). The
+  back-resting radios were OUR restore: for small-offset demos (d40 8 cm, d160 15 cm, d20 36 cm) the template
+  radio landed against the restored robot's hand and physics kicked it over before the honesty reference was
+  taken (inferred from films + offsets; the template mismatch itself is measured).
+- FIX (commit with this note): `restore_to_frame` now loads state[0], then every frame <= t whose state
+  size exceeds the robot-only baseline (an awake object), then state[t]. Verified
+  (`box_scripts/rebuild/probe_restore_radio.py`): d20/d40/d10 restore the radio at the sampled pose to
+  0.000 m, upright (3.0 deg), hand->radio 0.11-0.14 m, zero motion over 30 settle steps; 3-5 s per restore.
+  Every restore-and-control script imports this function (factories, snapshot bank, skill_env_wrapper),
+  so the snapshot bank and the HF `b1k_radio_approach` (A5) clips were built on the template pose too.
+- Sweep #4 (v11 ORIENT-FIRST + fixed restore) launched 20:13 UTC; sweep #3's partial outputs archived under
+  `/root/sweep_archive/*_templatebug_partial/`. With the radio in the right place the v11 phases degrade to:
+  no DRIVE (gap < 0.40), BASE_RETREAT 0.25 m, BASE_STAGE to the 20 cm landing point, ORIENT, STAGE, APPROACH.

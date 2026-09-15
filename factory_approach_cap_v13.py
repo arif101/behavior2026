@@ -515,7 +515,7 @@ def main():
     print(f"STAGE ok={ok_s} best={best_s:.3f} orn_err={servo.last_oerr:.3f}", flush=True)
     ok_a, best_a = servo(tgt_p, tgt_R, 160, "APPROACH", stride=0.008, w_orn=0.6, done=0.025, orn_done=0.10)
     print(f"APPROACH ok={ok_a} best={best_a:.3f} orn_err={servo.last_oerr:.3f} pos_ok={servo.last_pos_ok}", flush=True)
-    if not ok_a and not servo.last_pos_ok and best_a < 0.10 and HON["pre_disp"] <= 0.04:
+    if not ok_a and not servo.last_pos_ok and best_a < 0.20 and HON["pre_disp"] <= 0.04:   # v13e: 0.10 -> 0.20 (d410 stalled at 12.7 cm)
         # v11: the arm stalled short (joint limits at the demo's extended closure posture; d110 4 cm short):
         # let the BASE close the planar residual, then retry the gated arm approach for the rest
         okb2, leftb2, nb2 = hand_drive(tgt_p, "BASE_APPROACH", max_steps=300, tol=0.01)
@@ -671,7 +671,7 @@ def main():
                 carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
                 radio_disp_approach=round(HON['max_disp'], 4), radio_disp_precontact=round(HON['pre_disp'], 4), radio_rot_precontact=round(HON['pre_rot'], 2), pull_rot_deg=round(pull_rot, 2), first_contact=HON['first_contact'], honest=bool(honest), honest_strict=bool(honest_strict),
                 ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok, base=BASE,
-                n_cmds=len(cmds_log), kind="approach_v13d_owngrasp",
+                n_cmds=len(cmds_log), kind="approach_v13e_owngrasp",
                 radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))
     if ok:
         np.savez_compressed(f"{OUT}/d{a.demo:03d}_approach.npz",
@@ -684,7 +684,7 @@ def main():
             right_rgb=np.stack(REC["rz"]), right_depth=np.stack(REC["rd"]),
             objpose_radio_89=np.stack(REC["rp"]), base_pose=np.stack(REC["bp"]),
             radio_rest_z=np.float64(pRest[2]), success=np.bool_(True),
-            meta=json.dumps({**meta, "episode": "approach_v13d_owngrasp", "n_obs": len(REC["p"])}))
+            meta=json.dumps({**meta, "episode": "approach_v13e_owngrasp", "n_obs": len(REC["p"])}))
         print(f"OBS_SAVED rac_{a.demo}_200.npz ({len(REC['p'])} steps)", flush=True)
     json.dump(meta, open(f"{OUT}/d{a.demo:03d}_meta.json", "w"), indent=1)
     print("RESULT", json.dumps(meta), flush=True)

@@ -30,3 +30,11 @@ Covers the reachable subset (arm+trunk, pull <= ~0.55 m); demos with larger rig 
 Arm A5 = A1 + factory + episodes + approach. Known residual: in-hand attitude ~13 deg off the demo grip (v5 recipe; v7 fixes).
 
 **A5 data is READY (2026-09-06):** `b1k_radio_approach` = 12 honest pre-contact approach episodes / 6,942 frames, on HF arif101/b26-radio-manufactured:b1k_radio_approach. Validated: gt_depth_ds + sample_weight present, right-EE-to-button starts 0.36m (approach present), stage 54/46. Covers the mainstream-upright demo subset (high-yaw instances did not generalize). Pull it, add_sample_weights.py --root /root/b1k_radio_approach, include as A5 = A4 + approach.
+
+**Source 4 REBUILT (2026-09-15): `b1k_radio_approach_v2`** on HF `arif101/b26-radio-manufactured:b1k_radio_approach_v2` —
+19 strict-honest approach+grasp+transport clips / 8,919 frames from the v12-v13d factory on the FIXED restore (radio at
+each demo's sampled pose; each demo's own grasp; human-line corridor; 10-DOF, torso joint 4 never commanded). gt_depth_ds +
+sample_weight present; clip cmds + honesty meta under `factory_clips_approach_v11/`. The 2026-09-06 `b1k_radio_approach`
+(12 clips) was built on the template-pose bug and is superseded. Packing note: only the pre-contact approach (frames before
+`approach_end` in the clip meta) is unique content; the transport tail replays the human's actions already in source 2 —
+weight the approach frames, down-weight the tail. Run S1 = A4 mix + this source (single variable vs A4).

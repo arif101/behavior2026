@@ -110,8 +110,16 @@ def main(arms):
             _st = _pc.list_flatten(_t["observation.state"]).to_numpy(zero_copy_only=False).reshape(_t.num_rows, -1)
             _za = np.abs((_a[:, :_am.size] - _am) / (_as + 1e-6)).max(0)
             _zs = np.abs((_st[:, :_sm.size] - _sm) / (_ss + 1e-6)).max(0)
-            _bad = [(f"action d{i}", float(v)) for i, v in enumerate(_za) if v > 50] + [(f"state d{i}", float(v)) for i, v in enumerate(_zs) if v > 5000]
-            assert not _bad, f"{arm}: {pathlib.Path(s['source']).name} has normalized magnitudes that would explode the loss: {_bad}"
+            # 2026-09-15: a z-score is only dangerous when the RAW offset is non-negligible. The Run-3 factory/episodes
+            # sources carry <= 2e-4 rad on torso joint 4 (z ~ 140-210 through the +1e-6 epsilon): a constant the model
+            # learns in a few steps (A2-A4 converged on it; the joint is locked at eval, 2e-4 rad has no effect). The old
+            # A5 clips had 1.76 rad VARYING there (z ~ 1e6) -> divergence. Gate on z AND raw offset (actions: > 1e-2).
+            _ra = np.abs(_a[:, :_am.size] - _am).max(0); _rs = np.abs(_st[:, :_sm.size] - _sm).max(0)
+            _bad = [(f"action d{i}", float(v), float(_ra[i])) for i, v in enumerate(_za) if v > 50 and _ra[i] > 1e-2] + \
+                   [(f"state d{i}", float(v), float(_rs[i])) for i, v in enumerate(_zs) if v > 5000 and _rs[i] > 1e-2]
+            _negl = [(f"action d{i}", round(float(v), 1), f"raw {float(_ra[i]):.1e}") for i, v in enumerate(_za) if v > 50 and _ra[i] <= 1e-2]
+            if _negl: print(f"    norm-gate {pathlib.Path(s['source']).name:22s} NEGLIGIBLE-OFFSET dims (z>50 but raw<=1e-2, learnable constant): {_negl}", flush=True)
+            assert not _bad, f"{arm}: {pathlib.Path(s['source']).name} has normalized magnitudes that would explode the loss (dim, z, raw): {_bad}"
             print(f"    norm-gate {pathlib.Path(s['source']).name:22s} max|z| action {_za.max():.1f} state {_zs.max():.1f}", flush=True)
         obs, act = next(iter(dl))
         gd = np.asarray(obs.gt_depth)

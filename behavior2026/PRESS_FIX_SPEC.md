@@ -159,3 +159,14 @@ affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by 
   the old path): d40 and d50 both saved with 0.0000 m / 0.0 deg pre-contact displacement, fingers within 2 mm of
   the human's, welded, carried, transported. Sweep #6 (v13) launched 22:36 UTC with d10/d20 (v12) + d40/d50
   (v13) kept: 4/4 strict-honest so far.
+
+## 2026-09-15 — Sweep #6 result: 20/38 clips (19 strict, 1 relaxed) vs the >=12 bar; conversion at the strict bar
+- Yield by factory variant (all on the fixed restore): v12 d10/d20; v13 d40/d50; v13b d60(relaxed)/d80/d160-d210/d250/d270;
+  v13d (since 04:17 UTC) d260/d310/d330/d340/d370/d390. Failures: 11 RADIO_TOUCHED (mostly pre-v13d: reached the
+  position with 11-22 deg wrist error and twisted the radio), 6 APPROACH_FAILED (v13d stops short instead of
+  twisting: d300/d380 attitude not within 0.10 rad, d350/d400/d410 stalled 13-55 cm out = reach), 1 WELD_FAILED
+  (d70, pre-v13c PUSH). PRE 'pull' <= 2.7 cm on all 38 -> the restore fix held.
+- Conversion (`approach_convert_v11.sh`, BAR=strict): 19 renders, 8,900 obs steps -> /root/b1k_radio_approach_v2
+  -> depth labels -> sample weights -> HF arif101/b26-radio-manufactured:b1k_radio_approach_v2 (+ clip cmds/meta).
+- Next: re-run the 18 failed demos under v13d (11 of them never saw it); the reach-stall class (d350/d400/d410) may
+  need the base to close the gap (BASE_APPROACH triggers only when the position was not reached and best < 0.10).

@@ -245,6 +245,11 @@ def main():
     if _cn < 0.05:
         _corr = np.array([0.0, 0.0, 1.0]); _cn = 1.0   # degenerate: hand already on the grasp pose -> come from above
     stage_dir_w = _corr / _cn
+    _el = np.degrees(np.arcsin(np.clip(stage_dir_w[2], -1, 1)))
+    if _el < 35.0:   # v13d: shallow human lines (d140 17 deg, d40 12 deg) graze the body -> lift the corridor to 35 deg
+        _xy = stage_dir_w[:2] / (np.linalg.norm(stage_dir_w[:2]) + 1e-9)
+        stage_dir_w = np.array([_xy[0] * np.cos(np.radians(35.0)), _xy[1] * np.cos(np.radians(35.0)), np.sin(np.radians(35.0))])
+        print(f"CORRIDOR lifted from {_el:.1f} to 35.0 deg elevation: {np.round(stage_dir_w, 3).tolist()}", flush=True)
     print(f"CANON grasp applied at rest attitude; corridor = human approach line dir {np.round(stage_dir_w, 3).tolist()} (hand->grasp {_cn:.3f} m; -tine_axis would be {np.round(-RRest.apply(tine_axis), 3).tolist()})", flush=True)
     gap0 = float(np.linalg.norm(tgt_p - pE0))
     pull_rot = float((RRad * RRest.inv()).magnitude() * 180 / np.pi)
@@ -434,16 +439,19 @@ def main():
         Ja = np.concatenate([asign * Jf[row, ablk:ablk + 3, :][:, armR_idx], Jta], axis=1)
         return Jp, Ja
 
-    def servo(target_p, target_R, budget, tag, stride=0.012, w_orn=0.3, done=0.015):
-        """6-DOF DLS servo of the right eef; orientation held to target_R."""
-        best_d = 9.9
+    def servo(target_p, target_R, budget, tag, stride=0.012, w_orn=0.3, done=0.015, orn_done=None):
+        """6-DOF DLS servo of the right eef; orientation held to target_R. v13d: with orn_done set, "reached" needs
+        position AND attitude (position is held while the rotation finishes); servo.last_pos_ok / last_oerr exposed."""
+        best_d = 9.9; servo.last_pos_ok = False; servo.last_oerr = 9.9
         for it in range(budget):
             pE, RE = poseR()
             d = float(np.linalg.norm(target_p - pE)); best_d = min(best_d, d)
+            oerr = float(np.linalg.norm((target_R * RE.inv()).as_rotvec())); servo.last_oerr = oerr
             if d < done:
-                oerr = float(np.linalg.norm((target_R * RE.inv()).as_rotvec()))
-                print(f"{tag} reached it={it} d={d:.4f} orn_err={oerr:.3f} rad", flush=True)
-                return True, best_d
+                servo.last_pos_ok = True
+                if orn_done is None or oerr < orn_done:
+                    print(f"{tag} reached it={it} d={d:.4f} orn_err={oerr:.3f} rad", flush=True)
+                    return True, best_d
             if not native_ag() and tag == "CARRY":
                 print(f"{tag} AG_LOST it={it}", flush=True)
                 return False, best_d
@@ -462,16 +470,19 @@ def main():
             cmd[3:6] = q_[P["trunk_qpos"]][:3] + dq[7:10]
             cmd[6] = 0.0  # LOCK torso joint 4 at 0 (10-DOF demo convention)
             step_cmd(cmd)
-            if tag in ("STAGE", "RESTAGE", "APPROACH", "PUSH", "ALIGN"):   # RESTAGE tracked too (was missed pre-09-14)
+            if tag in ("STAGE", "RESTAGE", "APPROACH", "PUSH", "ALIGN", "ORIENT"):   # v13d: ORIENT is a servo phase now
                 HON["n"] += 1
                 _d = float(np.linalg.norm(radio_pose()[0] - HON["radio_rest"]))
                 HON["max_disp"] = max(HON["max_disp"], _d)
                 if HON["first_contact"] is None and contact():
                     HON["first_contact"] = f"{tag}:{it}"
-                if tag in ("STAGE", "APPROACH", "RESTAGE"):
+                if tag in ("STAGE", "APPROACH", "RESTAGE", "ORIENT"):
                     # open-air phases only: the PUSH/ALIGN touch is deliberate
                     HON["pre_disp"] = max(HON["pre_disp"], _d)
                     HON["pre_rot"] = max(HON["pre_rot"], float((radio_pose()[1] * HON["R_rest"].inv()).magnitude() * 180 / np.pi))
+                    if HON["pre_disp"] > 0.04 or HON["pre_rot"] > 15.0:   # v13d: relaxed bar blown -> stop flailing
+                        print(f"{tag} RADIO_TOUCHED it={it} disp={HON['pre_disp']:.3f} rot={HON['pre_rot']:.1f} -- stopping", flush=True)
+                        return False, best_d
             moved = poseR()[0] - pE
             cos = float(np.dot(moved, target_p - pE) /
                         (np.linalg.norm(moved) * np.linalg.norm(target_p - pE) + 1e-9))
@@ -495,52 +506,21 @@ def main():
         servo(retreat_p, RE_now, 60, "RETREAT", stride=0.010, w_orn=0.3, done=0.02)
         grab("retreat_end")
     # ORIENT-FIRST (2026-09-14): attitude is set here at the 20 cm landing point (hand clear), then STAGE in.
-    orient_anchor = poseR()[0].copy()  # hold HERE while orienting (d50: stage never converged, drift check vs stage_p aborted at it=0)
-    # ORIENT v7 (gentle): converge the wrist to the certified grasp attitude at the
-    # staging point with small rotation steps and a firm position hold. v6's
-    # 0.12 rad/step + 0.10 dq clip swung the arm 42cm off the point.
-    for it in range(120):   # v13b: STAGE/APPROACH carry orientation weight too; ORIENT is pre-alignment only
-        pE, RE = poseR()
-        oerr_v = (tgt_R * RE.inv()).as_rotvec(); oerr = float(np.linalg.norm(oerr_v))
-        pdrift = float(np.linalg.norm(pE - orient_anchor))
-        if it % 10 == 0:
-            print(f"ORIENT it={it} orn_err={oerr:.3f} pos_drift={pdrift:.4f}", flush=True)
-        if oerr < 0.05 and pdrift < 0.02:
-            print(f"ORIENT converged it={it} orn_err={oerr:.3f} pos_drift={pdrift:.4f}", flush=True)
-            break
-        if pdrift > 0.03:   # v13b: 8 cm let the swinging hand reach the radio from the 20 cm landing point (d60)
-            print(f"ORIENT abort: drift {pdrift:.3f} m at it={it} (orn_err {oerr:.3f})", flush=True)
-            break
-        Jp, Ja = J11()
-        v = np.clip(orient_anchor - pE, -0.02, 0.02) * 2.0    # position hold (gain 2)
-        w = oerr_v / (oerr + 1e-9) * min(0.02, oerr)           # <= 0.02 rad per step (v13b)
-        Jst = np.concatenate([2.0 * Jp, Ja], axis=0); rhs = np.concatenate([2.0 * v, w])
-        dq = Jst.T @ np.linalg.solve(Jst @ Jst.T + 0.02 * np.eye(6), rhs)
-        dq = np.concatenate([np.clip(dq[:7], -0.02, 0.02), np.clip(dq[7:], -0.01, 0.01)])   # v13b: half the per-joint step
-        q_ = q61(); cmd = hold.copy()
-        cmd[15:22] = q_[P["right"]["arm_qpos"]] + dq[:7]; cmd[3:6] = q_[P["trunk_qpos"]][:3] + dq[7:10]
-        cmd[6] = 0.0  # LOCK torso joint 4 (10-DOF)
-        step_cmd(cmd)
-        HON["n"] += 1
-        _d = float(np.linalg.norm(radio_pose()[0] - HON["radio_rest"]))
-        HON["max_disp"] = max(HON["max_disp"], _d); HON["pre_disp"] = max(HON["pre_disp"], _d)
-        HON["pre_rot"] = max(HON["pre_rot"], float((radio_pose()[1] * HON["R_rest"].inv()).magnitude() * 180 / np.pi))
-        if HON["first_contact"] is None and contact():
-            HON["first_contact"] = f"ORIENT:{it}"
-        if _d > 0.012:
-            print(f"ORIENT RADIO_TOUCHED it={it} disp={_d:.3f} -- stopping", flush=True)
-            break
+    orient_anchor = poseR()[0].copy()
+    # v13d: ORIENT = the working DLS servo holding the landing point with full orientation weight; reached needs both.
+    ok_o, _ = servo(orient_anchor, tgt_R, 150, "ORIENT", stride=0.004, w_orn=1.0, done=0.02, orn_done=0.10)
+    print(f"ORIENT ok={ok_o} orn_err={servo.last_oerr:.3f} pos_ok={servo.last_pos_ok}", flush=True)
     grab("orient_end")
-    ok_s, best_s = servo(stage_p, tgt_R, 260, "STAGE")
-    print(f"STAGE ok={ok_s} best={best_s:.3f}", flush=True)
-    ok_s2, best_s2 = servo(stage_p, tgt_R, 30, "RESTAGE")   # short re-center (attitude already set at the landing point)
-    ok_a, best_a = servo(tgt_p, tgt_R, 120, "APPROACH", stride=0.008, w_orn=0.6, done=0.025)
-    if not ok_a and best_a < 0.10:
+    ok_s, best_s = servo(stage_p, tgt_R, 260, "STAGE", w_orn=0.6, orn_done=0.10)
+    print(f"STAGE ok={ok_s} best={best_s:.3f} orn_err={servo.last_oerr:.3f}", flush=True)
+    ok_a, best_a = servo(tgt_p, tgt_R, 160, "APPROACH", stride=0.008, w_orn=0.6, done=0.025, orn_done=0.10)
+    print(f"APPROACH ok={ok_a} best={best_a:.3f} orn_err={servo.last_oerr:.3f} pos_ok={servo.last_pos_ok}", flush=True)
+    if not ok_a and not servo.last_pos_ok and best_a < 0.10 and HON["pre_disp"] <= 0.04:
         # v11: the arm stalled short (joint limits at the demo's extended closure posture; d110 4 cm short):
         # let the BASE close the planar residual, then retry the gated arm approach for the rest
         okb2, leftb2, nb2 = hand_drive(tgt_p, "BASE_APPROACH", max_steps=300, tol=0.01)
         print(f"BASE_APPROACH ok={okb2} left={leftb2:.3f} steps={nb2}", flush=True)
-        ok_a, best_a = servo(tgt_p, tgt_R, 80, "APPROACH", stride=0.006, w_orn=0.6, done=0.025)
+        ok_a, best_a = servo(tgt_p, tgt_R, 80, "APPROACH", stride=0.006, w_orn=0.6, done=0.025, orn_done=0.10)
     grab("approach_end")
     if HON["pre_disp"] > 0.04 or HON["pre_rot"] > 15.0:
         # v12 fail-fast: the relaxed honesty bar is already blown before contact -> no point pushing/aligning/welding
@@ -691,7 +671,7 @@ def main():
                 carry_ok=bool(ok_c), horizon_end=horizon_end, lifted=bool(lifted),
                 radio_disp_approach=round(HON['max_disp'], 4), radio_disp_precontact=round(HON['pre_disp'], 4), radio_rot_precontact=round(HON['pre_rot'], 2), pull_rot_deg=round(pull_rot, 2), first_contact=HON['first_contact'], honest=bool(honest), honest_strict=bool(honest_strict),
                 ag_intact=bool(native_ag()), ag_lost=ag_lost, ok=ok, base=BASE,
-                n_cmds=len(cmds_log), kind="approach_v13c_owngrasp",
+                n_cmds=len(cmds_log), kind="approach_v13d_owngrasp",
                 radio_z_end=round(float(_np(radio.get_position_orientation()[0])[2]), 4))
     if ok:
         np.savez_compressed(f"{OUT}/d{a.demo:03d}_approach.npz",
@@ -704,7 +684,7 @@ def main():
             right_rgb=np.stack(REC["rz"]), right_depth=np.stack(REC["rd"]),
             objpose_radio_89=np.stack(REC["rp"]), base_pose=np.stack(REC["bp"]),
             radio_rest_z=np.float64(pRest[2]), success=np.bool_(True),
-            meta=json.dumps({**meta, "episode": "approach_v13c_owngrasp", "n_obs": len(REC["p"])}))
+            meta=json.dumps({**meta, "episode": "approach_v13d_owngrasp", "n_obs": len(REC["p"])}))
         print(f"OBS_SAVED rac_{a.demo}_200.npz ({len(REC['p'])} steps)", flush=True)
     json.dump(meta, open(f"{OUT}/d{a.demo:03d}_meta.json", "w"), indent=1)
     print("RESULT", json.dumps(meta), flush=True)

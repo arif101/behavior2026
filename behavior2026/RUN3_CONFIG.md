@@ -131,3 +131,15 @@ PASS: tree identity; effective mass map 67.6 % · factory 15.1 % · episodes 12.
 - A5 preflight (which draws one batch and checks depth/stage/points) did not catch this: add a
   per-source **max |normalized action| / |normalized state| gate** to preflight_run3.py before any
   future source is admitted (threshold e.g. 50).
+
+## S1 = arm a5 on the FIXED approach data — LAUNCHED 2026-09-15 23:39 UTC
+Box: fresh 1x A100-80GB (154.54.102.23:19349; the Run-3 box is gone). Bring-up 3 min (trainer_bringup_s1.sh), prep 2 min,
+preflight PASS, smoke 20 steps (loss 0.105 -> 0.053) + checkpoint write OK, driver a5 15k steps (~16 h, ETA ~15:40 UTC 09-16).
+Mix_a5 = map (200 eps / 429,928 fr, poison 0.1) + factory (38 / 9,520, 4.78) + episodes (58 / 24,794, 2.0) +
+b1k_radio_approach_v2 (19 / 8,919; stage-1 approach frames 2.0, transport tail 0.5) = 315 eps / 473,161 frames.
+Warm start = Run-2 final params (same init as A0-A4) -> single variable vs A4 = "the honest approach source".
+Preflight norm-gate (refined 09-15: z>50 AND raw>1e-2): map 9.3, factory 207.8 (raw 2e-4 rad on torso j4, learnable
+constant A2-A4 converged on), episodes 143.0 (same), approach_v2 5.9. Sources 1-3 byte-identical to A4.
+Readout: run3_eval_arm.sh on the RTX sim box, instance 301 n=25, grasp completion vs A4 (2/25) per RUN3_EVAL_PREREG.md.
+NOT in S1 (by the single-variable rule): stage/progress conditioning, granular targets, temporal forcing — the 09-12
+full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the approach source helps.

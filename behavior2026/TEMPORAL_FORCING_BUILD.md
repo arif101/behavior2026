@@ -52,3 +52,16 @@ loader's 9-slot stack (72 KB/sample) + a 9-token cross-attention: expected ≪ +
   padded), gist norm 258 ± 8.5, |g_t − g_t−32| = 11.2; change targets: EE_L 0.04 → 0.16 m, button 0.10 → 0.36 m over the
   8 offsets. Gists: parallel decode (6 workers, ~88 fps each) + tower pass from cache (map 430k frames ≈ 25 min on the
   shared GPU); frame caches under /root/frame_cache (≈ 71 GB) kept for the S1 re-tower.
+
+## Demand-side readout (aliasing_rate.py, 04:58 UTC, 20k queries over 473,161 rows, 128-D JL per slot)
+| NN by | median chunk distance (std.) | NN from a different stage_v2 | flow-loss floor proxy |
+|---|---|---|---|
+| random pair | 36.1 | – | 0.481 |
+| current gist | 20.3 | 21.7 % | 0.193 |
+| history stack (9 slots) | 19.9 | 14.8 % | 0.182 |
+| next frame (floor) | 0.28 | – | – |
+History improves action predictability by ~2 % (loss floor −5 %) — the sweep's "channel not demanded by BC" signature —
+but cuts cross-stage confusion by a third. Stage is what the v2 labels + serve mirror already supply exactly, so the
+press-fix conditioning captures most of that gain; expect a small gate opening and a small history-off delta. Caveat:
+the pooled gist is a coarse proxy for the full prefix (images + proprio + points). Launch unchanged (pathway is a
+zero-init no-op if unneeded); `ARMS=press` is the one-word alternative for a cleaner attribution.

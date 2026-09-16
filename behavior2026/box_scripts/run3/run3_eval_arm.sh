@@ -65,8 +65,9 @@ setsid nohup env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACT
   --policy.config $POLICY_CONFIG --policy.dir $CK \
   --robot b1k/R1Pro --task b1k/turning_on_radio --repo-id b1k_radio --port $PORT \
   > /root/serve_$ARM.log 2>&1 < /dev/null &
-for i in $(seq 1 90); do ss -ltn 2>/dev/null | grep -q ":$PORT" && break; sleep 5; done
-ss -ltn | grep -q ":$PORT" || { say "SERVER_FAILED_TO_START"; tail -20 /root/serve_$ARM.log; exit 1; }
+port_open(){ (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null; }   # bash builtin: the v6 box has neither ss nor netstat
+for i in $(seq 1 90); do port_open && break; sleep 5; done
+port_open || { say "SERVER_FAILED_TO_START"; tail -20 /root/serve_$ARM.log; exit 1; }
 grep -m1 "Using norm stats for repo" /root/serve_$ARM.log | tee -a /root/run3_eval_$ARM.log
 say "SERVER_UP $ARM"
 

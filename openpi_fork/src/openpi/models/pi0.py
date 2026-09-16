@@ -242,6 +242,7 @@ class Pi0(_model.BaseModel):
             self.temp_mlp_0_out = nnx.Linear(2 * _tw, _tw, rngs=rngs)
             self.temp_mlp_1_in = nnx.Linear(_tw, 2 * _tw, rngs=rngs)
             self.temp_mlp_1_out = nnx.Linear(2 * _tw, _tw, rngs=rngs)
+            self.temp_feat_norm = nnx.RMSNorm(_tw, rngs=rngs)   # unit-RMS pooled feature -> the gate's gradient scales with dL/dcond, not |feat|
             self.temp_out = nnx.Linear(_tw, _tw, kernel_init=nnx.initializers.zeros_init(), rngs=rngs)  # THE GATE: exactly 0 at init
             # pre-gate supervision heads (training-only): change targets over the K offsets + stage/progress readout
             self.temp_flow_in = nnx.Linear(_tw, 256, rngs=rngs)
@@ -332,7 +333,7 @@ class Pi0(_model.BaseModel):
                                           (self.temp_attn_1, self.temp_ln_1, self.temp_mlp_1_in, self.temp_mlp_1_out)):
             x = x + attn(ln(x), kv, kv, mask=mask, deterministic=True)
             x = x + mlp_out(jax.nn.gelu(mlp_in(x)))
-        feat = x.mean(axis=1)
+        feat = self.temp_feat_norm(x.mean(axis=1))
         return feat, self.temp_out(feat)
 
     def _embed_cond_extras(self, obs: _model.Observation, batch_size: int) -> at.Float[at.Array, "b emb"] | None:

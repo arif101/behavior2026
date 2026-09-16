@@ -93,8 +93,8 @@ except Exception: pass
 if js:
     d = json.load(open(js[0]))
     dl = st.get("dist_L_series") or []; dr = st.get("dist_R_series") or []
-    print("RUN3_EVAL_RESULT arm=$ARM$TAG run=$i success=%s q=%s steps=%s inject=%s/%s conf=%s minL=%s minR=%s" % (
-        d["success"], d["q_score"]["final"], d["steps"], st.get("n_inject"), st.get("n_steps"), st.get("conf_p50"),
+    print("RUN3_EVAL_RESULT arm=$ARM$TAG run=$i success=%s q=%s steps=%s grasp=%s weld_step=%s/%s inject=%s/%s conf=%s minL=%s minR=%s" % (
+        d["success"], d["q_score"]["final"], d["steps"], st.get("grasp"), st.get("ag_weld_right_step"), st.get("ag_weld_left_step"), st.get("n_inject"), st.get("n_steps"), st.get("conf_p50"),
         min(dl) if dl else None, min(dr) if dr else None))
 else:
     print("RUN3_EVAL_RESULT arm=$ARM run=$i NO_JSON")

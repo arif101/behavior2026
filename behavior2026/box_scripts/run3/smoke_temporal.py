@@ -58,12 +58,24 @@ K = mc.temporal_k
 obs_lab = obs.replace(hist_flow=jax.random.normal(keys[9], (B, K, 9)) * 0.05, hist_flow_mask=jnp.ones((B, K), bool))
 l_lab = model_on.compute_loss(jax.random.key(3), obs_lab, acts, train=False)
 print("loss with hist_flow + stage labels:", float(l_lab.mean()), "finite:", bool(jnp.isfinite(l_lab).all()), "| delta vs no-labels:", float((l_lab - l_on).mean()))
-# liveness: one SGD step on the aux losses moves the temporal modules and opens the gate
+# liveness: gradient reaches the gate. NOTE pi0.5's adaRMS modulation Dense layers are ZERO-INIT (gemma.py RMSNorm),
+# so at random init dL/dcond == 0 for EVERY conditioning term (timestep included) and any zero-init projection into
+# cond shows a zero gradient. Trained checkpoints (A4) have non-zero modulation kernels; emulate that here by
+# perturbing every modulation kernel before the gradient check.
+gd, st = nnx.split(model_on); pure = st.to_pure_dict(); n_mod = 0
+def perturb(d, path=()):
+    global n_mod
+    for k, v in list(d.items()):
+        if isinstance(v, dict): perturb(v, path + (k,))
+        elif 'Dense_0' in path and any('norm' in str(x) for x in path) and k == 'kernel':   # adaRMS modulation (gemma.py RMSNorm)
+            d[k] = 0.01 * jax.random.normal(jax.random.key(n_mod), v.shape, v.dtype); n_mod += 1
+perturb(pure); st.replace_by_pure_dict(pure); model_on = nnx.merge(gd, st)
+print('perturbed adaRMS modulation kernels:', n_mod)
 model_on.train()
 def loss_fn(m): return m.compute_loss(jax.random.key(5), obs_lab, acts, train=True).mean()
 grads = nnx.grad(loss_fn)(model_on)
 gp = grads.to_pure_dict() if hasattr(grads, "to_pure_dict") else nnx.state(grads).to_pure_dict()
 gnorm = lambda k: float(jnp.linalg.norm(jnp.asarray(gp[k]["kernel"])))
-print("grad norms: temp_in %.3e temp_flow_in %.3e temp_out(gate) %.3e action_out_proj %.3e" % (gnorm("temp_in"), gnorm("temp_flow_in"), gnorm("temp_out"), gnorm("action_out_proj")))
+print("grad norms: temp_in %.3e temp_flow_in %.3e temp_out(gate) %.3e progress_mlp_out %.3e action_out_proj %.3e" % (gnorm("temp_in"), gnorm("temp_flow_in"), gnorm("temp_out"), gnorm("progress_mlp_out"), gnorm("action_out_proj")))
 ok = float(jnp.abs(l_on - l_off).max()) < 1e-5 and float(jnp.abs(a_on - a_off).max()) < 1e-4 and bool(jnp.isfinite(l_lab).all()) and gnorm("temp_in") > 0 and gnorm("temp_out") > 0
 print("SMOKE_TEMPORAL_PASS" if ok else "SMOKE_TEMPORAL_FAIL")

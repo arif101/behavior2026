@@ -32,9 +32,11 @@ Implements research/TEMPORAL_4D_SWEEP_2026_09_06.md §4 in the tracked fork. Fla
    Now forwarded: map_tokens, target_points_v2, stage_v2, progress, gist_head.
 
 ## Smokes (CPU, trainer box, 2026-09-16 01:xx UTC)
-- `smoke_temporal.py`: 41 temporal param leaves; temp_out kernel = 0; loss on/off max|Δ| = 0.0; sample_actions
-  max|Δ| = 0.0; loss with hist_flow + stage labels finite (+0.85 from the aux terms on random targets); gradient
-  reaches temp_in / temp_flow_in / temp_out (see log).
+- `smoke_temporal.py` PASS (01:40 UTC): 41 temporal param leaves; temp_out kernel = 0; loss on/off max|Δ| = 0.0;
+  sample_actions max|Δ| = 0.0; loss with hist_flow + stage labels finite (+0.85 from the aux terms on random targets);
+  grad norms temp_in 4.28, temp_flow_in 1.93, temp_out (gate) 8.67, action_out_proj 3.53. Caveat learned: pi0.5's adaRMS
+  modulation Dense layers are ZERO-INIT, so at random init dL/dcond = 0 for EVERY conditioning term (progress_mlp_out
+  too) — the gate gradient only exists with trained modulation kernels (A4: 2/3 non-zero); the smoke perturbs them.
 - `preflight_full.py` on the mix with gist columns: pending the map precompute.
 - GPU 20-step smoke + checkpoint write: after S1 finishes (the A100 is full).
 

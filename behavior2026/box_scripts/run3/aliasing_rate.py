@@ -13,10 +13,10 @@ files = sorted(glob.glob(root + "/data/**/*.parquet", recursive=True))
 G = []; A = []; EP = []; FR = []; ST = []
 for f in files:
     t = pq.read_table(f, columns=["gist_head", "action", "episode_index", "frame_index", "stage_v2"])
-    G.append(np.asarray(t.column("gist_head").to_pylist(), np.float32)); A.append(np.asarray(t.column("action").to_pylist(), np.float32))
+    G.append(np.asarray(t.column("gist_head").to_pylist(), np.float16)); A.append(np.asarray(t.column("action").to_pylist(), np.float32))
     EP.append(np.asarray(t.column("episode_index").to_pylist())); FR.append(np.asarray(t.column("frame_index").to_pylist())); ST.append(np.asarray(t.column("stage_v2").to_pylist()).reshape(-1))
-G = np.concatenate(G); A = np.concatenate(A); EP = np.concatenate(EP); FR = np.concatenate(FR); ST = np.concatenate(ST); N = len(G)
-print(f"loaded {N} rows, {G.shape[1]}-D gists, {time.time()-t0:.0f}s", flush=True)
+G = np.concatenate(G).astype(np.float32); A = np.concatenate(A); EP = np.concatenate(EP); FR = np.concatenate(FR); ST = np.concatenate(ST); N = len(G)
+print(f"loaded {N} rows, {G.shape[1]}-D gists (fp16 -> fp32), {time.time()-t0:.0f}s", flush=True)
 # episode row ranges (rows are contiguous per episode, frame-ordered)
 starts = np.flatnonzero(np.r_[True, EP[1:] != EP[:-1]]); ends = np.r_[starts[1:], N]; ep_of_row = np.repeat(np.arange(len(starts)), ends - starts)
 # standardized action chunks (next H actions within the episode; clamp at the episode end)
@@ -29,7 +29,11 @@ def chunk_rows(rows):
 def hist_rows(rows):   # [len, K+1] row indices of the history slots (clamped to the episode start)
     e = ep_of_row[rows]; st = starts[e]
     return np.stack([np.maximum(rows - (K - k) * S, st) for k in range(K)] + [rows], axis=1)
-Gn = G / (np.linalg.norm(G, axis=1, keepdims=True) + 1e-6)
+# memory guard (the box shares a 250 GB cgroup with the trainer): random-project each gist 2048 -> 128 (JL, fixed
+# Gaussian) for BOTH searches; cosine on the projections approximates cosine on the originals.
+Rp = rng.standard_normal((G.shape[1], 128)).astype(np.float32) / np.sqrt(128)
+Gp = (G @ Rp).astype(np.float32); del G
+Gn = Gp / (np.linalg.norm(Gp, axis=1, keepdims=True) + 1e-6)
 q = rng.choice(N, size=min(Q, N), replace=False)
 # ---- current-gist NN (exclude the query's own episode)
 def nn_search(qemb, emb, qrows, blk=2000):

@@ -113,8 +113,12 @@ class B1KPolicyWrapper:
         # 2026-09-16: also forward map_tokens (attached by patch_map_passthrough2 but never forwarded before: the
         # K=8 map path saw NO tokens at serve in every Run-2/Run-3 eval) and the v2 label keys
         # (target_points_v2 / stage_v2 / progress from StageV2AffordanceWrapper + patch_v2_passthrough).
+        import os as _os2
+        _fwd_map = _os2.environ.get("SERVE_FORWARD_MAP_TOKENS", "1") != "0"   # 0 = legacy parity (Run-2/Run-3 arms were evaluated without)
         for key, unbatched_ndim in (("target_points", 2), ("target_points_mask", 1), ("stage_tokens", 1),
                                     ("map_tokens", 2), ("target_points_v2", 2), ("stage_v2", 0), ("progress", 0)):
+            if key == "map_tokens" and not _fwd_map:
+                continue
             if key in obs and obs[key] is not None:
                 value = np.asarray(obs[key])
                 for i in range(batch_size):

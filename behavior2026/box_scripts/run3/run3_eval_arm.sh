@@ -32,6 +32,7 @@ PYO=/root/miniconda3/envs/openpi/bin/python; [ -x $PYO ] || PYO=/root/openpi_for
 PYB=/root/miniconda3/envs/behavior/bin/python
 WRAP=${WRAP:-behavior2026_eval.affordance_map_fullres.AffordanceMapFullRes}
 POLICY_CONFIG=${POLICY_CONFIG:-pi05_radio_run2}; HISTORY_MODE=${HISTORY_MODE:-normal}; TAG=${TAG:-}
+SERVE_FORWARD_MAP_TOKENS=${SERVE_FORWARD_MAP_TOKENS:-0}   # 0 = parity with the A0-A4 evals (map tokens were never forwarded); full stack: 1
 CK=/root/ckpt_$ARM
 say(){ echo "[run3_eval $(date -u +%m-%dT%H:%M:%S)] $*"; }
 
@@ -59,7 +60,7 @@ md5sum $CK/assets/b1k_radio/norm_stats.json | tee -a /root/run3_eval_$ARM.log
 for P in $(pgrep -f "serve_b1k.py.*--port $PORT"); do say "killing stale server $P"; kill $P; done
 sleep 5
 cd /root/openpi_fork
-setsid nohup env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.55 HISTORY_MODE=$HISTORY_MODE \
+setsid nohup env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.55 HISTORY_MODE=$HISTORY_MODE SERVE_FORWARD_MAP_TOKENS=$SERVE_FORWARD_MAP_TOKENS \
   $PYO scripts/b1k/serve_b1k.py \
   --policy.config $POLICY_CONFIG --policy.dir $CK \
   --robot b1k/R1Pro --task b1k/turning_on_radio --repo-id b1k_radio --port $PORT \

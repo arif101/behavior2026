@@ -628,7 +628,7 @@ class Pi0(_model.BaseModel):
         if getattr(self, "temporal_conditioning", False) and observation.hist_flow is not None:
             _tf, _ = self._temporal_summary(observation, batch_shape[0])
             _pred = self.temp_flow_out(jax.nn.gelu(self.temp_flow_in(_tf))).astype(jnp.float32).reshape(-1, self.temporal_k, 9)
-            _tgt = observation.hist_flow.astype(jnp.float32) / 0.1
+            _tgt = observation.hist_flow.astype(jnp.float32) / 0.3   # 0.3 m units: EE flow <= ~0.5, radio flow <= ~1.2 (0.1 m units gave loss ~5 and grad-norm ~40 at init, swamping the clipped policy gradient)
             _fm = observation.hist_flow_mask.astype(jnp.float32) if observation.hist_flow_mask is not None else jnp.ones(_pred.shape[:2], jnp.float32)
             _e_flow = (jnp.square(_pred - _tgt).mean(-1) * _fm).sum(-1) / jnp.maximum(_fm.sum(-1), 1.0)
             loss = loss + (self.temporal_flow_weight * _e_flow).astype(loss.dtype)[:, None]

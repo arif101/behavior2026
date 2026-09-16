@@ -99,7 +99,7 @@ class Pi0Config(_model.BaseModelConfig):
     temporal_gist_dim: int = 2048
     temporal_queries: int = 4
     temporal_heads: int = 8
-    temporal_flow_weight: float = 1.0
+    temporal_flow_weight: float = 0.2   # with 0.3 m target units the aux term starts ~0.1 (GPU smoke 2026-09-16: 1.0 @ 0.1 m units = loss 5, grad-norm 40)
     temporal_stage_weight: float = 0.2
     pytorch_compile_mode: str | None = "max-autotune"
 

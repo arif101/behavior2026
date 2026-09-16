@@ -65,3 +65,18 @@ but cuts cross-stage confusion by a third. Stage is what the v2 labels + serve m
 press-fix conditioning captures most of that gain; expect a small gate opening and a small history-off delta. Caveat:
 the pooled gist is a coarse proxy for the full prefix (images + proprio + points). Launch unchanged (pathway is a
 zero-init no-op if unneeded); `ARMS=press` is the one-word alternative for a cleaner attribution.
+
+## GPU smokes of pi05_radio_full (A4 warm start, mix_full, 40 steps; 2026-09-16 18:20–22:20 UTC) — loss/grad-norm tuning
+| variant | loss @ steps 20–35 | grad norm | note |
+|---|---|---|---|
+| S1 (a5) warm start, reference | 0.05–0.10 | ~1 | |
+| press-only (v2 labels, no temporal) | 0.58–0.69 | 2.1–2.4 | the jump is the v2 TARGET shift (rail vs button on pre-lift frames) into the trained point-conditioning; the run adapts |
+| full, flow targets 0.1 m units, weights 1.0/0.2 | 5.0–5.4 | 38–42 | aux MSE dominated; with the 1.0 global-norm clip the policy gradient was scaled ~1/40 |
+| full, 0.3 m units, 0.2/0.2 | 1.07–1.22 | 13–18 | |
+| full, 0.05/0.05 | 0.67–0.75 | 10–13 | norm not from the aux weights |
+| full, + RMSNorm on the pooled feature before the gate (FINAL) | 0.64–0.73 | 5.6–7.2 | the gate kernel's gradient = feat ⊗ dL/dcond; unnormalized feat was the norm source |
+Gate after 20 steps (first smoke): ‖temp_out‖_F 3.4e-4 (opening). Under Adam a uniform clip scale barely changes the
+update, so the residual 3× norm vs press-only is acceptable; heads settle within a few hundred steps.
+Operational: S1's HF pushes are blocked (403 storage billing) → params copied box-to-box; the decision watcher wrote "a4"
+on a failed (0-rollout) eval and the driver launched prematurely (killed within 2 min, no checkpoint) → watcher now
+requires ≥ 20 rollouts; eval driver's readiness check uses /dev/tcp (no ss/netstat on the v6 box).

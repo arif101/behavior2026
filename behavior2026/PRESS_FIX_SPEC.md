@@ -170,3 +170,9 @@ affordance error], (2) poor grasp execution [button-as-grasp-target -> fixed by 
   -> depth labels -> sample weights -> HF arif101/b26-radio-manufactured:b1k_radio_approach_v2 (+ clip cmds/meta).
 - Next: re-run the 18 failed demos under v13d (11 of them never saw it); the reach-stall class (d350/d400/d410) may
   need the base to close the gap (BASE_APPROACH triggers only when the position was not reached and best < 0.10).
+- **Rerun of the 18 sweep-#6 failures on v13e (09-15 22:53 -> 09-16 05:48 UTC):** 1 recovered (d70, strict, the pre-v13c PUSH
+  skid), 17 failed identically twice -> structural for this factory: wrist attitude/reach unreachable from the retreated
+  stance (d300/d380 attitude; d350/d400/d410 reach), shallow-line body touches (d100/d110/d120/d140/d220/d230/d290/d360/d420),
+  no-finger-contact brushes (d240/d280), d130 stop. Next factory step if more approach clips are wanted: base DOF in the
+  servo + following the human's own hand waypoints for the last 10 cm. d70's clip is NOT in b1k_radio_approach_v2 (S1 and
+  mix_full use the 19-clip source); it joins the next data refresh. Renders: 21 under /root/factory_obs2 on the RTX box.

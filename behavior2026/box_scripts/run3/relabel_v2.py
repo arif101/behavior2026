@@ -23,7 +23,7 @@ import numpy as np, pyarrow as pa, pyarrow.parquet as pq
 
 RAIL_UP = np.array([0.0, 0.0, 0.141], np.float32)
 
-def relabel_episode(tp, stage_v1, lifted, grasp_r, press_r, reach_r=0.25, toggle_idx=None, press_anchor='closest'):
+def relabel_episode(tp, stage_v1, lifted, grasp_r, press_r, reach_r=0.20, toggle_idx=None, press_anchor='closest'):
     n = len(tp); dL = np.linalg.norm(tp[:, 0:3] + RAIL_UP, axis=1); dR = np.linalg.norm(tp[:, 3:6] + RAIL_UP, axis=1)
     bL = np.linalg.norm(tp[:, 0:3], axis=1); bR = np.linalg.norm(tp[:, 3:6], axis=1)
     lift_idx = int(np.argmax(lifted)) if lifted.any() else None
@@ -66,7 +66,7 @@ def main():
     ap.add_argument("--root", required=True); ap.add_argument("--episode-map"); ap.add_argument("--metalink-dir"); ap.add_argument("--rawdemos", help="dir with episode_XXXXXXXX.hdf5 (toggle frame from the recorded reward)")
     ap.add_argument("--press-anchor", choices=("closest", "none"), default="closest", help="press anchor when no toggle frame: closest free-hand approach in the last 40%% (policy-press episodes) or none (clips that end before the press)")
     ap.add_argument("--grasp-radius", type=float, default=0.12); ap.add_argument("--press-radius", type=float, default=0.12)
-    ap.add_argument("--lift-dz", type=float, default=0.03); ap.add_argument("--reach-radius", type=float, default=0.25); ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--lift-dz", type=float, default=0.03); ap.add_argument("--reach-radius", type=float, default=0.20); ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(); root = pathlib.Path(a.root)
     emap = json.load(open(a.episode_map))["mapping"] if a.episode_map else None
     files = sorted(glob.glob(str(root / "data" / "**" / "*.parquet"), recursive=True)); assert files

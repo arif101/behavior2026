@@ -63,8 +63,21 @@ class Policy(BasePolicy):
             # JAX model setup
             self._sample_actions = nnx_utils.module_jit(model.sample_actions)
             self._rng = rng or jax.random.key(0)
+            # TEMPORAL FORCING serve helper: head-camera gist from the model's OWN (frozen) SigLIP tower, the same
+            # quantity precompute_gists.py stored for training (mean of the 256 projected tokens).
+            self._gist_fn = None
+            if getattr(model, 'temporal_conditioning', False) and hasattr(model, 'compute_head_gist'):
+                self._gist_fn = nnx_utils.module_jit(model.compute_head_gist)
 
     @override
+    def compute_gist(self, image_u8_224: np.ndarray) -> np.ndarray | None:
+        """[H, W, 3] uint8 head image at model resolution -> [D] float32 gist, or None if the model has no temporal
+        pathway. Normalization matches Observation.from_dict (uint8 -> [-1, 1])."""
+        if getattr(self, '_gist_fn', None) is None:
+            return None
+        img = jnp.asarray(image_u8_224, jnp.float32)[None] / 255.0 * 2.0 - 1.0
+        return np.asarray(self._gist_fn(img))[0]
+
     def infer(self, obs: dict, *, noise: np.ndarray | None = None) -> dict:  # type: ignore[misc]
         # Make a copy since transformations may modify the inputs in place.
         inputs = jax.tree.map(lambda x: x, obs)

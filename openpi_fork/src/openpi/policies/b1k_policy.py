@@ -80,6 +80,12 @@ class B1KInputs(transforms.DataTransformFn):
     stage_head: bool = False
     stage_classes: int = 4
 
+    # TEMPORAL FORCING (models/pi0.py temporal_conditioning): pack the K+1 head-camera gists (train: the loader's
+    # delta-timestamp stack "gist_head" [K+1, D] oldest..current + "gist_head_is_pad"; serve: a ring buffer [n, D]
+    # supplied by the b1k eval wrapper, left-padded with zeros/invalid) and the change targets from "hist_geo".
+    temporal_conditioning: bool = False
+    temporal_k: int = 8
+
     def __call__(self, data: dict) -> dict:
         proprio_data = data["observation/state"]
         # extract joint position
@@ -181,6 +187,28 @@ class B1KInputs(transforms.DataTransformFn):
         # the aux loss is inert.
         if self.depth_aux and data.get("gt_depth") is not None:
             inputs["gt_depth"] = np.asarray(data["gt_depth"], np.float32).reshape(768)
+
+        if self.temporal_conditioning:
+            K = self.temporal_k
+            g = data.get("gist_head")
+            if g is not None:
+                g = np.asarray(g, np.float32)
+                if g.ndim == 1:
+                    g = g[None]
+                pad = data.get("gist_head_is_pad")
+                m = ~np.asarray(pad, bool).reshape(-1) if pad is not None else np.ones(len(g), bool)
+                if len(g) < K + 1:
+                    g = np.concatenate([np.zeros((K + 1 - len(g), g.shape[-1]), np.float32), g], axis=0)
+                    m = np.concatenate([np.zeros(K + 1 - len(m), bool), m], axis=0)
+                inputs["history_gists"] = g[-(K + 1):]
+                inputs["history_mask"] = m[-(K + 1):]
+            geo = data.get("hist_geo")
+            if geo is not None and np.asarray(geo).ndim == 2 and len(np.asarray(geo)) == K + 1:
+                geo = np.asarray(geo, np.float32)
+                gp = data.get("hist_geo_is_pad")
+                gm = ~np.asarray(gp, bool).reshape(-1) if gp is not None else np.ones(len(geo), bool)
+                inputs["hist_flow"] = (geo[-1][None] - geo[:-1]).astype(np.float32)   # current - past, [K, 9]
+                inputs["hist_flow_mask"] = np.logical_and(gm[:-1], gm[-1])
 
         return inputs
 

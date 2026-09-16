@@ -139,11 +139,15 @@ def create_b1k_dataset(data_config: _config.DataConfig, action_horizon: int) -> 
             repo_id=data_config.repo_id, root=data_config.dataset_root
         )
         dataset_kwargs = {"repo_id": data_config.repo_id, **data_config.dataset_kwargs}
+    _dts = {key: [t / dataset_meta.fps for t in range(action_horizon)] for key in data_config.action_sequence_keys}
+    if getattr(data_config, "history_frame_offsets", None):
+        # TEMPORAL FORCING: stack K+1 history slots per key (oldest ... current); LeRobot pads before the episode
+        # start and reports <key>_is_pad.
+        for _hk, _offs in data_config.history_frame_offsets.items():
+            _dts[_hk] = [o / dataset_meta.fps for o in _offs]
     dataset = data_config.data_cls(
         root=data_config.dataset_root,
-        delta_timestamps={
-            key: [t / dataset_meta.fps for t in range(action_horizon)] for key in data_config.action_sequence_keys
-        },
+        delta_timestamps=_dts,
         **dataset_kwargs,
     )
 

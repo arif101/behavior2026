@@ -38,6 +38,15 @@ class B1KPolicyWrapper:
         self.sequence_lengths = None  # Shape: (batch, max_sequences) - total length of each sequence
         self.num_active_sequences = None  # Shape: (batch,) - number of active sequences per batch element
         self.step_counter = None  # Shape: (batch,)
+        # TEMPORAL FORCING serve state (2026-09-16): stride-aligned ring buffer of head-camera gists per batch element.
+        # Slots are sampled every `temporal_stride` env steps (the training offsets: -K*stride ... -stride) and the
+        # current gist is computed at every inference. HISTORY_MODE (liveness controls, TEMPORAL_4D_SWEEP §4.5):
+        #   normal | off (no history: mask all past slots) | repeat (every slot = current) | shuffle (past slots permuted)
+        import os as _os
+        self.temporal_k = int(_os.environ.get('TEMPORAL_K', '8')); self.temporal_stride = int(_os.environ.get('TEMPORAL_STRIDE', '32'))
+        self.history_mode = _os.environ.get('HISTORY_MODE', 'normal').lower()
+        self._gist_ring = None   # list per batch element of past grid gists (oldest ... newest)
+        self._gist_steps = 0
 
     def reset(self):
         self.batch_size = None
@@ -46,6 +55,8 @@ class B1KPolicyWrapper:
         self.sequence_lengths = None
         self.num_active_sequences = None
         self.step_counter = None
+        self._gist_ring = None
+        self._gist_steps = 0
         self.policy.reset()
 
     def _ensure_batch_initialized(self, batch_size: int, action_dim: int = None):
@@ -99,11 +110,35 @@ class B1KPolicyWrapper:
         # Optional AdaLN conditioning inputs (grounding-head output). Keys may be unbatched ([2, 3] points,
         # [2] mask/stage) or batched ([B, 2, 3] / [B, 2]). Absent keys are simply not forwarded; the policy
         # input transform then emits the "no target" sentinel (zeros + invalid mask).
-        for key, unbatched_ndim in (("target_points", 2), ("target_points_mask", 1), ("stage_tokens", 1)):
+        # 2026-09-16: also forward map_tokens (attached by patch_map_passthrough2 but never forwarded before: the
+        # K=8 map path saw NO tokens at serve in every Run-2/Run-3 eval) and the v2 label keys
+        # (target_points_v2 / stage_v2 / progress from StageV2AffordanceWrapper + patch_v2_passthrough).
+        for key, unbatched_ndim in (("target_points", 2), ("target_points_mask", 1), ("stage_tokens", 1),
+                                    ("map_tokens", 2), ("target_points_v2", 2), ("stage_v2", 0), ("progress", 0)):
             if key in obs and obs[key] is not None:
                 value = np.asarray(obs[key])
                 for i in range(batch_size):
                     processed_input[i][key] = value if value.ndim == unbatched_ndim else value[i]
+        # TEMPORAL FORCING: maintain the gist ring buffer and attach the history stack as "gist_head" [n, D]
+        _gist = getattr(self.policy, "compute_gist", None)
+        if _gist is not None and getattr(self.policy, "_gist_fn", None) is not None:
+            if self._gist_ring is None:
+                self._gist_ring = [[] for _ in range(batch_size)]
+            on_grid = (self._gist_steps % self.temporal_stride) == 0
+            for i in range(batch_size):
+                g_now = _gist(img_obs[i, 0])
+                if on_grid:
+                    self._gist_ring[i].append(g_now)
+                    self._gist_ring[i] = self._gist_ring[i][-(self.temporal_k + 1):]
+                past = list(self._gist_ring[i][:-1]) if on_grid else list(self._gist_ring[i][-self.temporal_k:])
+                if self.history_mode == "off":
+                    past = []
+                elif self.history_mode == "repeat":
+                    past = [g_now for _ in past]
+                elif self.history_mode == "shuffle" and len(past) > 1:
+                    past = [past[j] for j in np.random.permutation(len(past))]
+                processed_input[i]["gist_head"] = np.stack(past + [g_now]).astype(np.float32)
+            self._gist_steps += 1
         return processed_input
 
     def _get_current_actions(

@@ -87,6 +87,20 @@ class Pi0Config(_model.BaseModelConfig):
     # -> image_mask False; head cam never dropped). Generalizes anti_shortcut — enable
     # exactly ONE of the two. 0.0 => byte-identical behavior to baseline.
     modality_dropout_p: float = 0.0
+    # TEMPORAL FORCING (research/TEMPORAL_4D_SWEEP_2026_09_06 §4; 2026-09-16): K past HEAD-camera gists at
+    # chunk-boundary stride (precomputed by the FROZEN SigLIP tower of the warm start, precompute_gists.py; the
+    # tower is frozen in the temporal arm so serve-time gists match) -> temporal_queries learnable queries through
+    # 2 cross-attention blocks -> mean -> ZERO-INIT projection -> the adaRMS conditioning vector (action expert
+    # only, never the VLM prefix). Pre-gate change-prediction head (EE/object flow over the K offsets) + stage/
+    # progress readout supervise the pathway (training-only heads). False => no params, bit-identical restore.
+    temporal_conditioning: bool = False
+    temporal_k: int = 8
+    temporal_stride: int = 32
+    temporal_gist_dim: int = 2048
+    temporal_queries: int = 4
+    temporal_heads: int = 8
+    temporal_flow_weight: float = 1.0
+    temporal_stage_weight: float = 0.2
     pytorch_compile_mode: str | None = "max-autotune"
 
     def __post_init__(self):
@@ -98,6 +112,8 @@ class Pi0Config(_model.BaseModelConfig):
             raise ValueError(
                 "point_conditioning/stage_conditioning require pi05=True (they extend the adaRMS pathway)."
             )
+        if self.temporal_conditioning and not self.pi05:
+            raise ValueError("temporal_conditioning requires pi05=True (adaRMS pathway).")
         if self.map_geo_conditioning and (not self.pi05 or self.map_tokens_k != 8):
             raise ValueError(
                 "map_geo_conditioning requires pi05=True and map_tokens_k == 8 (patch_map_adaln.py: "
@@ -154,6 +170,13 @@ class Pi0Config(_model.BaseModelConfig):
                 ),
                 stage_tokens=(
                     jax.ShapeDtypeStruct([batch_size, NUM_POINT_ARMS], jnp.int32) if self.stage_conditioning else None
+                ),
+                history_gists=(
+                    jax.ShapeDtypeStruct([batch_size, self.temporal_k + 1, self.temporal_gist_dim], jnp.float32)
+                    if self.temporal_conditioning else None
+                ),
+                history_mask=(
+                    jax.ShapeDtypeStruct([batch_size, self.temporal_k + 1], bool) if self.temporal_conditioning else None
                 ),
             )
         action_spec = jax.ShapeDtypeStruct([batch_size, self.action_horizon, self.action_dim], jnp.float32)

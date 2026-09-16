@@ -219,6 +219,36 @@ class Pi0(_model.BaseModel):
         # regularizer; checkpoint restore untouched at any flag value.
         self.modality_dropout_p = getattr(config, "modality_dropout_p", 0.0)
 
+        # TEMPORAL FORCING (pi0_config.temporal_conditioning; research/TEMPORAL_4D_SWEEP §4). Created AFTER every
+        # stock/optional module so the rng stream of all existing params is unchanged; False => no params.
+        # Route: history gists -> temporal queries -> mean -> temp_out (ZERO-INIT = the gate) -> adaRMS cond.
+        # Warm-starting needs missing_regex ".*temp_.*". Liveness readout: ||temp_out.kernel|| over checkpoints.
+        self.temporal_conditioning = getattr(config, "temporal_conditioning", False)
+        if self.temporal_conditioning:
+            _tw = action_expert_config.width
+            self.temporal_k = config.temporal_k
+            self.temporal_nq = config.temporal_queries
+            self.temporal_flow_weight = config.temporal_flow_weight
+            self.temporal_stage_weight = config.temporal_stage_weight
+            self.temp_in = nnx.Linear(config.temporal_gist_dim, _tw, rngs=rngs)
+            self.temp_slot_embed = nnx.Param(nnx.initializers.normal(0.02)(rngs.params(), (config.temporal_k + 1, _tw)))
+            self.temp_queries = nnx.Param(nnx.initializers.normal(0.02)(rngs.params(), (config.temporal_queries, _tw)))
+            self.temp_kv_norm = nnx.RMSNorm(_tw, rngs=rngs)
+            self.temp_attn_0 = nnx.MultiHeadAttention(num_heads=config.temporal_heads, in_features=_tw, decode=False, rngs=rngs)
+            self.temp_attn_1 = nnx.MultiHeadAttention(num_heads=config.temporal_heads, in_features=_tw, decode=False, rngs=rngs)
+            self.temp_ln_0 = nnx.RMSNorm(_tw, rngs=rngs)
+            self.temp_ln_1 = nnx.RMSNorm(_tw, rngs=rngs)
+            self.temp_mlp_0_in = nnx.Linear(_tw, 2 * _tw, rngs=rngs)
+            self.temp_mlp_0_out = nnx.Linear(2 * _tw, _tw, rngs=rngs)
+            self.temp_mlp_1_in = nnx.Linear(_tw, 2 * _tw, rngs=rngs)
+            self.temp_mlp_1_out = nnx.Linear(2 * _tw, _tw, rngs=rngs)
+            self.temp_out = nnx.Linear(_tw, _tw, kernel_init=nnx.initializers.zeros_init(), rngs=rngs)  # THE GATE: exactly 0 at init
+            # pre-gate supervision heads (training-only): change targets over the K offsets + stage/progress readout
+            self.temp_flow_in = nnx.Linear(_tw, 256, rngs=rngs)
+            self.temp_flow_out = nnx.Linear(256, config.temporal_k * 9, rngs=rngs)
+            self.temp_stage_in = nnx.Linear(_tw, 128, rngs=rngs)
+            self.temp_stage_out = nnx.Linear(128, getattr(config, "stage_classes", 4) + 1, rngs=rngs)
+
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
 
@@ -275,6 +305,35 @@ class Pi0(_model.BaseModel):
         if _n_map:
             pos_weight = input_mask.at[:, -_n_map:].set(False)
         return tokens, input_mask, ar_mask, pos_weight
+
+    def compute_head_gist(self, image: at.Float[at.Array, "b h w c"]) -> at.Float[at.Array, "b d"]:
+        """TEMPORAL FORCING serve helper: [-1, 1] image at model resolution -> gist = mean of the 256 projected
+        SigLIP tokens (precompute_gists.py contract). The tower is frozen in the temporal arm, so this equals the
+        precomputed training gists."""
+        toks, _ = self.PaliGemma.img(image, train=False)
+        return toks.astype(jnp.float32).mean(axis=1)
+
+    def _temporal_summary(self, obs: _model.Observation, batch_size: int):
+        """History gists [b, K+1, D] (oldest ... current) + validity -> pooled query feature [b, W] (pre-gate) and
+        the gated adaRMS term [b, W] (zero at init). Missing history => zero gists, only the current slot attended."""
+        K = self.temporal_k; W = self.temp_queries.value.shape[-1]; Q = self.temporal_nq
+        g, m = obs.history_gists, obs.history_mask
+        if g is None:
+            g = jnp.zeros((batch_size, K + 1, self.temp_in.in_features), jnp.float32)
+            m = jnp.zeros((batch_size, K + 1), dtype=jnp.bool_)
+        g = g.astype(jnp.float32); m = m.astype(jnp.bool_)
+        kv = self.temp_in(g) + self.temp_slot_embed.value[None].astype(jnp.float32)
+        kv = jnp.where(m[..., None], kv, 0.0)
+        kv = self.temp_kv_norm(kv)
+        m_att = m.at[:, -1].set(True)                       # the current slot is always attendable (no NaN softmax)
+        mask = m_att[:, None, None, :]                       # [b, 1(heads), 1(q), K+1]
+        x = jnp.broadcast_to(self.temp_queries.value[None].astype(jnp.float32), (batch_size, Q, W))
+        for attn, ln, mlp_in, mlp_out in ((self.temp_attn_0, self.temp_ln_0, self.temp_mlp_0_in, self.temp_mlp_0_out),
+                                          (self.temp_attn_1, self.temp_ln_1, self.temp_mlp_1_in, self.temp_mlp_1_out)):
+            x = x + attn(ln(x), kv, kv, mask=mask, deterministic=True)
+            x = x + mlp_out(jax.nn.gelu(mlp_in(x)))
+        feat = x.mean(axis=1)
+        return feat, self.temp_out(feat)
 
     def _embed_cond_extras(self, obs: _model.Observation, batch_size: int) -> at.Float[at.Array, "b emb"] | None:
         """Embeds target points (and reserved stage tokens) into an additive term for the adaRMS conditioning
@@ -333,6 +392,9 @@ class Pi0(_model.BaseModel):
             prog_emb = prog_emb.reshape(batch_size, self.progress_posemb_dim)
             prog_emb = nnx.swish(self.progress_mlp_in(prog_emb))
             parts.append(self.progress_mlp_out(prog_emb))  # zero-init: exactly 0 at start of training
+        if getattr(self, "temporal_conditioning", False):
+            _tf, _tg = self._temporal_summary(obs, batch_size)
+            parts.append(_tg)  # zero-init gate: exactly 0 at start of training
         if not parts:
             return None
         return sum(parts[1:], start=parts[0])
@@ -560,6 +622,24 @@ class Pi0(_model.BaseModel):
             _derr = jnp.abs(_dpred - jnp.log1p(_gd)) * _dw
             _e_depth = _derr.sum((-1, -2)) / jnp.maximum(_dw.sum((-1, -2)), 1.0)
             loss = loss + (self.depth_aux_weight * _e_depth).astype(loss.dtype)[:, None]
+        # TEMPORAL FORCING pre-gate supervision (training-only heads): masked MSE on current-minus-past
+        # [EE_L, EE_R, button] displacements (0.1 m units) over the K offsets + stage CE / progress MSE readout.
+        # The gradient lands on the temporal queries BEFORE the zero-init gate, so the channel cannot stay dead.
+        if getattr(self, "temporal_conditioning", False) and observation.hist_flow is not None:
+            _tf, _ = self._temporal_summary(observation, batch_shape[0])
+            _pred = self.temp_flow_out(jax.nn.gelu(self.temp_flow_in(_tf))).astype(jnp.float32).reshape(-1, self.temporal_k, 9)
+            _tgt = observation.hist_flow.astype(jnp.float32) / 0.1
+            _fm = observation.hist_flow_mask.astype(jnp.float32) if observation.hist_flow_mask is not None else jnp.ones(_pred.shape[:2], jnp.float32)
+            _e_flow = (jnp.square(_pred - _tgt).mean(-1) * _fm).sum(-1) / jnp.maximum(_fm.sum(-1), 1.0)
+            loss = loss + (self.temporal_flow_weight * _e_flow).astype(loss.dtype)[:, None]
+            if observation.stage is not None:
+                _ts = self.temp_stage_out(jax.nn.gelu(self.temp_stage_in(_tf))).astype(jnp.float32)
+                _nc = _ts.shape[-1] - 1
+                _tlab = jnp.clip(observation.stage.reshape(-1).astype(jnp.int32), 0, _nc - 1)
+                _e_ts = -jnp.take_along_axis(jax.nn.log_softmax(_ts[:, :_nc]), _tlab[:, None], axis=-1)[:, 0]
+                if observation.progress is not None:
+                    _e_ts = _e_ts + jnp.square(jax.nn.sigmoid(_ts[:, -1]) - jnp.clip(observation.progress.reshape(-1).astype(jnp.float32), 0.0, 1.0))
+                loss = loss + (self.temporal_stage_weight * _e_ts).astype(loss.dtype)[:, None]
         return loss
 
     @override

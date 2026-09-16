@@ -125,6 +125,12 @@ class Observation(Generic[ArrayT]):
     # Normalized episode progress in [0, 1] (patch_stage_head.py). Coarse
     # stage-midpoint fallback when no explicit label column exists (see B1KInputs).
     progress: at.Float[ArrayT, "*b"] | None = None
+    # TEMPORAL FORCING (pi0_config.temporal_conditioning): K+1 head-camera gists (oldest ... current) and their
+    # validity; hist_flow = current - past [EE_L, EE_R, button] (meters) over the K offsets, label-only.
+    history_gists: at.Float[ArrayT, "*b hk hd"] | None = None
+    history_mask: at.Bool[ArrayT, "*b hk"] | None = None
+    hist_flow: at.Float[ArrayT, "*b hj 9"] | None = None
+    hist_flow_mask: at.Bool[ArrayT, "*b hj"] | None = None
 
     @classmethod
     def from_dict(cls, data: at.PyTree[ArrayT]) -> "Observation[ArrayT]":
@@ -157,6 +163,10 @@ class Observation(Generic[ArrayT]):
             aux_pixels=data.get("aux_pixels"),
             gt_depth=data.get("gt_depth"),
             progress=data.get("progress"),
+            history_gists=data.get("history_gists"),
+            history_mask=data.get("history_mask"),
+            hist_flow=data.get("hist_flow"),
+            hist_flow_mask=data.get("hist_flow_mask"),
         )
 
     def to_dict(self) -> at.PyTree[ArrayT]:
@@ -244,6 +254,10 @@ def preprocess_observation(
         aux_pixels=observation.aux_pixels,
         gt_depth=observation.gt_depth,
         progress=observation.progress,
+        history_gists=observation.history_gists,
+        history_mask=observation.history_mask,
+        hist_flow=observation.hist_flow,
+        hist_flow_mask=observation.hist_flow_mask,
     )
 
 

@@ -93,6 +93,9 @@ class AssetsConfig:
 class DataConfig:
     # LeRobot repo id. If None, fake data will be created. Should be list of str if using MultiLeRobotDataset.
     repo_id: str | List[str] | None = None
+    # TEMPORAL FORCING: per-key history frame offsets (ascending, e.g. [-256, ..., -32, 0]); the b1k dataset adds
+    # them as delta_timestamps (offset / fps). None => no history keys requested.
+    history_frame_offsets: dict[str, list[int]] | None = None
     # Directory within the assets directory containing the data assets.
     asset_id: str | None = None
     # Contains precomputed normalization stats. If None, normalization will not be performed.
@@ -499,6 +502,14 @@ class LeRobotB1KDataConfig(DataConfigFactory):
         # through add_depth_aux_labels.py first.
         if getattr(model_config, "depth_aux", False):
             repack_mapping["gt_depth"] = "gt_depth_ds"
+        temporal_conditioning = getattr(model_config, "temporal_conditioning", False)
+        history_offsets = None
+        if temporal_conditioning:
+            _K, _S = model_config.temporal_k, model_config.temporal_stride
+            _offs = [-(_K - i) * _S for i in range(_K)] + [0]
+            history_offsets = {"gist_head": _offs, "hist_geo": _offs}
+            for _hk in ("gist_head", "gist_head_is_pad", "hist_geo", "hist_geo_is_pad"):
+                repack_mapping[_hk] = _hk
         repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(repack_mapping)])
 
         # Prepare data for policy training
@@ -516,6 +527,8 @@ class LeRobotB1KDataConfig(DataConfigFactory):
                 depth_aux=getattr(model_config, "depth_aux", False),
                 stage_head=stage_head,
                 stage_classes=getattr(model_config, "stage_classes", 4),
+                temporal_conditioning=temporal_conditioning,
+                temporal_k=getattr(model_config, "temporal_k", 8),
             )
         )
         data_transforms = _transforms.Group(
@@ -544,6 +557,7 @@ class LeRobotB1KDataConfig(DataConfigFactory):
             model_transforms=model_transforms,
             action_sequence_keys=(robot_config.action_key,),
             use_quantile_norm=False,
+            history_frame_offsets=history_offsets,
         )
 
 
@@ -1174,6 +1188,64 @@ _CONFIGS = [
         log_interval=100,
         num_workers=8,
         exp_name="radio_press",
+        assets_base_dir="./outputs/assets",
+        checkpoint_base_dir="./outputs/checkpoints",
+    ),
+    TrainConfig(
+        # FULL STACK = press fix + temporal forcing (2026-09-16). Base comment: A4 recipe (map + factory + episodes + poison-downweight) with
+        # stage_conditioning ENABLED — the one flag that was OFF for every Run-3 arm. Feeds the
+        # action expert the already-labeled task stage (the 'stage' column, now packed to
+        # stage_tokens via the b1k_policy derivation) so it can separate grasp- from press-behavior
+        # and execute the toggle. Warm-start from A4 (keeps the grasp); the new zero-init
+        # stage_embed/stage_proj graft on as a no-op and learn. Controlled test: only stage_conditioning
+        # differs from A4. See behavior2026/PRESS_FIX_SPEC.md. NOTE for training box: confirm the A4
+        # mix at dataset_root and the A4 params at the weight_loader path are present (reassemble/pull).
+        name="pi05_radio_full",
+        model=pi0_config.Pi0Config(
+            action_horizon=32,
+            pi05=True,
+            point_conditioning=True,
+            point_noise_std=0.02,
+            stage_conditioning=True,   # <-- THE FIX (was False/default for all Run-3 arms)
+            progress_conditioning=True,   # continuous [0,1] progress into adaRMS (code ready)
+            map_tokens_k=8,
+            anti_shortcut=False,
+            modality_dropout_p=0.2,
+            map_geo_conditioning=True,
+            depth_aux=True,
+            stage_head=True,
+            temporal_conditioning=True,   # FULL STACK (2026-09-16): + temporal forcing (K=8 gists @ stride 32, zero-init gate)
+        ),
+        data=LeRobotB1KDataConfig(
+            repo_id="b1k_radio",
+            base_config=DataConfig(
+                data_cls=_lerobot_compat.LeRobotDataset,
+                dataset_root="/root/b1k_radio_mix_a4",
+                prompt_from_task=True,
+                dataset_kwargs={"tolerance_s": 5e-4},
+            ),
+            robot_config_name="b1k/R1Pro",
+            extra_delta_transform=False,
+            # v2 labels (RELABEL_V2.md): crisp 4-class stage, progress clock, stage-indexed target (rail before lift,
+            # button after). Every source of the mix must carry these columns (relabel_v2.py).
+            stage_key="stage_v2",
+            progress_key="progress",
+            target_points_key="target_points_v2",
+            stage_tokens_key=None,   # no such column: B1KInputs broadcasts stage_v2 to both arms
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "/root/ckpt_a4/a4/params",   # warm-start from A4 (keeps the grasp); confirm path on training box
+            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
+        ),
+        # the SigLIP tower is FROZEN so the serve-time gists (computed by the model's own tower) equal the precomputed
+        # ones from the A4 tower (precompute_gists.py). Deviation from the A4 recipe, logged in RUN3_CONFIG.md.
+        freeze_filter=nnx.Any(nnx_utils.PathRegex(".*map_(proj|registers|alpha|recon).*"), nnx_utils.PathRegex(".*PaliGemma.*img.*")),
+        batch_size=32,
+        num_train_steps=10_000,   # warm-start fine-tune from A4; tune as needed
+        save_interval=2_500,
+        log_interval=100,
+        num_workers=8,
+        exp_name="radio_full",
         assets_base_dir="./outputs/assets",
         checkpoint_base_dir="./outputs/checkpoints",
     ),

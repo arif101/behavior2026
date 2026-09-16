@@ -20,7 +20,7 @@ for r in /root/b1k_radio_map /root/manufactured/b1k_radio_factory /root/manufact
   done
   wait
   grep -h DECODE_OK $L/decode_${n}_*.log | sed "s/^/  /"
-  [ "$(grep -c DECODE_OK $L/decode_${n}_*.log | awk -F: '{s+=$2} END {print s}')" = "$NF" ] && touch $C.DONE || { say "$n: DECODE INCOMPLETE"; exit 1; }
+  [ "$(cat $L/decode_${n}_*.log | grep -c DECODE_OK)" = "$NF" ] && touch $C.DONE || { say "$n: DECODE INCOMPLETE"; exit 1; }
 done
 for r in /root/b1k_radio_map /root/manufactured/b1k_radio_factory /root/manufactured/b1k_radio_episodes /root/manufactured/b1k_radio_approach_v2; do
   n=$(basename $r)

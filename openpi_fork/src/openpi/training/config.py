@@ -407,7 +407,13 @@ class LeRobotB1KDataConfig(DataConfigFactory):
     # point_conditioning/stage_conditioning). The label pipeline stores per-frame per-arm values under these keys.
     target_points_key: str = "target_points"
     target_points_mask_key: str = "target_points_mask"
-    stage_tokens_key: str = "stage_tokens"
+    stage_tokens_key: str | None = "stage_tokens"   # None -> no repack; B1KInputs derives per-arm tokens from the stage column
+    # v2 labels (RELABEL_V2.md, 2026-09-16): the press/full-stack configs point these at the crisp columns
+    # (stage_key="stage_v2", progress_key="progress", target_points_key="target_points_v2"). Defaults keep every
+    # Run-2/Run-3 arm byte-identical. progress_key=None -> no repack (RepackTransform KeyErrors on absent columns)
+    # and B1KInputs falls back to (stage + 0.5) / stage_classes.
+    stage_key: str = "stage"
+    progress_key: str | None = None
 
     # Optional prompt rewrite table (raw task name -> descriptive instruction). Applied via
     # transforms.RemapPrompt as the first data transform, i.e. both at training time (after
@@ -467,13 +473,15 @@ class LeRobotB1KDataConfig(DataConfigFactory):
         if point_conditioning:
             repack_mapping["target_points"] = self.target_points_key
             repack_mapping["target_points_mask"] = self.target_points_mask_key
-        if stage_conditioning:
+        if stage_conditioning and self.stage_tokens_key is not None:
             repack_mapping["stage_tokens"] = self.stage_tokens_key
+        if stage_conditioning and self.stage_tokens_key is None:
+            repack_mapping["stage"] = self.stage_key          # tokens derived from the stage column in B1KInputs
         map_tokens_k = getattr(model_config, "map_tokens_k", 0)
         if map_tokens_k > 0:
             repack_mapping["map_tokens_full"] = "map_tokens_full"
             repack_mapping["map_tokens_blind"] = "map_tokens_blind"
-            repack_mapping["stage"] = "stage"
+            repack_mapping["stage"] = self.stage_key
             repack_mapping["aux_pixels"] = "aux_pixels"
         # STAGE/PROGRESS head (patch_stage_head.py): repack the parquet 'stage' column
         # whenever the model's stage_head consumes it (idempotent with the map path
@@ -481,7 +489,9 @@ class LeRobotB1KDataConfig(DataConfigFactory):
         # the parquet has no 'progress' column; B1KInputs derives the coarse fallback.
         stage_head = getattr(model_config, "stage_head", False)
         if stage_head:
-            repack_mapping["stage"] = "stage"
+            repack_mapping["stage"] = self.stage_key
+        if self.progress_key is not None:
+            repack_mapping["progress"] = self.progress_key   # v2 label clock (explicit key wins in B1KInputs)
 
         # GT-depth aux (patch_depth_aux.py): repack the precomputed gt_depth_ds column
         # only when the model consumes it. !! RepackTransform KeyErrors on absent
@@ -1146,6 +1156,12 @@ _CONFIGS = [
             ),
             robot_config_name="b1k/R1Pro",
             extra_delta_transform=False,
+            # v2 labels (RELABEL_V2.md): crisp 4-class stage, progress clock, stage-indexed target (rail before lift,
+            # button after). Every source of the mix must carry these columns (relabel_v2.py).
+            stage_key="stage_v2",
+            progress_key="progress",
+            target_points_key="target_points_v2",
+            stage_tokens_key=None,   # no such column: B1KInputs broadcasts stage_v2 to both arms
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
             "/root/ckpt_a4/a4/params",   # warm-start from A4 (keeps the grasp); confirm path on training box

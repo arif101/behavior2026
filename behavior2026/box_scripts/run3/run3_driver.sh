@@ -10,6 +10,7 @@
 #   final   upload params + assets + logs to HF, verify, then slim local ckpts to final params only
 # Any arm failure STOPS the driver (RUN3_DRIVER_FAILED) — the operator decides.
 # Usage: ARMS="a0 a2 a1 a3 a4 a5" RUN3_STEPS=15000 nohup bash run3_driver.sh > /root/run3_logs/driver.out 2>&1 &
+#        full stack: ARMS=full RUN3_STEPS=10000 FORK_SRC=/root/openpi_fork_v2/src bash run3_driver.sh  (FORK_SRC = patched src via PYTHONPATH)
 set -u
 FORK=/root/openpi_fork
 R3=/root/run3
@@ -24,7 +25,7 @@ say(){ echo "[driver $(date -u +%m-%dT%H:%M:%S)] $*" | tee -a $DRV; }
 committed_steps(){ ls -d $CKDIR/*/ 2>/dev/null | grep -v "orbax-checkpoint-tmp" | sed "s|$CKDIR/||; s|/||" | grep -E "^[0-9]+$" | sort -n; }
 launch(){
   cd $FORK
-  setsid nohup env $ENVS PYTHONUNBUFFERED=1 XLA_PYTHON_CLIENT_MEM_FRACTION=0.92 \
+  setsid nohup env $ENVS ${FORK_SRC:+PYTHONPATH=$FORK_SRC} PYTHONUNBUFFERED=1 XLA_PYTHON_CLIENT_MEM_FRACTION=0.92 \
     $PY scripts/b1k/train_b1k.py $CFG --exp_name $EXP --keep-period $KEEP --no-wandb-enabled $1 >> $LOG 2>&1 &
   echo $! > $LOGDIR/$ARM.pid
   say "$ARM: launched pid=$(cat $LOGDIR/$ARM.pid) args='$1' env='$ENVS'"
@@ -52,9 +53,11 @@ check_loader_lines(){  # returns 0 once the loader printed its weighting lines, 
 failure_sig(){ grep -nE "Traceback|RESOURCE_EXHAUSTED|No space left|Killed|CUDA_ERROR|OOM" $LOG | tail -3; }
 
 for ARM in $ARMS; do
-  CFG=pi05_radio_run3_$ARM; EXP=radio_run3_$ARM; CKDIR=$FORK/outputs/checkpoints/$CFG/$EXP; LOG=$LOGDIR/train_$ARM.log
+  # arm name -> config: a0..a5 = Run-3 data arms; press / full = the 2026-09 stacked configs (PRESS_FIX_SPEC, TEMPORAL_FORCING_BUILD)
+  case $ARM in press) CFG=pi05_radio_press; EXP=radio_press;; full) CFG=pi05_radio_full; EXP=radio_full;; *) CFG=pi05_radio_run3_$ARM; EXP=radio_run3_$ARM;; esac
+  CKDIR=$FORK/outputs/checkpoints/$CFG/$EXP; LOG=$LOGDIR/train_$ARM.log
   if [ -f $LOGDIR/$ARM.DONE ]; then say "$ARM: already DONE, skipping"; continue; fi
-  ROOT=$($PY -c "import openpi.training.config as c; print(c.get_config('$CFG').data.base_config.dataset_root)" 2>/dev/null)
+  ROOT=$(env ${FORK_SRC:+PYTHONPATH=$FORK_SRC} $PY -c "import openpi.training.config as c; print(c.get_config('$CFG').data.base_config.dataset_root)" 2>/dev/null)
   if [ ! -d "$ROOT" ]; then say "$ARM: dataset $ROOT missing — skipping (A5 lands later)"; continue; fi
   ENVS="B1K_STAGE_OVERSAMPLE=8"; [ "$ARM" != "a0" ] && ENVS="$ENVS B1K_SAMPLE_WEIGHT_COL=sample_weight"
   RESUMES=0

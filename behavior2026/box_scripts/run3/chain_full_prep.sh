@@ -16,7 +16,7 @@ for n in sample_weight:1 gt_depth_ds:768 stage_v2:1 progress:1 toggled:1 target_
 # the full config's dataset_root is the A4 mix path (cloned from the press config): point the preflight at the full mix
 say "2. preflight_full (CPU)"
 cd /root/openpi_fork
-PYTHONPATH=/root/openpi_fork_v2/src JAX_PLATFORMS=cpu B1K_STAGE_OVERSAMPLE=8 B1K_SAMPLE_WEIGHT_COL=sample_weight taskset -c 64-127 $P $R3/preflight_full.py /root/b1k_radio_mix_full 6 2>&1 | grep -vE "Warning|warn" | tail -8
 mkdir -p outputs/assets/pi05_radio_full/b1k_radio && cp outputs/assets/pi05_radio_run3_a5/b1k_radio/norm_stats.json outputs/assets/pi05_radio_full/b1k_radio/
+PYTHONPATH=/root/openpi_fork_v2/src JAX_PLATFORMS=cpu B1K_STAGE_OVERSAMPLE=8 B1K_SAMPLE_WEIGHT_COL=sample_weight taskset -c 64-127 $P $R3/preflight_full.py /root/b1k_radio_mix_full 6 2>&1 | grep -vE "Warning|warn" | tail -8
 df -h / | tail -1
 echo CHAIN_FULL_PREP_DONE

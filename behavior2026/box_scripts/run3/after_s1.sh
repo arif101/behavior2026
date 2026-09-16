@@ -28,7 +28,8 @@ say "2. frame cache (decode once; CPU ~2 h)"
 mkdir -p /root/frame_cache
 for r in /root/manufactured/b1k_radio_factory /root/manufactured/b1k_radio_episodes /root/manufactured/b1k_radio_approach_v2 /root/b1k_radio_map; do
   n=$(basename $r)
-  XLA_PYTHON_CLIENT_PREALLOCATE=false $P $R3/precompute_gists.py --root $r --params /root/ckpt_a4/params --cache-frames /root/frame_cache/$n.npy 2>&1 | grep -E "frame cache|PRECOMPUTE" | tee -a $L/after_s1.log
+  if [ -f /root/frame_cache/$n.npy.DONE ]; then say "$n: frame cache present (precompute_parallel.sh)"; continue; fi
+  XLA_PYTHON_CLIENT_PREALLOCATE=false $P $R3/precompute_gists.py --root $r --params /root/ckpt_a4/params --cache-frames /root/frame_cache/$n.npy 2>&1 | grep -E "frame cache|PRECOMPUTE" | tee -a $L/after_s1.log && touch /root/frame_cache/$n.npy.DONE
 done
 say "3. waiting for the decision file $L/FULL_WARMSTART (a4|s1)"
 until [ -s $L/FULL_WARMSTART ]; do sleep 120; done

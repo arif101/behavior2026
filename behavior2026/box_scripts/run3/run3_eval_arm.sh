@@ -3,7 +3,10 @@
 # stack and run N rollouts on the frozen held-out instance. Assembled from the committed Run-2
 # pieces: rate_legal.sh (serve line) + campaign_run1.sh (eval loop + archive).
 #
-# Usage:  bash run3_eval_arm.sh <arm a0..a5|run2ref> <N> [START_IDX]
+# Usage:  bash run3_eval_arm.sh <arm a0..a5|full|press|run2ref> <N> [START_IDX]
+#   env POLICY_CONFIG (default pi05_radio_run2; full stack: pi05_radio_full), WRAP (default AffordanceMapFullRes; full
+#   stack: behavior2026_eval.stage_v2_wrapper.StageV2AffordanceWrapper), HISTORY_MODE (normal|off|repeat|shuffle -> server),
+#   TAG (output dir suffix, e.g. _hist_off). 2026-09-16: PYO auto-detects the uv venv of the v6 bring-up.
 # Prereqs (serve_run2.sh layout): /root/openpi_fork = tarball + fork_snapshot + 5 run-2 patches +
 #   patch_b1k_robot_name; OmniGibson evaluator patched with patch_point_passthrough.py THEN
 #   patch_map_passthrough2.py (+ patch_action_logger.py); /root/behavior2026_eval/ = eval/*.py with
@@ -25,9 +28,10 @@
 set -u
 ARM=${1:?arm}; N=${2:?n_runs}; START=${3:-1}
 PORT=8000
-PYO=/root/miniconda3/envs/openpi/bin/python
+PYO=/root/miniconda3/envs/openpi/bin/python; [ -x $PYO ] || PYO=/root/openpi_fork/.venv/bin/python
 PYB=/root/miniconda3/envs/behavior/bin/python
-WRAP=behavior2026_eval.affordance_map_fullres.AffordanceMapFullRes
+WRAP=${WRAP:-behavior2026_eval.affordance_map_fullres.AffordanceMapFullRes}
+POLICY_CONFIG=${POLICY_CONFIG:-pi05_radio_run2}; HISTORY_MODE=${HISTORY_MODE:-normal}; TAG=${TAG:-}
 CK=/root/ckpt_$ARM
 say(){ echo "[run3_eval $(date -u +%m-%dT%H:%M:%S)] $*"; }
 
@@ -55,9 +59,9 @@ md5sum $CK/assets/b1k_radio/norm_stats.json | tee -a /root/run3_eval_$ARM.log
 for P in $(pgrep -f "serve_b1k.py.*--port $PORT"); do say "killing stale server $P"; kill $P; done
 sleep 5
 cd /root/openpi_fork
-setsid nohup env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.55 \
+setsid nohup env XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.55 HISTORY_MODE=$HISTORY_MODE \
   $PYO scripts/b1k/serve_b1k.py \
-  --policy.config pi05_radio_run2 --policy.dir $CK \
+  --policy.config $POLICY_CONFIG --policy.dir $CK \
   --robot b1k/R1Pro --task b1k/turning_on_radio --repo-id b1k_radio --port $PORT \
   > /root/serve_$ARM.log 2>&1 < /dev/null &
 for i in $(seq 1 90); do ss -ltn 2>/dev/null | grep -q ":$PORT" && break; sleep 5; done
@@ -67,7 +71,7 @@ say "SERVER_UP $ARM"
 
 # ---- rollouts (instance 301 = public_test index 0; one rollout per run dir, as Run-2) -----------
 for i in $(seq $START $((START + N - 1))); do
-  OUT=/root/run3_eval/$ARM/run_$i; mkdir -p $OUT
+  OUT=/root/run3_eval/$ARM$TAG/run_$i; mkdir -p $OUT
   say "=== ARM $ARM RUN $i ==="
   rm -f /root/action_log.jsonl /root/affordance_wrapper_stats.json
   rm -rf /root/map_live && mkdir -p /root/map_live
@@ -89,7 +93,7 @@ except Exception: pass
 if js:
     d = json.load(open(js[0]))
     dl = st.get("dist_L_series") or []; dr = st.get("dist_R_series") or []
-    print("RUN3_EVAL_RESULT arm=$ARM run=$i success=%s q=%s steps=%s inject=%s/%s conf=%s minL=%s minR=%s" % (
+    print("RUN3_EVAL_RESULT arm=$ARM$TAG run=$i success=%s q=%s steps=%s inject=%s/%s conf=%s minL=%s minR=%s" % (
         d["success"], d["q_score"]["final"], d["steps"], st.get("n_inject"), st.get("n_steps"), st.get("conf_p50"),
         min(dl) if dl else None, min(dr) if dr else None))
 else:

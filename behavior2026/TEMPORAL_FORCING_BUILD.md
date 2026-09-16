@@ -47,3 +47,8 @@ approach_v2 8,919 fr / 110 s; factory 9,520 / 134 s; episodes 24,794 / 578 s; ma
 ## Cost
 +41 param leaves (~12 M params: 2×(attn 4·1024² + MLP 4·1024²) + temp_in 2 M + heads). Training-time overhead is the
 loader's 9-slot stack (72 KB/sample) + a 9-token cross-attention: expected ≪ +20 % wall-clock.
+- `preflight_full.py` PASS (04:15 UTC) on `/root/b1k_radio_mix_full` (315 eps / 473,161 frames, real batches): history_gists
+  [9, 2048], valid slots 7.0/9 on average (current always valid; 65 % of samples have all 8 past slots — episode starts are
+  padded), gist norm 258 ± 8.5, |g_t − g_t−32| = 11.2; change targets: EE_L 0.04 → 0.16 m, button 0.10 → 0.36 m over the
+  8 offsets. Gists: parallel decode (6 workers, ~88 fps each) + tower pass from cache (map 430k frames ≈ 25 min on the
+  shared GPU); frame caches under /root/frame_cache (≈ 71 GB) kept for the S1 re-tower.

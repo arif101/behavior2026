@@ -32,12 +32,26 @@ def build_tower(params_dir, config_name):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--root", required=True); ap.add_argument("--params", required=True)
     ap.add_argument("--config", default="pi05_radio_run3_a4"); ap.add_argument("--batch", type=int, default=48); ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--cache-frames", help="write the decoded+resized 224x224 uint8 frames to this memmap file (decode once, re-tower later)")
+    ap.add_argument("--from-cache", help="skip decoding: read frames from this memmap (written by --cache-frames)")
     a = ap.parse_args(); root = pathlib.Path(a.root); t0 = time.time()
     info = json.loads((root / "meta/info.json").read_text()); fps = float(info["fps"]); vkey = "observation.rgb.zed_link_camera_0"
     eps = pq.read_table(sorted(glob.glob(str(root / "meta/episodes/**/*.parquet"), recursive=True))[0]).to_pandas().sort_values("episode_index")
     n_rows = int(eps["length"].sum()); gists = np.zeros((n_rows, 2048), np.float32); filled = np.zeros(n_rows, bool)
     tower, gist_fn = build_tower(a.params, a.config); import av
-    for fi, grp in eps.groupby(f"videos/{vkey}/file_index"):
+    from openpi.shared import image_tools
+    import jax
+    _resize = jax.jit(lambda x: image_tools.resize_with_pad(x, 224, 224))
+    if a.from_cache:
+        frames = np.load(a.from_cache, mmap_mode="r"); assert frames.shape[0] == n_rows, (frames.shape, n_rows)
+        for s0 in range(0, n_rows, a.batch):
+            gists[s0:s0 + a.batch] = np.asarray(gist_fn(tower, np.asarray(frames[s0:s0 + a.batch])))
+        filled[:] = True
+        print(f"tower pass from cache: {n_rows} rows, {time.time()-t0:.0f}s", flush=True)
+    cache = None
+    if a.cache_frames and not a.from_cache:
+        cache = np.lib.format.open_memmap(a.cache_frames, mode="w+", dtype=np.uint8, shape=(n_rows, 224, 224, 3))
+    for fi, grp in (eps.groupby(f"videos/{vkey}/file_index") if not a.from_cache else []):
         ci = int(grp[f"videos/{vkey}/chunk_index"].iloc[0]); vpath = root / "videos" / vkey / f"chunk-{ci:03d}" / f"file-{fi:03d}.mp4"
         plan = []   # (file frame start, length, dataset_from_index)
         for _, r in grp.sort_values(f"videos/{vkey}/from_timestamp").iterrows():
@@ -48,7 +62,9 @@ def main():
         buf = []; bidx = []; k = 0; last = max(need) if need else -1
         def flush():
             if not buf: return
-            g = np.asarray(gist_fn(tower, np.stack(buf))); gists[bidx] = g; filled[bidx] = True; buf.clear(); bidx.clear()
+            arr = np.stack(buf)
+            if cache is not None: cache[bidx] = np.asarray(_resize(arr))
+            g = np.asarray(gist_fn(tower, arr)); gists[bidx] = g; filled[bidx] = True; buf.clear(); bidx.clear()
         with av.open(str(vpath)) as cont:
             for frame in cont.decode(video=0):
                 if k in need:
@@ -57,6 +73,7 @@ def main():
                 k += 1
                 if k > last: break
         flush(); print(f"  file {vpath.name}: {len(need)} frames, {k} decoded, {time.time()-t0:.0f}s", flush=True)
+    if cache is not None: cache.flush(); print(f"frame cache written: {a.cache_frames} {cache.shape}", flush=True)
     assert filled.all(), f"unfilled rows: {(~filled).sum()}"
     print(f"gists done: {n_rows} rows, mean|g| {np.linalg.norm(gists, axis=1).mean():.3f}, {time.time()-t0:.0f}s", flush=True)
     files = sorted(glob.glob(str(root / "data/**/*.parquet"), recursive=True)); wrote = 0

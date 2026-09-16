@@ -1164,7 +1164,7 @@ _CONFIGS = [
             repo_id="b1k_radio",
             base_config=DataConfig(
                 data_cls=_lerobot_compat.LeRobotDataset,
-                dataset_root="/root/b1k_radio_mix_a4",
+                dataset_root="/root/b1k_radio_mix_a5_v2",   # v2 labels (relabel_v2.py) on the A4 recipe + approach_v2
                 prompt_from_task=True,
                 dataset_kwargs={"tolerance_s": 5e-4},
             ),
@@ -1220,7 +1220,7 @@ _CONFIGS = [
             repo_id="b1k_radio",
             base_config=DataConfig(
                 data_cls=_lerobot_compat.LeRobotDataset,
-                dataset_root="/root/b1k_radio_mix_a4",
+                dataset_root="/root/b1k_radio_mix_full",   # v2 labels + gist_head/hist_geo (precompute_gists.py)
                 prompt_from_task=True,
                 dataset_kwargs={"tolerance_s": 5e-4},
             ),
@@ -1234,7 +1234,7 @@ _CONFIGS = [
             stage_tokens_key=None,   # no such column: B1KInputs broadcasts stage_v2 to both arms
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
-            "/root/ckpt_a4/a4/params",   # warm-start from A4 (keeps the grasp); confirm path on training box
+            "/root/ckpt_full_init/params",   # symlink -> A4 (default) or S1 params: chosen by the S1 eval (2026-09-16)
             missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
         ),
         # the SigLIP tower is FROZEN so the serve-time gists (computed by the model's own tower) equal the precomputed

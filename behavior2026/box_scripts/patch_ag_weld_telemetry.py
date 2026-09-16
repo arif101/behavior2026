@@ -14,7 +14,7 @@ b = ('            # GRASP-COMPLETION telemetry (patch_ag_weld_telemetry.py): the
      '                for _arm in ("left", "right"):\n'
      '                    _c = _agp.get(_arm)\n'
      '                    if _c is not None and self._stats.get(f"ag_weld_{_arm}_step") is None:\n'
-     '                        _nm = str(_c.get("ag_obj_prim_path", _c.get("ag_obj", "")))\n'
+     '                        _nm = getattr(_c.get("target_obj"), "name", str(_c.get("target_obj")))\n'
      '                        self._stats[f"ag_weld_{_arm}_step"] = int(self._stats["n_steps"]); self._stats[f"ag_weld_{_arm}_obj"] = _nm\n'
      '            except Exception:\n'
      '                pass\n' + a)

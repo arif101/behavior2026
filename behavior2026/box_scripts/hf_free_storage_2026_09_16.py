@@ -1,7 +1,7 @@
 """Free HF storage (approved by the user 2026-09-16 after the 403 'set up automatic credit recharge' block).
 Deletes, in this order, and prints sizes:
   1. arif101/behavior2026-artifacts: ckpts/phaseA/ (100 GB), sweep_100/sweep_out/ (65 GB), the three LoRA ckpts (28 GB)
-  2. arif101/behavior2026-artifacts: ckpts/g3/{lang,lang_point,taskid}/train_state/ (75 GB; params kept)
+  2. arif101/behavior2026-artifacts: ckpts/g3/{lang,lang_point,taskid}/{10000,20000}/ (75 GB; final 29999 params kept)
   3. arif101/b26-run3-params: a0..a4/ckpt_12500/ (62 GB; superseded by <arm>/params)
 Token from /root/.hf_token. Run on the trainer box:
   /root/openpi_fork/.venv/bin/python /root/run3/hf_free_storage_2026_09_16.py [--dry-run]
@@ -26,9 +26,11 @@ def delete_prefixes(repo, kind, prefixes, msg):
 delete_prefixes("arif101/behavior2026-artifacts", "model",
                 ["ckpts/phaseA/", "sweep_100/sweep_out/", "ckpts/g2_radio_lora_5000/", "ckpts/wood_lora_10000/", "ckpts/trash_lora_29999/"],
                 "free storage: July Phase-A ckpts, sweep_100 outputs, LoRA ckpts (superseded; no current arm reads them)")
+# item 2 (adjusted 2026-09-16): the G3 arms carry no train_state on HF, only params at steps 10000/20000/29999 -> keep the
+# final 29999 params per arm, drop the two intermediates (6 x 12.4 GB = 75 GB).
 delete_prefixes("arif101/behavior2026-artifacts", "model",
-                ["ckpts/g3/lang/train_state/", "ckpts/g3/lang_point/train_state/", "ckpts/g3/taskid/train_state/"],
-                "free storage: G3 train_state (params kept)")
+                [f"ckpts/g3/{a}/{st}/" for a in ("lang", "lang_point", "taskid") for st in ("10000", "20000")],
+                "free storage: G3 intermediate params (final 29999 kept per arm)")
 delete_prefixes("arif101/b26-run3-params", "model", [f"a{i}/ckpt_12500/" for i in range(5)],
                 "free storage: step-12500 intermediates (finals in <arm>/params supersede them)")
 for repo in ("arif101/behavior2026-artifacts", "arif101/b26-run3-params"):

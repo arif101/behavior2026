@@ -32,6 +32,8 @@ FX, FY, CX, CY = 238.9, 315.8, 364.7, 356.2   # calibrated zed @ 720
 IN, P = 518, 37
 EEF_LEFT, EEF_RIGHT = slice(17, 20), slice(42, 45)
 TAU = float(__import__("os").environ.get("AFF_TAU", "0.5"))   # AFF_TAU=2 -> never inject (points-off diagnostic)
+import os as _os
+MAP_ARM = _os.environ.get("MAP_ARM", "B").upper()
 DT = 1.0 / 30.0
 IMNET_M = np.array([0.485, 0.456, 0.406], np.float32)
 IMNET_S = np.array([0.229, 0.224, 0.225], np.float32)
@@ -254,8 +256,61 @@ class AffordanceMapFullRes(OraclePointFullRes):
             if p_base is not None:
                 Rb0 = _q2r(base_w[3:7])
                 self._map.write_target(base_w[:3] + Rb0 @ p_base, conf)
-            self._last_map_tokens = self._map.query()
+            _toks = self._map.query()
+            if MAP_ARM == "A":
+                _toks = np.zeros_like(_toks)
+            elif MAP_ARM == "B0":
+                from foveated_map import FoveatedMap as _FM
+                _toks = _FM.blind_view(_toks)
+            self._last_map_tokens = _toks
             ms_map = (time.perf_counter() - t1) * 1000
+
+            # I1: wrist off-axis angles (deg) vs the AFFORDANCE target (legal signal)
+            try:
+                if p_base is not None:
+                    for _side, _key in (("left", "wrist_angL"), ("right", "wrist_angR")):
+                        _wp = {"left": wl, "right": wr}.get(_side)
+                        if _wp is None:
+                            continue
+                        _R = _q2r(_wp[3:7])
+                        _axis = -_R[:, 2]
+                        _ray = p_base - _wp[:3]
+                        _n = np.linalg.norm(_ray)
+                        if _n > 1e-6:
+                            _ang = float(np.degrees(np.arccos(
+                                np.clip(_axis @ (_ray / _n), -1, 1))))
+                            self._stats.setdefault(_key, []).append(round(_ang, 1))
+            except Exception:
+                pass
+
+            # I4: map fidelity vs sim GROUND TRUTH — diagnostics only, never fed to policy
+            try:
+                if self._targets:
+                    _tp = np.asarray(self._targets[0].get_position_orientation()[0],
+                                     dtype=np.float64).reshape(3)
+                    _bp, _bq = self._robot.get_position_orientation()
+                    _truth_base = _q2r(np.asarray(_bq).reshape(4)).T @ (
+                        _tp - np.asarray(_bp, np.float64).reshape(3))
+                    if p_base is not None:
+                        self._stats.setdefault("aff_err", []).append(
+                            round(float(np.linalg.norm(p_base - _truth_base)), 3))
+                    _t0 = self._last_map_tokens[0]
+                    if _t0[9] > 0.5:  # T0 valid flag
+                        self._stats.setdefault("map_err", []).append(
+                            round(float(np.linalg.norm(_t0[:3] - _truth_base)), 3))
+            except Exception:
+                pass
+
+            # DIAG_ORACLE_POINT=1 (2026-09-17 root-cause probe, DIAGNOSTIC ONLY - a sim-state read; never an eval arm):
+            # replace the affordance point with the ground-truth target to measure the ceiling if the pointer were exact.
+            if _os.environ.get("DIAG_ORACLE_POINT") == "1" and self._targets:
+                try:
+                    _tp = np.asarray(self._targets[0].get_position_orientation()[0], dtype=np.float64).reshape(3)
+                    _bp, _bq = self._robot.get_position_orientation()
+                    p_base = _q2r(np.asarray(_bq).reshape(4)).T @ (_tp - np.asarray(_bp, np.float64).reshape(3))
+                    self._stats["oracle_point"] = True
+                except Exception:
+                    pass
 
             # target_points injection (same contract as oracle)
             if p_base is not None:
@@ -287,6 +342,16 @@ class AffordanceMapFullRes(OraclePointFullRes):
                 except Exception:
                     pass
 
+            # GRASP-COMPLETION telemetry (patch_ag_weld_telemetry.py): the eval's own assisted-grasp weld, LOGGED ONLY
+            try:
+                _agp = getattr(self._robot, "_ag_obj_constraint_params", {}) or {}
+                for _arm in ("left", "right"):
+                    _c = _agp.get(_arm)
+                    if _c is not None and self._stats.get(f"ag_weld_{_arm}_step") is None:
+                        _nm = getattr(_c.get("target_obj"), "name", str(_c.get("target_obj")))
+                        self._stats[f"ag_weld_{_arm}_step"] = int(self._stats["n_steps"]); self._stats[f"ag_weld_{_arm}_obj"] = _nm
+            except Exception:
+                pass
             self._stats["n_steps"] += 1
             self._stats["conf"].append(round(conf, 3))
             if p_base is not None:
@@ -314,12 +379,22 @@ class AffordanceMapFullRes(OraclePointFullRes):
 
     def _dump_stats(self):
         s = self._stats
-        out = {"n_steps": s["n_steps"], "n_inject": s["n_inject"],
+        out = {"ag_weld_left_step": s.get("ag_weld_left_step"), "ag_weld_right_step": s.get("ag_weld_right_step"),
+               "ag_weld_obj": s.get("ag_weld_right_obj") or s.get("ag_weld_left_obj"),
+               "grasp": bool(s.get("ag_weld_left_step") is not None or s.get("ag_weld_right_step") is not None),
+               "n_steps": s["n_steps"], "n_inject": s["n_inject"],
                "skips": s["skips"], "skip_debug": s["skip_debug"],
                "conf_p50": float(np.median(s["conf"])) if s["conf"] else None,
                "conf_frac_over_tau": float(np.mean(np.array(s["conf"]) > TAU)) if s["conf"] else None,
                "ms_aff_p50": float(np.median(s["ms_aff"])) if s["ms_aff"] else None,
                "ms_map_p50": float(np.median(s["ms_map"])) if s["ms_map"] else None,
+               "arm": MAP_ARM,
+               "wrist_angL_p50": float(np.median(s["wrist_angL"])) if s.get("wrist_angL") else None,
+               "wrist_angR_p50": float(np.median(s["wrist_angR"])) if s.get("wrist_angR") else None,
+               "aff_err_p50": float(np.median(s["aff_err"])) if s.get("aff_err") else None,
+               "map_err_p50": float(np.median(s["map_err"])) if s.get("map_err") else None,
+               "wrist_angL_series": s.get("wrist_angL", [])[::10],
+               "map_err_series": s.get("map_err", [])[::10],
                "dist_L_series": s.get("dist_L", [])[::10],
                "dist_L_min": min(s.get("dist_L", [9.9])),
                "dist_R_min": min(s.get("dist_R", [9.9]))}

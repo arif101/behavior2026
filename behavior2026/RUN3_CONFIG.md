@@ -238,3 +238,25 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   x10 on the full checkpoint (queued at the end of the chain) -> is the temporal channel doing the freeze reduction;
   (3) a reach-to-grasp readout on the 12 full-arm reaches (films: closure attempted? attitude off?) before choosing the
   next arm. Do not build the recovery-clip arm before (1) and (3).
+
+## ROOT-CAUSE DIAGNOSIS (2026-09-17 17:30 UTC) — why no arm breaks 2/25
+- Record: A0 0/12, A2 1/12, A4 2/12 -> 2/25, S1 2/25, full 1/25 grasps; success 0-1/25. Three data doses, v2 labels,
+  temporal forcing and the serving fixes moved the FAILURE MODE (freeze vs reach-short) but never the grasp rate. That is
+  the signature of a cap outside everything varied.
+- Newly measured cap candidate: the POINTER. Every arm trains on exact sim-state target points (20 % modality dropout) and
+  is served the affordance head's point. Over all 55 rollouts on 301 the head's error is 0.21 m median and 0.32 m at the
+  moment of closest approach, at conf 0.95+ (null fallback never fires). Reaches stop 0.11 m short on average; the three
+  grasps had the lowest pointer error at closure (0.13/0.14/0.23 m). corr(closest hand, pointer error) = 0.44. The head's
+  "2.6 cm held-out" was on training-distribution frames. Second train/serve mismatch on the A-arms: map tokens never
+  forwarded (fixed for `full` only).
+- Freeze attractor is a policy property: S1 froze on train layout 0 too (step 929, base 0.79 m out, conf 0.56).
+- Lineage pi05_base -> run1b -> Run-2 (50k) -> A-arms (15k) -> S1/full: ~90k fine-tune steps on ~200 demos, loss 0.02-0.03.
+  Not poisoned by bad labels (press-bug windows are down-weighted) but TRAPPED: further fine-tuning from A4 on the same
+  data has no gradient at the failure states, and the inherited over-trust in an exact pointer never gets corrected.
+- Probes queued (after_diag.sh, after the freeze chain): P1 oracle pointer on the full ckpt (DIAG_ORACLE_POINT=1, ceiling),
+  P2 pointer off (AFF_TAU=2), P3 oracle pointer on A4, P4 A4 with map tokens forwarded; n=10 each. Diagnostic arms only.
+- Fix candidates (ranked): F1 train on PREDICTED points (run the head over the training frames; condition on its output +
+  null when conf < tau) so the policy learns how far to trust the channel; F2 close-range pointer from the wrist cameras
+  + depth surface snap (301's radio sits on a glass table; check the z-error sign); F3 a legal visual-servo grasp
+  primitive for the last 20 cm (v13d DLS servo with a wrist-cam target instead of sim state) so the closure no longer
+  depends on BC; F4 fresh start from pi05_base with F1 baked in and the approach clips replaced by recovery clips.

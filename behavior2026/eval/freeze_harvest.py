@@ -69,7 +69,7 @@ class FreezeHarvestWrapper(AffordanceMapFullRes):
         dq = np.abs(H[:, 9:] - now[9:]).max()
         return bool(dL < EE_TOL and dR < EE_TOL and v < V_TOL and dq < Q_TOL)
 
-    def _dump(self, obs):
+    def _dump_freeze(self, obs):
         import omnigibson as og
         os.makedirs(OUT, exist_ok=True)
         state = _np(og.sim.dump_state(serialized=True)).astype(np.float32)
@@ -103,7 +103,7 @@ class FreezeHarvestWrapper(AffordanceMapFullRes):
         if self._stationary():
             self._frozen = True
             try:
-                meta = self._dump(out[0])
+                meta = self._dump_freeze(out[0])
                 print(f"FREEZE_HARVESTED tag={TAG} step={self._n} base_to_radio={meta['base_to_radio_xy']} "
                       f"distL={meta['dist_L_last']} wristL={meta['wrist_angL_last']}", flush=True)
             except Exception as e:  # noqa: BLE001

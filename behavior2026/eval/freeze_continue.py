@@ -32,6 +32,7 @@ class FreezeContinueWrapper(AffordanceMapFullRes):
     def __init__(self, env):
         super().__init__(env)
         self.last_orient = None
+        self._n_reset = 0
 
     # ---- sim helpers (reset-time only) --------------------------------------------------------
     def _q61(self):
@@ -113,13 +114,18 @@ class FreezeContinueWrapper(AffordanceMapFullRes):
     # ---- wrapper protocol ---------------------------------------------------------------------
     def reset(self):
         import omnigibson as og
+        import torch as th
         out = super().reset()
         info = out[1] if isinstance(out, tuple) and len(out) > 1 else {}
+        self._n_reset += 1
         if not STATE:
             print("FREEZE_CONTINUE_NO_STATE (FREEZE_STATE unset) -- plain reset", flush=True)
             return out
+        if self._n_reset == 1:   # the evaluator's pre-instance reset (eval.py: reset -> load_task_instance -> reset per rollout)
+            print("FREEZE_CONTINUE_SKIP_PREINSTANCE_RESET", flush=True)
+            return out
         z = np.load(STATE)
-        og.sim.load_state(z["state"], serialized=True)
+        og.sim.load_state(th.as_tensor(np.asarray(z["state"], np.float32)), serialized=True)
         hold = self._hold()
         last = self._step_cmd(hold, settle=10)      # first physics steps carry the loaded joint targets
         for _ in range(20):

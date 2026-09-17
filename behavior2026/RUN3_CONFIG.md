@@ -205,3 +205,11 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
 - Readouts: (a) orient=1 grasp rate vs orient=0 -> sufficiency of the orient transition; (b) freeze on train layouts?;
   (c) freeze persists with points off? (run 7 had the lowest injection fraction, 75 % vs 80-93 %); (d) does committing
   to 32-step chunks let S1 escape on its own (runs 5/6 sampled a rotation and were pulled back at the next replan)?
+- 07:18 UTC S1 RECORD COMPLETE (a5, n=25, parity serving, instance 301): grasp 2/25, success 1/25 (run 7 q=1.0; run 23
+  weld at step 3113, out of time). Equal to A4's 2/25 grasp reference. Failure modes: stop-short-and-freeze in ~19/25
+  (hand parked 0.44-0.71 m), reach-without-grasp in ~4 (0.29-0.37 m). Verdict update: the approach source did not lower
+  grasp completion (2 vs 2); it did shift the failure mode toward the freeze. Full-vs-S1 (equal data) is the clean read
+  of the full stack; full-vs-A4 remains the pre-registered bar.
+- Freeze diagnostic chain: attempt 1 failed at instantiation (my `_dump(obs)` shadowed OraclePointWrapper._dump()), attempt 2
+  harvested a state (zero-action smoke, step 150) but the continue wrapper crashed in og.sim.load_state (numpy vs torch);
+  fixed (th.as_tensor; servo skipped on the evaluator's pre-instance reset) and relaunched 09:12 UTC as attempt 3.

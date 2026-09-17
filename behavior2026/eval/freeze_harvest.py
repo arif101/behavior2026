@@ -19,9 +19,10 @@ from behavior2026_eval.affordance_map_fullres import AffordanceMapFullRes, EEF_L
 Q_ARM_L, Q_ARM_R, Q_TRUNK = slice(3, 10), slice(28, 35), slice(53, 57)   # 61-d eval proprio (skill_env_wrapper.P)
 WIN = int(os.environ.get("FREEZE_WIN", 150))
 MIN_STEP = int(os.environ.get("FREEZE_MIN", 450))
-EE_TOL = float(os.environ.get("FREEZE_EE", 0.02))
-Q_TOL = float(os.environ.get("FREEZE_Q", 0.03))
-V_TOL = float(os.environ.get("FREEZE_V", 0.01))
+EE_TOL = float(os.environ.get("FREEZE_EE", 0.04))    # 09-17: S1 idles with the arm dithering (cmd-norm std 0.15); 0.02/0.03 never fired on 301
+Q_TOL = float(os.environ.get("FREEZE_Q", 0.10))
+V_TOL = float(os.environ.get("FREEZE_V", 0.02))
+CAP = int(os.environ.get("FREEZE_CAP", 1500))       # fallback: dump the state at this step if parked-but-dithering never met the bars
 OUT = os.environ.get("FREEZE_OUT", "/root/freeze_states")
 TAG = os.environ.get("FREEZE_TAG", "untagged")
 
@@ -58,15 +59,21 @@ class FreezeHarvestWrapper(AffordanceMapFullRes):
         if len(self._hist) > WIN:
             self._hist.pop(0)
 
-    def _stationary(self):
-        if self._n < MIN_STEP or len(self._hist) < WIN:
-            return False
+    def _metrics(self):
         H = np.stack(self._hist)
         now = H[-1]
         dL = np.linalg.norm(H[:, 0:3] - now[0:3], axis=1).max()
         dR = np.linalg.norm(H[:, 3:6] - now[3:6], axis=1).max()
         v = np.abs(H[:, 6:9]).mean()
         dq = np.abs(H[:, 9:] - now[9:]).max()
+        return float(dL), float(dR), float(v), float(dq)
+
+    def _stationary(self):
+        if self._n < MIN_STEP or len(self._hist) < WIN:
+            return False
+        dL, dR, v, dq = self._metrics()
+        if self._n % 100 == 0:
+            print(f"FREEZE_METRICS step={self._n} dL={dL:.3f} dR={dR:.3f} v={v:.4f} dq={dq:.3f}", flush=True)
         return bool(dL < EE_TOL and dR < EE_TOL and v < V_TOL and dq < Q_TOL)
 
     def _dump_freeze(self, obs):
@@ -100,11 +107,15 @@ class FreezeHarvestWrapper(AffordanceMapFullRes):
         if self._frozen or not isinstance(out, tuple) or len(out) < 5:
             return out
         self._record(out[0])
-        if self._stationary():
+        stationary = self._stationary()
+        at_cap = (self._n >= CAP) and not self._stats.get("grasp") and self._stats.get("ag_weld_right_step") is None
+        if stationary or at_cap:
             self._frozen = True
             try:
                 meta = self._dump_freeze(out[0])
-                print(f"FREEZE_HARVESTED tag={TAG} step={self._n} base_to_radio={meta['base_to_radio_xy']} "
+                meta["stationary"] = bool(stationary)
+                json.dump(meta, open(f"{OUT}/{TAG}.json", "w"), indent=1)
+                print(f"FREEZE_HARVESTED tag={TAG} step={self._n} stationary={int(stationary)} base_to_radio={meta['base_to_radio_xy']} "
                       f"distL={meta['dist_L_last']} wristL={meta['wrist_angL_last']}", flush=True)
             except Exception as e:  # noqa: BLE001
                 print(f"FREEZE_DUMP_FAILED {e!r}", flush=True)

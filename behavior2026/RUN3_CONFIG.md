@@ -213,3 +213,14 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
 - Freeze diagnostic chain: attempt 1 failed at instantiation (my `_dump(obs)` shadowed OraclePointWrapper._dump()), attempt 2
   harvested a state (zero-action smoke, step 150) but the continue wrapper crashed in og.sim.load_state (numpy vs torch);
   fixed (th.as_tensor; servo skipped on the evaluator's pre-instance reset) and relaunched 09:12 UTC as attempt 3.
+- 09:19 UTC FULL-STACK ARM TRAINED: 10k steps, final loss 0.032 (from 0.68 at launch), grad-norm 0.54; params on HF
+  (b26-run3-params/full, 29 files, 11.6 GB) + assets + provenance; intermediates 5000/7500 pushed. Trainer idle.
+- 09:28 UTC full-stack n=25 eval STARTED on the sim box (pi05_radio_full, StageV2AffordanceWrapper, map tokens forwarded,
+  HISTORY_MODE=normal); the diagnostic chain yielded to it and resumes afterwards (~17:00 UTC).
+- Diagnostic attempt 3: smoke OK (harvest at step 150; continue restored the state and the arm-only DLS servo brought the
+  wrist from 1.23 to 0.006 rad of the canonical grasp attitude, +16 cm of the 25 cm advance). Harvest on 301 (S1, cap
+  1600): NO stationary trigger, but the film-strip numbers show a run-7-style escape IN PROGRESS: parked at ~900, idle
+  with the arm dithering (cmd-norm 2.05, std 0.15) through 1200, wrist 85 -> 22 deg and arm extending 2.73 at 1300-1400,
+  hand 0.58 m at the cap. The 0.02 m / 0.03 rad bars never fire on a dithering idle -> loosened to 0.04 m / 0.10 rad /
+  0.02 twist, FREEZE_METRICS printed every 100 steps for calibration, and a FREEZE_CAP=1500 fallback dump (meta
+  stationary=false) so every non-grasping harvest yields a seed. 301 must be re-harvested after the chain (not in loop).

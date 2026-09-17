@@ -291,6 +291,10 @@ class AffordanceMapFullRes(OraclePointFullRes):
                     _bp, _bq = self._robot.get_position_orientation()
                     _truth_base = _q2r(np.asarray(_bq).reshape(4)).T @ (
                         _tp - np.asarray(_bp, np.float64).reshape(3))
+                    # 2026-09-17: hand -> GROUND-TRUTH target (diagnostics only; dist_L/dist_R below are hand -> PREDICTED point
+                    # and are empty when no point is injected, e.g. AFF_TAU=2)
+                    self._stats.setdefault("dist_L_true", []).append(round(float(np.linalg.norm(_truth_base - prop[EEF_LEFT])), 3))
+                    self._stats.setdefault("dist_R_true", []).append(round(float(np.linalg.norm(_truth_base - prop[EEF_RIGHT])), 3))
                     if p_base is not None:
                         self._stats.setdefault("aff_err", []).append(
                             round(float(np.linalg.norm(p_base - _truth_base)), 3))
@@ -397,7 +401,11 @@ class AffordanceMapFullRes(OraclePointFullRes):
                "map_err_series": s.get("map_err", [])[::10],
                "dist_L_series": s.get("dist_L", [])[::10],
                "dist_L_min": min(s.get("dist_L", [9.9])),
-               "dist_R_min": min(s.get("dist_R", [9.9]))}
+               "dist_R_min": min(s.get("dist_R", [9.9])),
+               "dist_L_true_series": s.get("dist_L_true", [])[::10],
+               "dist_R_true_series": s.get("dist_R_true", [])[::10],
+               "dist_L_true_min": min(s.get("dist_L_true", [9.9])),
+               "dist_R_true_min": min(s.get("dist_R_true", [9.9]))}
         with open("/root/affordance_wrapper_stats.json", "w") as f:
             json.dump(out, f, indent=1)
 

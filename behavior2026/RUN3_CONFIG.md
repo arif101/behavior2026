@@ -265,3 +265,11 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   files). Videos are not included (sources on HF). Everything else is off-box: full params/assets/provenance on HF,
   scripts + fork in the repo. Trainer 154.54.102.23:19349 can be released; recreate with trainer_bringup_s1.sh and
   restore the mix from this repo (skips the gist precompute).
+- 17:40 UTC HARVEST COMPLETE (S1, cap 1600): 6/6 training layouts FROZE (stationary trigger; tr0 929, tr1 657, tr2 806,
+  tr3 738, tr4 703, tr5 1131 steps; base 0.50-0.89 m from the radio; wrist 89-106 deg). The freeze is universal for the
+  checkpoint. 301 was NO_FREEZE under the old bars (escape in progress at the cap; to re-harvest).
+- TELEMETRY CAVEAT (found 18:06): the wrapper's dist_L/dist_R (the "minL/minR" in every RUN3_EVAL_RESULT line) are the hand
+  distance to the PREDICTED point, not to the rail, and are empty when nothing is injected. All "reach 0.11 m" readings
+  are hand-to-prediction; with the pointer 0.2-0.3 m off, true hand-to-rail is unknown from that column (the weld is
+  ground truth). Added dist_{L,R}_true (hand -> sim-state target; diagnostic read like aff_err) from ptoff run 2 onward.
+- Pointer-off probe (P2) running since 17:40; run 1: no grasp, 0/3201 injections (gate verified).

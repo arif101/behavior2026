@@ -143,3 +143,19 @@ constant A2-A4 converged on), episodes 143.0 (same), approach_v2 5.9. Sources 1-
 Readout: run3_eval_arm.sh on the RTX sim box, instance 301 n=25, grasp completion vs A4 (2/25) per RUN3_EVAL_PREREG.md.
 NOT in S1 (by the single-variable rule): stage/progress conditioning, granular targets, temporal forcing — the 09-12
 full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the approach source helps.
+
+## S1 verdict + FULL-STACK arm LAUNCHED 2026-09-17 00:36 UTC
+- S1 (a5 = A4 mix + b1k_radio_approach_v2, 15k steps, loss 0.018; params on HF a5/params): eval on the RTX box, parity
+  serving (SERVE_FORWARD_MAP_TOKENS=0), assisted-grasp weld telemetry: 5/5 rollouts stall with the right hand >= 0.56 m from
+  the radio, 0 grasps (remaining 20 rollouts run for the record). Harness validity on the same box: A4 rollouts reach 0.36 m
+  and 0.07 m (campaign median 0.26) -> the harness is valid; the approach source HURT the approach. Suspect: every clip
+  opens with a 25 cm base RETREAT at 15-20 cm from the radio, up-weighted as "approach" frames. To confirm from the S1
+  films; fix = drop/down-weight the retreat frames, not the source.
+- FULL-STACK arm `full` = pi05_radio_full (press fix: stage_v2/progress conditioning + target_points_v2 rail->button +
+  temporal forcing K=8 @32, zero-init gate, feat RMSNorm, aux 0.05/0.05 @ 0.3 m units), warm start A4 (/root/ckpt_full_init
+  -> run3_dl/a4/params), vision tower FROZEN, mix_full (315 eps / 473,161 fr), 10k steps, batch 32, keep_period 5000,
+  FORK_SRC=/root/openpi_fork_v2/src. GPU smoke: loss 0.64-0.73, grad-norm 5.6-7.2. ETA ~11:30 UTC 09-17. Checkpoints push
+  to HF (b26-run3-params/full/) — uploads restored after the user enabled auto-recharge.
+- Eval plan: run3_eval_arm.sh full 25 with POLICY_CONFIG=pi05_radio_full WRAP=...StageV2AffordanceWrapper
+  SERVE_FORWARD_MAP_TOKENS=1, then HISTORY_MODE=off|repeat|shuffle arms (TAG=_hist_*) on the same checkpoint;
+  gate_liveness.py over the checkpoints. Primary metric unchanged: grasp completion vs A4 2/25; secondary: task success.

@@ -159,3 +159,9 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
 - Eval plan: run3_eval_arm.sh full 25 with POLICY_CONFIG=pi05_radio_full WRAP=...StageV2AffordanceWrapper
   SERVE_FORWARD_MAP_TOKENS=1, then HISTORY_MODE=off|repeat|shuffle arms (TAG=_hist_*) on the same checkpoint;
   gate_liveness.py over the checkpoints. Primary metric unchanged: grasp completion vs A4 2/25; secondary: task success.
+- 00:41 UTC health check: the RESOURCE_EXHAUSTED traceback at train_full.log:75-90 belongs to the PREMATURE 21:51 launch
+  (pid 1720286, shared the GPU with smoke4; killed, no checkpoint). The live run (pid 1735318, log line 93 onward) is clean:
+  step 74 at 3.1 s/it, GPU 100 %, revised ETA ~09:15 UTC 09-17. Watcher reads only the live portion (tail -n +93).
+- Sim box chain `chain_evals_0917.sh` (box_scripts/run3/): waits for the A4 validity rollouts (5) -> resumes the S1 record
+  eval a5 runs 6..25 (parity) -> polls HF for full/{params,assets,provenance} -> `run3_eval_arm.sh full 25` with the full
+  serving stack -> SUMMARY (grasp count vs A4 2/25). A4 validity so far: run 1 minL 0.321, run 2 minL 0.046 (no weld).

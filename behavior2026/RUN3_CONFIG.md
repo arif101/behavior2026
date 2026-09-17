@@ -260,3 +260,8 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   + depth surface snap (301's radio sits on a glass table; check the z-error sign); F3 a legal visual-servo grasp
   primitive for the last 20 cm (v13d DLS servo with a wrist-cam target instead of sim state) so the closure no longer
   depends on BC; F4 fresh start from pi05_base with F1 baked in and the approach clips replaced by recovery clips.
+- 18:05 UTC trainer spin-down prep: assembled tables backed up to HF dataset `arif101/b26-run3-mixes` (mix_full/ data+meta
+  with gist_head/hist_geo/stage_v2/progress/toggled/target_points_v2/sample_weight, 5.2 GB; mix_a5_v2/; run3_logs/; 67
+  files). Videos are not included (sources on HF). Everything else is off-box: full params/assets/provenance on HF,
+  scripts + fork in the repo. Trainer 154.54.102.23:19349 can be released; recreate with trainer_bringup_s1.sh and
+  restore the mix from this repo (skips the gist precompute).

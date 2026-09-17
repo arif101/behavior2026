@@ -273,3 +273,9 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   are hand-to-prediction; with the pointer 0.2-0.3 m off, true hand-to-rail is unknown from that column (the weld is
   ground truth). Added dist_{L,R}_true (hand -> sim-state target; diagnostic read like aff_err) from ptoff run 2 onward.
 - Pointer-off probe (P2) running since 17:40; run 1: no grasp, 0/3201 injections (gate verified).
+- 20:43 UTC PROBE P2 (pointer OFF, full ckpt, AFF_TAU=2, n=10, instance 301): grasp 0/10, success 0/10; 0 injections.
+  Ground-truth right-hand minima (runs 3-10): 0.27 / 0.09 / 0.32 / 0.40 / 0.11 / 0.11 / 0.53 / 0.11 m -> 4 reaches
+  within 0.12 m, 3 stalls at 0.27-0.40, 1 freeze. Pointer-on full arm: 1/25. Read: removing the pointer neither helps
+  nor clearly hurts; the policy finds the radio and reaches from vision alone (20 % modality dropout worked) and still
+  does not close. "The wrong pointer is the main harm" is unlikely. P1 (oracle pointer) started 20:43; run 1: no grasp,
+  right hand 0.20 m.

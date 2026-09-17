@@ -165,3 +165,15 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
 - Sim box chain `chain_evals_0917.sh` (box_scripts/run3/): waits for the A4 validity rollouts (5) -> resumes the S1 record
   eval a5 runs 6..25 (parity) -> polls HF for full/{params,assets,provenance} -> `run3_eval_arm.sh full 25` with the full
   serving stack -> SUMMARY (grasp count vs A4 2/25). A4 validity so far: run 1 minL 0.321, run 2 minL 0.046 (no weld).
+- 00:50 UTC S1 failure-mode readout (action logs + wrapper stats + films, a5 runs 1-5 vs a4 runs 1-3): the base-RETREAT
+  hypothesis is FALSIFIED — no S1 rollout ever commands backward base motion (vx < -0.05 on 0 % of steps) and S1's forward
+  command integral is >= A4's (73-103 vs 76-84). The actual mode is STOP-SHORT-AND-FREEZE: the base halts with the radio
+  ~0.8-1 m ahead, both arms drop to a rest posture (arm command norm ~1.65 vs 2.33 at t=0 and 2.8-3.0 when A4 reaches;
+  wrist ~80-94 deg), and nothing changes from step ~800 to 3225 (hand 0.57-0.69 m). A4 run 3 sits in the SAME mode
+  (min 0.63 m, norm 1.6); A4 runs 1-2 instead extend (0.32 m / 0.05 m, norm 2.8-3.0, wrist 30-51 deg). So the approach
+  source did not add a new behaviour; it made an existing A4 failure mode the only outcome (5/5 vs 1/3 here, campaign
+  median minL 0.26). The rest posture is NOT in the approach clips (clip arm norm p10/50/90 = 2.81/3.24/3.66, 0 % of
+  10,148 frames in [1.5, 1.85]; base moving on only 2-28 % of clip frames). Working hypothesis for the fix: the clips'
+  predominantly stationary base + close-range radio view taught "radio in view -> base 0"; they were up-weighted as
+  stage-0 approach frames although they contain no far-field approach. Any reuse must restrict them to the <= 25 cm
+  arm-reach segment (stage 1 labels), not stage 0. Filmstrips: scratch films/{a5_run_1,a4_run_2,a4_run_3}_big.jpg.

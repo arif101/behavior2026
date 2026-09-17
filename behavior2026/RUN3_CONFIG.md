@@ -224,3 +224,17 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   hand 0.58 m at the cap. The 0.02 m / 0.03 rad bars never fire on a dithering idle -> loosened to 0.04 m / 0.10 rad /
   0.02 twist, FREEZE_METRICS printed every 100 steps for calibration, and a FREEZE_CAP=1500 fallback dump (meta
   stationary=false) so every non-grasping harvest yields a seed. 301 must be re-harvested after the chain (not in loop).
+
+## FULL-STACK ARM VERDICT (2026-09-17 17:03 UTC, n=25, instance 301, full serving stack)
+- grasp 1/25 (run 3, right-hand weld at step 1727, out of time), success 0/25. Pre-registered bar A4 2/25: NOT beaten.
+  Equal-data comparison S1 (A4 mix + approach_v2, old stack) 2/25 grasps, 1/25 success: NOT beaten either.
+- Failure-mode shift is real even though the bar is not: hand within 0.25 m in 12/25 (S1 5/25, A4 validity 1/5), freeze
+  (>= 0.4 m) 11/25 (S1 19/25). Median closest hand 0.29 m (S1 0.57, A4 0.31); median wrist angle 65 deg (S1 84, A4 46).
+  So stage/progress conditioning + temporal forcing roughly halved the freeze rate at equal data, but reaches do not
+  convert: 12 reaches -> 1 weld. Reach-without-grasp is now the dominant mode (as it was for A4).
+- Reading: the stack moved the policy out of the idle attractor more often, which is consistent with the diagnosis; the
+  grasp itself (last 10 cm: wrist attitude + closure) is the next bottleneck and was never the target of this arm.
+- Next: (1) freeze diagnostic (resumed 17:04, S1 server) -> sufficiency of the orient transition; (2) HISTORY_MODE=off
+  x10 on the full checkpoint (queued at the end of the chain) -> is the temporal channel doing the freeze reduction;
+  (3) a reach-to-grasp readout on the 12 full-arm reaches (films: closure attempted? attitude off?) before choosing the
+  next arm. Do not build the recovery-clip arm before (1) and (3).

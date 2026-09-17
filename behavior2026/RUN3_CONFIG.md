@@ -181,3 +181,8 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   / 0.31 / 0.40 m (4/5 within 0.4 m; one stop-short-and-freeze). 0/5 is consistent with the campaign's 2/25 (P = 0.66), and
   the 0.07 m reach shows the harness produces full reaches -> S1's 5/5 stalls at >= 0.57 m are the policy, not the box.
   Chain moved on: S1 record eval runs 6..25 started 01:21 (serving /root/ckpt_a5, parity).
+- 02:35 UTC S1 record eval, run 7 = TASK SUCCESS on instance 301 (q=1.0, 2,037 steps; right-hand weld on radio_89 at step
+  1685, left-hand min 0.16 m, film: base drives up, right arm grasps the rail, lifts and rotates the radio, presses).
+  Runs 6/8/9 are stop-short-and-freeze again (0.57 / 0.69 / 0.50 m). S1 tally 1/9 grasps, 1/9 successes; the verdict
+  "approach source hurt" now rests on 8/9 freezes vs A4's 1/5 on this box — hold it as provisional until 25. Trainer:
+  step 2,270 / 10k, loss 0.053, grad-norm 1.02, clean.

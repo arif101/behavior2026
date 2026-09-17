@@ -31,7 +31,7 @@ logger = create_module_logger(module_name=__name__)
 FX, FY, CX, CY = 238.9, 315.8, 364.7, 356.2   # calibrated zed @ 720
 IN, P = 518, 37
 EEF_LEFT, EEF_RIGHT = slice(17, 20), slice(42, 45)
-TAU = 0.5
+TAU = float(__import__("os").environ.get("AFF_TAU", "0.5"))   # AFF_TAU=2 -> never inject (points-off diagnostic)
 DT = 1.0 / 30.0
 IMNET_M = np.array([0.485, 0.456, 0.406], np.float32)
 IMNET_S = np.array([0.229, 0.224, 0.225], np.float32)

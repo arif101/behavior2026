@@ -186,3 +186,22 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   Runs 6/8/9 are stop-short-and-freeze again (0.57 / 0.69 / 0.50 m). S1 tally 1/9 grasps, 1/9 successes; the verdict
   "approach source hurt" now rests on 8/9 freezes vs A4's 1/5 on this box — hold it as provisional until 25. Trainer:
   step 2,270 / 10k, loss 0.053, grad-norm 1.02, clean.
+
+## Freeze diagnostic (2026-09-17, sim box chain `freeze_diag.sh`; DIAGNOSTIC ONLY, no eval arm, no training data)
+- Question: is the wrist-orient transition the ONLY blocker (so recovery clips would suffice), and is the freeze pinned by
+  the injected target points? Training-data check (mix_full): base parked at 0.6-0.8 m is normal in the demos (base moving
+  on 8 % of stage-0 frames there, arm extending, norm 2.75-2.96); the freeze posture (parked + arm norm 1.55-1.75) is
+  0.5 % of the data at 0.4-1.0 m and 1.1 % beyond 1 m (episode-start idle). So the policy parks like a human and drops
+  into an idle pose the demos almost never leave from.
+- Pieces: eval/freeze_harvest.py (dumps og.sim state once motionless 150 steps after step 450; ends the episode),
+  eval/freeze_continue.py (reset = restore a harvested state, optional ORIENT: 7-DOF DLS servo of the right hand to the
+  canonical rail-grasp attitude + 0.25 m advance = S1 run 7's own escape; control = restore only), AFF_TAU env override
+  in affordance_map_fullres.py (AFF_TAU=2 -> points never injected), serve_arm.sh (EXTRA_SERVE_ARGS for --action-horizon).
+- Chain: S1 record eval finishes -> no-server smoke (--policy local) -> harvest on 301 + train ids 0-5 (301 seeds are
+  never training seeds) -> continue from each state, orient=1 and orient=0 -> points-off x2 -> commit-to-chunk
+  (--action-horizon 32) x3. YIELDS to the full-stack n=25 eval the moment its params land on HF (at most one rollout late),
+  then resumes; ends with HISTORY_MODE=off x10 on the full checkpoint. Outputs: /root/freeze_diag/{harvest,continue,
+  pointsoff,commit32}.log, states /root/freeze_states/*.npz.
+- Readouts: (a) orient=1 grasp rate vs orient=0 -> sufficiency of the orient transition; (b) freeze on train layouts?;
+  (c) freeze persists with points off? (run 7 had the lowest injection fraction, 75 % vs 80-93 %); (d) does committing
+  to 32-step chunks let S1 escape on its own (runs 5/6 sampled a rotation and were pulled back at the next replan)?

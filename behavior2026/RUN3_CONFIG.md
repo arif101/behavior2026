@@ -177,3 +177,7 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   predominantly stationary base + close-range radio view taught "radio in view -> base 0"; they were up-weighted as
   stage-0 approach frames although they contain no far-field approach. Any reuse must restrict them to the <= 25 cm
   arm-reach segment (stage 1 labels), not stage 0. Filmstrips: scratch films/{a5_run_1,a4_run_2,a4_run_3}_big.jpg.
+- 01:21 UTC A4 harness-validity eval complete (n=5, same box/serving as S1): 0 grasps, right-hand minima 0.36 / 0.07 / 0.71
+  / 0.31 / 0.40 m (4/5 within 0.4 m; one stop-short-and-freeze). 0/5 is consistent with the campaign's 2/25 (P = 0.66), and
+  the 0.07 m reach shows the harness produces full reaches -> S1's 5/5 stalls at >= 0.57 m are the policy, not the box.
+  Chain moved on: S1 record eval runs 6..25 started 01:21 (serving /root/ckpt_a5, parity).

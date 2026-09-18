@@ -302,3 +302,7 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   0.52 0.60 0.13 0.48 0.18 0.54 0.17 0.21 m (6 reaches within 0.21 m, 4 freezes). A4's own record with the real pointer
   is 2/25. Confirms P1 on the reference checkpoint: an exact pointer does not convert reaches into grasps. P4 (A4 + map
   tokens forwarded) running; then history-off x10.
+- 09:13 UTC PROBE P4 (A4 with map tokens forwarded, n=10, 301): grasp 0/10, success 0/10. Closest hand: 0.24 0.28 0.17
+  0.55 0.23 0.55 0.54 0.55 0.54 0.53 m (3 reaches, 6 freezes, 1 mid). vs A4 parity 2/25 and A4 validity 1/5 freeze:
+  forwarding the map tokens to A4 did not add grasps and, if anything, raised the freeze share. The A-arm serving gap
+  was not hiding a better policy. History-off x10 on the full ckpt running (last probe of the round).

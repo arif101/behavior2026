@@ -289,3 +289,12 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   advanced 0.24 m (gap 0.76 -> 0.52); the policy then ran 3,151 steps, no grasp, right hand never closer than 0.55 m
   (it retreated from the oriented pose; wrist median 96 deg again). First sample: the orient transition alone is NOT
   sufficient for S1 on this layout.
+- 03:11 UTC CONTINUE-FROM-FREEZE COMPLETE (S1, 6 training-layout freeze states x {orient=1, control}): grasp 0/6 oriented,
+  0/6 control. Right-hand ground-truth minima after handover, oriented vs control: tr0 0.55 vs 0.29, tr1 0.66 vs 0.90,
+  tr2 0.23 vs 0.42, tr3 0.32 vs 0.55, tr4 0.43 vs 0.16, tr5 0.16 vs 0.16 m. The servo reached the grasp attitude every
+  time (orn err <= 0.01 rad, +0.24 m); the policy then retreated in 3/6 and came no closer than the control in the rest.
+  VERDICT: the wrist-orient transition is NOT sufficient; recovery clips of that transition alone would not fix S1.
+  Together with oracle 0/10 and pointer-off 0/10: neither the pointer nor the pre-grasp posture is the cap; the closure
+  (last 10-20 cm, incl. from an already-oriented hand at 0.16-0.23 m) is. F3 (grasp primitive) is the only fix candidate
+  left standing from this round; F4 (recovery data) is demoted unless the clips run through the closure.
+- 03:11 P3 (oracle pointer on A4, n=10) running; then P4 (A4 + map tokens), then history-off x10.

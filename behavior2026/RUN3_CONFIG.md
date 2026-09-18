@@ -298,3 +298,7 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   (last 10-20 cm, incl. from an already-oriented hand at 0.16-0.23 m) is. F3 (grasp primitive) is the only fix candidate
   left standing from this round; F4 (recovery data) is demoted unless the clips run through the closure.
 - 03:11 P3 (oracle pointer on A4, n=10) running; then P4 (A4 + map tokens), then history-off x10.
+- 06:11 UTC PROBE P3 (ORACLE pointer on A4, n=10, 301): grasp 0/10, success 0/10. Closest-hand ground truth: 0.20 0.13
+  0.52 0.60 0.13 0.48 0.18 0.54 0.17 0.21 m (6 reaches within 0.21 m, 4 freezes). A4's own record with the real pointer
+  is 2/25. Confirms P1 on the reference checkpoint: an exact pointer does not convert reaches into grasps. P4 (A4 + map
+  tokens forwarded) running; then history-off x10.

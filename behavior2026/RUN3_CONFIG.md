@@ -279,3 +279,13 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   nor clearly hurts; the policy finds the radio and reaches from vision alone (20 % modality dropout worked) and still
   does not close. "The wrong pointer is the main harm" is unlikely. P1 (oracle pointer) started 20:43; run 1: no grasp,
   right hand 0.20 m.
+- 00:04 UTC 09-18 PROBE P1 (ORACLE pointer, full ckpt, exact sim-state target injected on every step, n=10, 301): grasp
+  0/10, success 0/10. Right-hand ground-truth minima: 0.20 0.35 0.25 0.50 0.29 0.53 0.08 0.53 0.21 0.26 m (4 reaches
+  <= 0.25 m incl. one at 0.08 m with no closure; 2 freezes). Substitution verified (injected == truth). Pointer-on 1/25,
+  pointer-off 0/10, oracle 0/10: THE POINTER IS NOT THE BOTTLENECK IN EITHER DIRECTION. Fix candidates F1 (train on
+  predicted points) and F2 (better close-range pointer) are DEMOTED; the closure itself (last 10-20 cm) is the cap ->
+  F3 (visual-servo grasp primitive) is the main line; the freeze (F4 recovery data) is the second.
+- 00:04 continue-from-freeze started (S1 server). tr0 orient=1: servo set the wrist (orn err 0.49 -> 0.005 rad) and
+  advanced 0.24 m (gap 0.76 -> 0.52); the policy then ran 3,151 steps, no grasp, right hand never closer than 0.55 m
+  (it retreated from the oriented pose; wrist median 96 deg again). First sample: the orient transition alone is NOT
+  sufficient for S1 on this layout.

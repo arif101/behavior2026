@@ -306,3 +306,10 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   0.55 0.23 0.55 0.54 0.55 0.54 0.53 m (3 reaches, 6 freezes, 1 mid). vs A4 parity 2/25 and A4 validity 1/5 freeze:
   forwarding the map tokens to A4 did not add grasps and, if anything, raised the freeze share. The A-arm serving gap
   was not hiding a better policy. History-off x10 on the full ckpt running (last probe of the round).
+- 12:15 UTC HISTORY-OFF x10 (full ckpt, HISTORY_MODE=off, 301): grasp 0/10, success 0/10; closest hand 0.25 0.49 0.21
+  1.22 0.31 0.41 0.18 0.84 0.93 0.33 m (3 reaches <= 0.25, 4 far stalls >= 0.49). With history on the full arm reached
+  12/25 and froze 11/25; with history off the far-stall share rises (4/10) and reaches drop (3/10). Weak evidence (n=10)
+  that the temporal channel is live and contributes the freeze reduction; no evidence it helps the grasp. PROBE ROUND
+  CLOSED (CHAIN_DONE): pointer-off 0/10, oracle full 0/10, oracle A4 0/10, A4+map 0/10, hist-off 0/10, continue-from-
+  freeze 0/6 + 0/6. Every lever short of the closure itself is now measured at zero. The sim box is idle (S1 server
+  parked on port 8000).

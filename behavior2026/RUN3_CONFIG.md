@@ -313,3 +313,25 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   CLOSED (CHAIN_DONE): pointer-off 0/10, oracle full 0/10, oracle A4 0/10, A4+map 0/10, hist-off 0/10, continue-from-
   freeze 0/6 + 0/6. Every lever short of the closure itself is now measured at zero. The sim box is idle (S1 server
   parked on port 8000).
+
+## GRIPPER-CHANNEL READOUT (2026-09-20) — what the closure failure actually is
+- Instrumentation: server action log now carries grip_L/grip_R (action[14]/[22]); wrapper stats carry per-step gripper
+  qpos (proprio 24:26 / 49:51) and per-step ground-truth hand->rail distance. 6 instrumented rollouts of the full ckpt
+  (TAG _grip); wrist-cam strips at the closest approach for 8 earlier reach rollouts (film_frames/closest).
+- HUMAN BASELINE (mix_full, 219 demo episodes with a right-gripper close): EE->rail distance at the first close cmd
+  p10/50/90 = 0.069 / 0.091 / 0.141 m; 3 % below 0.06, 6 % above 0.15. (EE origin sits ~9 cm behind the fingertips, so
+  0.09 m EE->rail IS the correct grasp position.) 182/219 closes fall in stage 1, 27 in stage 0.
+- POLICY (full ckpt, instrumented runs 1-2, both no grasp): run 1 closest 0.165 m at step 646 with the gripper OPEN;
+  close commanded at step 656 at 0.273 m (retreating); gripper fully closed by 800 and held closed for the remaining
+  2,500 steps at 0.35-0.47 m; left gripper closes at ~1400 at 0.56 m. Run 2: close commanded at step 1136 at 0.286 m,
+  18 steps BEFORE the closest approach (0.250 m); closed at the closest point. Films of 8 earlier reaches: hover with the
+  gripper open (oracle r7 at 0.10 m, A4-oracle r2) or closed early beside the speaker face (ptoff r4, r8).
+- MECHANISM: the policy commands the close at 0.27-0.29 m EE->rail, i.e. ~18-20 cm before the fingertips reach the rail
+  (human: 0.09 m), then plays the post-grasp phase (gripper held closed, hover, second gripper closes) without the
+  object. It is a close-TIMING failure triggered by visual context (radio filling the wrist view), not a positioning
+  miss of a centimetre. The AG weld can never fire on a gripper that is already closed.
+- Implication for the closure primitive: it must OWN the close decision (close only when the rail is between the
+  fingers: wrist-cam rail estimate + gripper-stall check) and must suppress/override the policy's early close inside
+  the handover radius. A cheap serve-time mitigation to test first: veto the policy's close command while the estimated
+  EE->rail distance exceeds ~0.12 m (in-distribution for the demos), and see whether the policy then continues the
+  reach instead of switching to post-grasp behaviour.

@@ -335,3 +335,16 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   the handover radius. A cheap serve-time mitigation to test first: veto the policy's close command while the estimated
   EE->rail distance exceeds ~0.12 m (in-distribution for the demos), and see whether the policy then continues the
   reach instead of switching to post-grasp behaviour.
+- CORRECTION (22:40 UTC): the wrapper's ground-truth "dist_*_true" is EE->BUTTON (the target object), and the rail sits
+  0.141 m above the button. Human baseline in THAT metric (203 pre-lift closes): EE->button at close p10/50/90 = 0.13 /
+  0.15 / 0.185 m, EE 0.10-0.14 m ABOVE the button (rail level). So the policy's closest approaches of 0.15-0.17 m (grip
+  runs 1, 5) are at the human closing DISTANCE, and the earlier "0.08-0.12 m reaches" were the hand going past rail level
+  onto the radio body (films: hovering over the body / beside the speaker). Six instrumented rollouts: closes commanded
+  at 0.27 / 0.29 / 0.38 / 0.27 m EE->button (4/6; runs 1 and 5 closed on the way OUT, 10 and ~600 steps after their
+  closest point), never closed 2/6 (hover at 0.4 m; stall at 0.9 m). The demos DO contain the negative case (a
+  stationary open-gripper window at 0.15-0.35 m EE->rail before the close in 130/212 episodes, humans then continue), so
+  "missing negatives" is not the explanation. Revised mechanism: the policy reaches the right distance band but not the
+  rail-between-fingers POSE, and closes on the demo timeline (often during withdrawal) rather than on the geometric
+  condition. Close-veto probe launched (CloseVetoWrapper: right close forced open while EE->button > 0.19 m, n=6, full
+  ckpt): if vetoed rollouts keep reaching and close inside the human band -> timing error, a gate fixes it; if they hover
+  open -> the final alignment is the missing skill and a servo is needed regardless.

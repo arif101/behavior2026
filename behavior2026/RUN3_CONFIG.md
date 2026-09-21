@@ -348,3 +348,14 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   condition. Close-veto probe launched (CloseVetoWrapper: right close forced open while EE->button > 0.19 m, n=6, full
   ckpt): if vetoed rollouts keep reaching and close inside the human band -> timing error, a gate fixes it; if they hover
   open -> the final alignment is the missing skill and a servo is needed regardless.
+- 2026-09-21 CLOSE-VETO PROBE COMPLETE (full ckpt, right close forced open while EE->button > 0.19 m, n=6, 301): grasp
+  0/6. The gate worked as designed: 316 / 315 / 89 / 905 / 170 / 0 close commands vetoed per rollout (the policy is in
+  "close mode" for hundreds of steps while hovering), and in 3/6 the first ALLOWED close landed inside the human band
+  (0.161 / 0.183 / 0.190 m EE->button; runs reached 0.131-0.171 m) with NO weld. Film at the allowed close (run 1, step
+  945): the rail is visible in the right wrist view 5-10 cm off the gripper axis, fingers close beside/above it, hand
+  withdraws. VERDICT: close TIMING is not the cap; the final ALIGNMENT (rail between the fingers, wrist straddling it)
+  is the missing skill. A runtime close gate alone is insufficient; the correction has to teach alignment. In-policy
+  route (keeps generality across the 100-task denominator): DAgger-style data = harvest the policy's own misaligned
+  near-grasp states on training layouts, run the factory servo as an OFFLINE teacher from each to a verified grasp,
+  train from A4 on that corpus; runtime stays a pure policy. Gripper probe (6, uninstrumented gate) also 0/6.
+  Sim box idle again (S1/full servers parked).

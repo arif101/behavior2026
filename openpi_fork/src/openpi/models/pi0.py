@@ -430,6 +430,13 @@ class Pi0(_model.BaseModel):
         toks, _ = self.PaliGemma.img(image, train=False)
         return toks.astype(jnp.float32).mean(axis=1)
 
+    def compute_head_tokens(self, image: at.Float[at.Array, "b h w c"]) -> at.Float[at.Array, "b 16 d"]:
+        """A2 serve helper: [-1, 1] head image -> the 256 projected SigLIP tokens average-pooled to a 4x4 grid
+        (precompute_hist_tokens.py contract; the tower is frozen so this equals the training precompute)."""
+        toks, _ = self.PaliGemma.img(image, train=False)
+        t = toks.astype(jnp.float32).reshape(toks.shape[0], 4, 4, 4, 4, toks.shape[-1])
+        return t.mean(axis=(2, 4)).reshape(toks.shape[0], 16, toks.shape[-1])
+
     def _temporal_summary(self, obs: _model.Observation, batch_size: int):
         """History gists [b, K+1, D] (oldest ... current) + validity -> pooled query feature [b, W] (pre-gate) and
         the gated adaRMS term [b, W] (zero at init). Missing history => zero gists, only the current slot attended."""

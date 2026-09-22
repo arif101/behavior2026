@@ -68,6 +68,10 @@ class Policy(BasePolicy):
             self._gist_fn = None
             if getattr(model, 'temporal_conditioning', False) and hasattr(model, 'compute_head_gist'):
                 self._gist_fn = nnx_utils.module_jit(model.compute_head_gist)
+            # A2 4D history tokens serve helper (pooled 4x4 head tokens)
+            self._htok_fn = None
+            if getattr(model, 'hist_tokens', False) and hasattr(model, 'compute_head_tokens'):
+                self._htok_fn = nnx_utils.module_jit(model.compute_head_tokens)
 
     @override
     def compute_gist(self, image_u8_224: np.ndarray) -> np.ndarray | None:
@@ -77,6 +81,13 @@ class Policy(BasePolicy):
             return None
         img = jnp.asarray(image_u8_224, jnp.float32)[None] / 255.0 * 2.0 - 1.0
         return np.asarray(self._gist_fn(img))[0]
+
+    def compute_head_tokens(self, image_u8_224: np.ndarray) -> np.ndarray | None:
+        """[H, W, 3] uint8 head image -> [16, D] float32 pooled tokens, or None without the history-token pathway."""
+        if getattr(self, '_htok_fn', None) is None:
+            return None
+        img = jnp.asarray(image_u8_224, jnp.float32)[None] / 255.0 * 2.0 - 1.0
+        return np.asarray(self._htok_fn(img))[0]
 
     def infer(self, obs: dict, *, noise: np.ndarray | None = None) -> dict:  # type: ignore[misc]
         # Make a copy since transformations may modify the inputs in place.

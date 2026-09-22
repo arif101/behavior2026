@@ -57,6 +57,8 @@ class B1KPolicyWrapper:
         self.step_counter = None
         self._gist_ring = None
         self._gist_steps = 0
+        self._htok_ring = None
+        self._htok_steps = 0
         self.policy.reset()
 
     def _ensure_batch_initialized(self, batch_size: int, action_dim: int = None):
@@ -116,7 +118,8 @@ class B1KPolicyWrapper:
         import os as _os2
         _fwd_map = _os2.environ.get("SERVE_FORWARD_MAP_TOKENS", "1") != "0"   # 0 = legacy parity (Run-2/Run-3 arms were evaluated without)
         for key, unbatched_ndim in (("target_points", 2), ("target_points_mask", 1), ("stage_tokens", 1),
-                                    ("map_tokens", 2), ("target_points_v2", 2), ("stage_v2", 0), ("progress", 0)):
+                                    ("map_tokens", 2), ("target_points_v2", 2), ("stage_v2", 0), ("progress", 0),
+                                    ("gt_depth", 1), ("cam_pose", 1), ("odom_xyyaw", 1)):   # 4D perception (geo inputs)
             if key == "map_tokens" and not _fwd_map:
                 continue
             if key in obs and obs[key] is not None:
@@ -143,6 +146,43 @@ class B1KPolicyWrapper:
                     past = [past[j] for j in np.random.permutation(len(past))]
                 processed_input[i]["gist_head"] = np.stack(past + [g_now]).astype(np.float32)
             self._gist_steps += 1
+        # A2 4D HISTORY TOKENS: stride-aligned ring buffer of pooled head tokens + cell points (base frame at capture,
+        # from gt_depth head 16x16 + cam_pose head) + odometry; packed as the (K+1)-slot stacks the training loader
+        # produces (hist_tok/hist_cellxyz/hist_cellvalid/odom_xyyaw), consumed by B1KInputs.pack_history_tokens.
+        _htok = getattr(self.policy, "compute_head_tokens", None)
+        if _htok is not None and getattr(self.policy, "_htok_fn", None) is not None and "gt_depth" in obs and "cam_pose" in obs:
+            from openpi.policies.b1k_policy import _quat_to_rot as _q2r_
+            if getattr(self, "_htok_ring", None) is None:
+                self._htok_ring = [[] for _ in range(batch_size)]; self._htok_steps = 0
+            K = getattr(self, "hist_k", 8); stride = getattr(self, "hist_stride", 32)
+            on_grid = (self._htok_steps % stride) == 0
+            dep = np.asarray(obs["gt_depth"], np.float32).reshape(-1, 3, 16, 16); cpo = np.asarray(obs["cam_pose"], np.float32).reshape(-1, 3, 7)
+            odo = np.asarray(obs.get("odom_xyyaw", np.zeros((batch_size, 3))), np.float32).reshape(-1, 3)
+            for i in range(batch_size):
+                tok = _htok(img_obs[i, 0]).astype(np.float16)                                            # [16, D]
+                d = dep[min(i, len(dep) - 1), 0]; cp = cpo[min(i, len(cpo) - 1), 0]
+                jj, ii = np.meshgrid(np.arange(16), np.arange(16)); ray = 1080.0 / 874.5
+                ax = ((jj + 0.5) / 16.0 - 0.5) * ray; ay = ((ii + 0.5) / 16.0 - 0.5) * ray
+                ok = np.isfinite(d) & (d > 0.05); pc = np.stack([ax * d, -ay * d, -d], -1)
+                pb = pc @ _q2r_(cp[3:7]).T + cp[:3][None, None]
+                cx = np.zeros((16, 3), np.float32); cv = np.zeros(16, bool)
+                for gi in range(4):
+                    for gj in range(4):
+                        m = ok[gi*4:(gi+1)*4, gj*4:(gj+1)*4]; pts = pb[gi*4:(gi+1)*4, gj*4:(gj+1)*4][m]
+                        if len(pts): cx[gi*4+gj] = pts.mean(0); cv[gi*4+gj] = True
+                entry = (tok, cx, cv, odo[min(i, len(odo) - 1)])
+                if on_grid:
+                    self._htok_ring[i].append(entry); self._htok_ring[i] = self._htok_ring[i][-(K + 1):]
+                past = list(self._htok_ring[i][:-1]) if on_grid else list(self._htok_ring[i][-K:])
+                if self.history_mode == "off":
+                    past = []
+                slots = past + [entry]
+                processed_input[i]["hist_tok"] = np.stack([e[0].reshape(-1) for e in slots])
+                processed_input[i]["hist_cellxyz"] = np.stack([e[1].reshape(-1) for e in slots])
+                processed_input[i]["hist_cellvalid"] = np.stack([e[2] for e in slots])
+                processed_input[i]["odom_xyyaw"] = np.stack([e[3] for e in slots])
+                processed_input[i]["hist_tok_is_pad"] = np.zeros(len(slots), bool)
+            self._htok_steps += 1
         return processed_input
 
     def _get_current_actions(

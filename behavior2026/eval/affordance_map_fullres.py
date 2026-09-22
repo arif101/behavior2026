@@ -230,6 +230,30 @@ class AffordanceMapFullRes(OraclePointFullRes):
             if wr is not None:
                 wrists_w["right"] = compose(base_w, wr)
 
+            # 4D-ATTENDABLE PERCEPTION inputs (ARCH_4D_ATTENTION_SPEC A1/A2; legal: robot depth + own kinematics + odometry):
+            # gt_depth = 3 cams x 16x16 patch-mean depth (m, 0 invalid; camera order zed/left/right as in training),
+            # cam_pose = 3 x [pos, quat] of each camera in the base frame, odom_xyyaw = dead-reckoned base pose.
+            try:
+                def _patch_mean(dimg):
+                    if dimg is None:
+                        return np.zeros((16, 16), np.float32)
+                    H, W = dimg.shape[:2]; out = np.zeros((16, 16), np.float32)
+                    hs, ws = H // 16, W // 16
+                    for gi in range(16):
+                        for gj in range(16):
+                            blk = dimg[gi * hs:(gi + 1) * hs, gj * ws:(gj + 1) * ws]
+                            ok = np.isfinite(blk) & (blk > 0.05)
+                            if ok.any():
+                                out[gi, gj] = float(blk[ok].mean())
+                    return out
+                _gd = np.stack([_patch_mean(depth), _patch_mean(wrist_imgs.get("left", (None, None))[1]),
+                                _patch_mean(wrist_imgs.get("right", (None, None))[1])]).reshape(768)
+                _cp = np.concatenate([np.asarray(zed, np.float32), np.asarray(wl if wl is not None else np.zeros(7), np.float32),
+                                      np.asarray(wr if wr is not None else np.zeros(7), np.float32)]).astype(np.float32)
+                obs["gt_depth"] = _gd.astype(np.float32); obs["cam_pose"] = _cp; obs["odom_xyyaw"] = self._odom.astype(np.float32).copy()
+            except Exception as _e:
+                self._stats.setdefault("geo_input_err", 0); self._stats["geo_input_err"] += 1
+
             # affordance -> legal point
             p_cam, conf = self._affordance(rgb.astype(np.uint8), depth)
             ms_aff = (time.perf_counter() - t0) * 1000
@@ -295,6 +319,9 @@ class AffordanceMapFullRes(OraclePointFullRes):
                     # and are empty when no point is injected, e.g. AFF_TAU=2)
                     self._stats.setdefault("dist_L_true", []).append(round(float(np.linalg.norm(_truth_base - prop[EEF_LEFT])), 3))
                     self._stats.setdefault("dist_R_true", []).append(round(float(np.linalg.norm(_truth_base - prop[EEF_RIGHT])), 3))
+                    # gripper joint positions (proprio 24:26 left, 49:51 right; b1k.py) for the closure readout (2026-09-20)
+                    self._stats.setdefault("grip_qL", []).append(round(float(np.mean(prop[24:26])), 4))
+                    self._stats.setdefault("grip_qR", []).append(round(float(np.mean(prop[49:51])), 4))
                     if p_base is not None:
                         self._stats.setdefault("aff_err", []).append(
                             round(float(np.linalg.norm(p_base - _truth_base)), 3))
@@ -404,6 +431,8 @@ class AffordanceMapFullRes(OraclePointFullRes):
                "dist_R_min": min(s.get("dist_R", [9.9])),
                "dist_L_true_series": s.get("dist_L_true", [])[::10],
                "dist_R_true_series": s.get("dist_R_true", [])[::10],
+               "grip_qL_series": s.get("grip_qL", []), "grip_qR_series": s.get("grip_qR", []),
+               "dist_R_true_full": s.get("dist_R_true", []), "dist_L_true_full": s.get("dist_L_true", []),
                "dist_L_true_min": min(s.get("dist_L_true", [9.9])),
                "dist_R_true_min": min(s.get("dist_R_true", [9.9]))}
         with open("/root/affordance_wrapper_stats.json", "w") as f:

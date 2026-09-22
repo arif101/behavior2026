@@ -13,6 +13,11 @@ from behavior2026_eval.stage_v2_wrapper import StageV2AffordanceWrapper
 
 N = int(os.environ.get("REOPEN_N", 150)); M = int(os.environ.get("REOPEN_M", 45)); COOL = int(os.environ.get("REOPEN_COOL", 90))
 MAXE = int(os.environ.get("REOPEN_MAX", 8)); QCL = float(os.environ.get("REOPEN_Q", 0.02))
+# REOPEN_STAGE_SOURCE=head (2026-09-22): take "not lifted" from the model's own stage head as served by the policy
+# server (the winner's rule: closed gripper at a stage where the demos never close it = failed grasp). The server
+# writes its voted stage per replan to /root/stage_head_log.jsonl; the tracker's lift flag fires on pointer noise.
+STAGE_SRC = os.environ.get("REOPEN_STAGE_SOURCE", "tracker").lower()
+HEAD_LOG = "/root/stage_head_log.jsonl"
 A_GRIP = {"left": 14, "right": 22}; Q_GRIP = {"left": slice(24, 26), "right": slice(49, 51)}
 
 
@@ -42,6 +47,15 @@ class GripperReopenWrapper(StageV2AffordanceWrapper):
         try:
             self._n += 1; prop = self._last_prop
             lifted = bool(getattr(self._tracker, "lifted", False))
+            if STAGE_SRC == "head":
+                try:
+                    with open(HEAD_LOG, "rb") as fh:
+                        fh.seek(0, 2); size = fh.tell(); fh.seek(max(0, size - 4096)); tail = fh.read().decode(errors="ignore").strip().splitlines()
+                    last = json.loads(tail[-1]) if tail else None
+                    lifted = bool(last is not None and int(last.get("served", 0)) >= 2)
+                    self._ev["head_stage_last"] = None if last is None else int(last.get("served", 0))
+                except Exception:
+                    lifted = False
             arr = _np(action).copy(); flat = arr.reshape(-1, arr.shape[-1]); changed = False
             for hand in ("left", "right"):
                 if prop is not None and prop.shape[0] >= 51 and float(np.mean(prop[Q_GRIP[hand]])) < QCL:

@@ -167,6 +167,26 @@ class Normalize(DataTransformFn):
 
 
 @dataclasses.dataclass(frozen=True)
+class ProprioNoise(DataTransformFn):
+    """Copycat remedy (ARCH_4D_ATTENTION_SPEC B2): Gaussian noise on the RAW joint-space state (dims from `start`;
+    base velocities excluded) so the fine approach cannot be read off proprio; with prob `heavy_p` a much larger
+    noise ("unreliable proprio" samples). Train-only: applied when the sample carries "actions"."""
+    std: float = 0.03
+    heavy_p: float = 0.2
+    heavy_std: float = 0.3
+    start: int = 3
+
+    def __call__(self, data: DataDict) -> DataDict:
+        if "actions" not in data or "state" not in data or self.std <= 0:
+            return data
+        st = np.asarray(data["state"], np.float32).copy()
+        sig = self.heavy_std if (self.heavy_p > 0 and np.random.random() < self.heavy_p) else self.std
+        st[..., self.start:] += np.random.normal(0.0, sig, size=st[..., self.start:].shape).astype(np.float32)
+        data["state"] = st
+        return data
+
+
+@dataclasses.dataclass(frozen=True)
 class Unnormalize(DataTransformFn):
     norm_stats: at.PyTree[NormStats] | None
     # If true, will use quantile normalization. Otherwise, normal z-score normalization will be used.

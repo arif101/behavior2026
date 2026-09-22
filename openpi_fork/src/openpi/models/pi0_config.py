@@ -104,6 +104,17 @@ class Pi0Config(_model.BaseModelConfig):
     # the pathway still gets supervised; targets in 0.3 m units.
     temporal_flow_weight: float = 0.05
     temporal_stage_weight: float = 0.05
+    # 4D-ATTENDABLE PERCEPTION (ARCH_4D_ATTENTION_SPEC): pe3d adds a zero-init sinusoidal-MLP encoding of each patch's
+    # base-frame 3D point to the SigLIP tokens (A1); geo_attention adds zero-init per-layer/per-head gains on
+    # exp(-|p_key - anchor|^2 / geo_sigma^2) kernels between the expert's queries and 3D-positioned keys (A3).
+    pe3d: bool = False
+    geo_attention: bool = False
+    geo_sigma: float = 0.15
+    geo_anchors: int = 2
+    pe3d_freqs: int = 16
+    proprio_noise_std: float = 0.0     # B2 copycat remedy (raw joint radians); 0 = off
+    proprio_heavy_p: float = 0.0
+    proprio_heavy_std: float = 0.3
     pytorch_compile_mode: str | None = "max-autotune"
 
     def __post_init__(self):
@@ -180,6 +191,15 @@ class Pi0Config(_model.BaseModelConfig):
                 ),
                 history_mask=(
                     jax.ShapeDtypeStruct([batch_size, self.temporal_k + 1], bool) if self.temporal_conditioning else None
+                ),
+                patch_xyz=(
+                    jax.ShapeDtypeStruct([batch_size, 3, 256, 3], jnp.float32) if (self.pe3d or self.geo_attention) else None
+                ),
+                patch_valid=(
+                    jax.ShapeDtypeStruct([batch_size, 3, 256], bool) if (self.pe3d or self.geo_attention) else None
+                ),
+                anchors=(
+                    jax.ShapeDtypeStruct([batch_size, self.geo_anchors, 3], jnp.float32) if self.geo_attention else None
                 ),
             )
         action_spec = jax.ShapeDtypeStruct([batch_size, self.action_horizon, self.action_dim], jnp.float32)

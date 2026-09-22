@@ -131,6 +131,12 @@ class Observation(Generic[ArrayT]):
     history_mask: at.Bool[ArrayT, "*b hk"] | None = None
     hist_flow: at.Float[ArrayT, "*b hj 9"] | None = None
     hist_flow_mask: at.Bool[ArrayT, "*b hj"] | None = None
+    # 4D-ATTENDABLE PERCEPTION (ARCH_4D_ATTENTION_SPEC A1/A3): per-camera patch 3D points in the robot BASE frame
+    # (n cameras in obs.images order x 256 SigLIP patches), their validity (depth > 0), and the expert's query anchors
+    # (a = [right EE, left EE] positions, base frame, from raw proprio). None -> the 3D path is inert (bit parity).
+    patch_xyz: at.Float[ArrayT, "*b nc np 3"] | None = None
+    patch_valid: at.Bool[ArrayT, "*b nc np"] | None = None
+    anchors: at.Float[ArrayT, "*b na 3"] | None = None
 
     @classmethod
     def from_dict(cls, data: at.PyTree[ArrayT]) -> "Observation[ArrayT]":
@@ -158,6 +164,9 @@ class Observation(Generic[ArrayT]):
             stage_tokens=data.get("stage_tokens"),
             token_ar_mask=data.get("token_ar_mask"),
             token_loss_mask=data.get("token_loss_mask"),
+            patch_xyz=data.get("patch_xyz"),
+            patch_valid=data.get("patch_valid"),
+            anchors=data.get("anchors"),
             map_tokens=data.get("map_tokens"),
             stage=data.get("stage"),
             aux_pixels=data.get("aux_pixels"),
@@ -258,6 +267,9 @@ def preprocess_observation(
         history_mask=observation.history_mask,
         hist_flow=observation.hist_flow,
         hist_flow_mask=observation.hist_flow_mask,
+        patch_xyz=observation.patch_xyz,
+        patch_valid=observation.patch_valid,
+        anchors=observation.anchors,
     )
 
 

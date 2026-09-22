@@ -20,6 +20,36 @@ def make_b1k_example() -> dict:
     }
 
 
+# R1 Pro cameras (camera_intrinsics.json): square frames, fx = fy = 874.5 at 1080 px -> tan(half-FOV) = 540/874.5;
+# the SigLIP input is the full frame resized, so patch (i, j) of the 16x16 grid has the resolution-independent ray
+# ((j + 0.5)/16 - 0.5) * (1080/874.5), ((i + 0.5)/16 - 0.5) * (1080/874.5). USD camera: +X right, +Y up, -Z forward.
+_PATCH_RAY = 1080.0 / 874.5
+
+
+def _quat_to_rot(q):
+    x, y, z, w = [float(v) for v in q]
+    return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                     [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                     [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+
+
+def lift_patches_to_base(depth_3x16x16: np.ndarray, cam_pose_3x7: np.ndarray):
+    """[3, 16, 16] patch-mean depth (m, 0 = invalid) + [3, 7] camera poses (base frame, pos + quat xyzw) ->
+    ([3, 256, 3] base-frame points, [3, 256] validity)."""
+    jj, ii = np.meshgrid(np.arange(16), np.arange(16))            # jj = column (u), ii = row (v)
+    ax = ((jj + 0.5) / 16.0 - 0.5) * _PATCH_RAY
+    ay = ((ii + 0.5) / 16.0 - 0.5) * _PATCH_RAY
+    xyz = np.zeros((3, 256, 3), np.float32); val = np.zeros((3, 256), bool)
+    for c in range(3):
+        z = depth_3x16x16[c]
+        ok = np.isfinite(z) & (z > 0.05)
+        p_cam = np.stack([ax * z, -ay * z, -z], axis=-1).reshape(256, 3)           # USD: -Z forward, +Y up
+        R = _quat_to_rot(cam_pose_3x7[c, 3:7]); t = cam_pose_3x7[c, :3]
+        xyz[c] = (p_cam @ R.T + t[None]).astype(np.float32); val[c] = ok.reshape(256)
+    xyz[~val] = 0.0
+    return xyz, val
+
+
 def extract_state_from_proprio(proprio_data, robot_config: RobotConfig) -> np.ndarray:
     """Extract state from proprioception data based on robot configuration.
 
@@ -85,6 +115,11 @@ class B1KInputs(transforms.DataTransformFn):
     # supplied by the b1k eval wrapper, left-padded with zeros/invalid) and the change targets from "hist_geo".
     temporal_conditioning: bool = False
     temporal_k: int = 8
+    # 4D-ATTENDABLE PERCEPTION (ARCH_4D_ATTENTION_SPEC A1/A3): lift the per-patch depth (gt_depth: 3 cams x 16x16
+    # patch-mean meters, camera order = image order) to base-frame 3D points with the per-frame camera poses
+    # (cam_pose: 3 x [px py pz qx qy qz qw] of each camera in the robot base frame; train: FK precompute column;
+    # serve: the eval wrapper's rel(sensor)). Anchors = [right EE, left EE] positions from raw proprio (base frame).
+    geo_inputs: bool = False
 
     def __call__(self, data: dict) -> dict:
         proprio_data = data["observation/state"]
@@ -187,6 +222,14 @@ class B1KInputs(transforms.DataTransformFn):
         # the aux loss is inert.
         if self.depth_aux and data.get("gt_depth") is not None:
             inputs["gt_depth"] = np.asarray(data["gt_depth"], np.float32).reshape(768)
+
+        if self.geo_inputs:
+            _dep = data.get("gt_depth"); _cp = data.get("cam_pose")
+            if _dep is not None and _cp is not None:
+                xyz, val = lift_patches_to_base(np.asarray(_dep, np.float32).reshape(3, 16, 16), np.asarray(_cp, np.float32).reshape(3, 7))
+                inputs["patch_xyz"] = xyz.astype(np.float32); inputs["patch_valid"] = val
+                _pr = np.asarray(proprio_data, np.float64).reshape(-1)
+                inputs["anchors"] = np.stack([_pr[42:45], _pr[17:20]]).astype(np.float32)   # [right EE, left EE], base frame
 
         if self.temporal_conditioning:
             K = self.temporal_k

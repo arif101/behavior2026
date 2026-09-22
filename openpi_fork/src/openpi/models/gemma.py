@@ -161,7 +161,10 @@ class Attention(nn.Module):
     configs: Sequence[Config]
 
     @nn.compact
-    def __call__(self, xs, positions, attn_mask, kv_cache):
+    def __call__(self, xs, positions, attn_mask, kv_cache, geo=None):
+        # GEOMETRIC ATTENTION BIAS (ARCH_4D_ATTENTION_SPEC A3): `geo` = [B, T, S, A] float32 kernels
+        # exp(-|p_key - anchor_query|^2 / sigma^2) (0 for keys without a 3D position and for prefix queries);
+        # per-layer, per-head gains `geo_gain` [A, num_heads] are ZERO-INIT -> bit-identical logits at init.
         # all experts must share the same head dim, num heads, and num kv heads for self-attention to work
         assert all(config.head_dim == self.configs[0].head_dim for config in self.configs)
         assert all(config.num_heads == self.configs[0].num_heads for config in self.configs)
@@ -215,6 +218,11 @@ class Attention(nn.Module):
 
         q = einops.rearrange(q, "B T (K G) H -> B T K G H", K=self.configs[0].num_kv_heads)
         logits = jnp.einsum("BTKGH,BSKH->BKGTS", q, k, preferred_element_type=jnp.float32)
+        if geo is not None:
+            _K, _G = logits.shape[1], logits.shape[2]
+            geo_gain = self.param("geo_gain", nn.initializers.zeros_init(), (geo.shape[-1], _K * _G))
+            _bias = jnp.einsum("BTSA,AN->BNTS", geo.astype(jnp.float32), geo_gain.astype(jnp.float32))
+            logits = logits + _bias.reshape(_bias.shape[0], _K, _G, _bias.shape[-2], _bias.shape[-1])
 
         if attn_mask.shape != (q.shape[0], 1, q.shape[1], k.shape[1]):
             raise ValueError(
@@ -290,7 +298,7 @@ class Block(nn.Module):
     dropout_bdims: tuple[int, ...] = ()
 
     @nn.compact
-    def __call__(self, xs, kv_cache, positions, attn_mask, adarms_cond, deterministic=True):  # noqa: FBT002
+    def __call__(self, xs, kv_cache, positions, attn_mask, adarms_cond, deterministic=True, geo=None):  # noqa: FBT002
         xs = sharding.activation_sharding_constraint(xs)
         drop = nn.Dropout(self.dropout, self.dropout_bdims) if self.dropout else lambda x, _: x
 
@@ -305,7 +313,7 @@ class Block(nn.Module):
             gates.append(gate if x is not None else None)
 
         pre_attn = sharding.activation_sharding_constraint(pre_attn)
-        post_attn, kv_cache = attn(pre_attn, positions, attn_mask, kv_cache)
+        post_attn, kv_cache = attn(pre_attn, positions, attn_mask, kv_cache, geo)
         post_attn = jax.tree.map(lambda x: drop(x, deterministic), post_attn)
         post_attn = sharding.activation_sharding_constraint(post_attn)
         xs = [_gated_residual(x, y, gate) for x, y, gate in zip(xs, post_attn, gates, strict=True)]
@@ -372,7 +380,8 @@ class Module(nn.Module):
                 nn.broadcast,
                 nn.broadcast,
                 nn.broadcast,
-            ),  # 0=kv_cache, 1=positions, 2=mask, 3=adarms_cond, 4=deterministic
+                nn.broadcast,
+            ),  # 0=kv_cache, 1=positions, 2=mask, 3=adarms_cond, 4=deterministic, 5=geo (geometric attention kernels)
             length=self.configs[0].depth,
         )(
             configs=self.configs,
@@ -396,13 +405,14 @@ class Module(nn.Module):
         *,
         kv_cache: KVCache | None = None,
         deterministic: bool = True,
+        geo: at.Float[at.Array, "b t s a"] | None = None,
     ) -> tuple[Sequence[at.Float[at.Array, "b _t _d"] | None], KVCache]:
         embedded = jax.tree.map(lambda e: e.astype(self.embed_dtype), embedded)
         mask = jnp.asarray(mask)[:, None, :, :]
         if adarms_cond is None:
             adarms_cond = [None] * len(self.configs)
 
-        embedded, kv_cache = self.layers(embedded, kv_cache, positions, mask, adarms_cond, deterministic)
+        embedded, kv_cache = self.layers(embedded, kv_cache, positions, mask, adarms_cond, deterministic, geo)
 
         assert all(e.dtype == jnp.dtype(self.embed_dtype) for e in embedded if e is not None)
 
@@ -410,14 +420,17 @@ class Module(nn.Module):
             f(e, a)[0] if e is not None else e for f, e, a in zip(self.final_norms, embedded, adarms_cond, strict=True)
         ], kv_cache
 
-    def init(self, use_adarms: Sequence[bool]):
-        """Convenience method for initializing all parameters, necessary due to the quirks of linen."""
+    def init(self, use_adarms: Sequence[bool], use_geo: int = 0):
+        """Convenience method for initializing all parameters, necessary due to the quirks of linen.
+        use_geo > 0 also creates the (zero-init) geometric-attention gains for `use_geo` anchors."""
         self.embed(jnp.zeros((1, 1), dtype=jnp.int32))
+        n = len(self.configs)
         self(
             [jnp.zeros((1, 1, c.width)) for c in self.configs],
-            jnp.zeros((1, len(self.configs)), dtype=jnp.int32),
-            jnp.zeros((1, len(self.configs), len(self.configs)), dtype=bool),
+            jnp.zeros((1, n), dtype=jnp.int32),
+            jnp.zeros((1, n, n), dtype=bool),
             adarms_cond=[jnp.zeros((1, c.width)) if u else None for u, c in zip(use_adarms, self.configs, strict=True)],
+            geo=jnp.zeros((1, n, n, use_geo), jnp.float32) if use_geo > 0 else None,
         )
 
 

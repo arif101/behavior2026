@@ -45,6 +45,25 @@ def make_attn_mask(input_mask, mask_ar):
 
 
 @at.typecheck
+def _sincos3d(xyz: at.Float[at.Array, "b n 3"], n_freqs: int) -> at.Float[at.Array, "b n f"]:
+    """Sinusoidal features of base-frame points: wavelengths 0.05 m .. ~4 m (geometric), per axis sin+cos."""
+    freqs = 2.0 * jnp.pi / (0.05 * (80.0 ** (jnp.arange(n_freqs, dtype=jnp.float32) / max(n_freqs - 1, 1))))
+    ang = xyz[..., :, None] * freqs[None, None, None, :]                                  # [b, n, 3, F]
+    return jnp.concatenate([jnp.sin(ang), jnp.cos(ang)], axis=-1).reshape(*xyz.shape[:-1], -1)
+
+
+def _geo_kernel(key_xyz, key_valid, anchors, sigma, n_prefix_q, n_suffix_q):
+    """[b, S, 3] key positions (+validity) and [b, A, 3] anchors -> geo [b, T, S, A] for T = n_prefix_q + n_suffix_q
+    queries: exp(-|p_s - a|^2 / sigma^2) for the suffix queries, 0 for prefix queries and invalid keys."""
+    d2 = jnp.sum((key_xyz[:, :, None, :] - anchors[:, None, :, :]) ** 2, axis=-1)          # [b, S, A]
+    k = jnp.exp(-d2 / (sigma * sigma)) * key_valid.astype(jnp.float32)[..., None]           # [b, S, A]
+    suffix_rows = jnp.broadcast_to(k[:, None], (k.shape[0], n_suffix_q, k.shape[1], k.shape[2]))
+    if n_prefix_q > 0:
+        prefix_rows = jnp.zeros((k.shape[0], n_prefix_q, k.shape[1], k.shape[2]), jnp.float32)
+        return jnp.concatenate([prefix_rows, suffix_rows], axis=1)
+    return suffix_rows
+
+
 def posemb_sincos(
     pos: at.Real[at.Array, " b"], embedding_dim: int, min_period: float, max_period: float
 ) -> at.Float[at.Array, "b {embedding_dim}"]:
@@ -77,7 +96,8 @@ class Pi0(_model.BaseModel):
                 adarms=config.pi05,
             )
         )
-        llm.lazy_init(rngs=rngs, method="init", use_adarms=[False, True] if config.pi05 else [False, False])
+        llm.lazy_init(rngs=rngs, method="init", use_adarms=[False, True] if config.pi05 else [False, False],
+                      use_geo=(int(getattr(config, "geo_anchors", 2)) if getattr(config, "geo_attention", False) else 0))
         img = nnx_bridge.ToNNX(
             _siglip.Module(
                 num_classes=paligemma_config.width,
@@ -100,6 +120,16 @@ class Pi0(_model.BaseModel):
         # FOVEATED MEMORY: zero-init out-proj => warm-start tokens EQUAL the 0.02
         # registers exactly; map_tokens_k == 0 creates no params (bit-parity).
         self.map_k = getattr(config, "map_tokens_k", 0)
+        # 4D-ATTENDABLE PERCEPTION (ARCH_4D_ATTENTION_SPEC): A1 zero-init 3D positional encoding on patch tokens,
+        # A3 geometric attention kernels (gains live inside gemma.Attention as `geo_gain`, zero-init).
+        self.pe3d = bool(getattr(config, "pe3d", False))
+        self.geo_attention = bool(getattr(config, "geo_attention", False))
+        self.geo_sigma = float(getattr(config, "geo_sigma", 0.15))
+        self.pe3d_freqs = int(getattr(config, "pe3d_freqs", 16))
+        if self.pe3d:
+            self.pe3d_in = nnx.Linear(3 * 2 * self.pe3d_freqs, 256, rngs=rngs)
+            self.pe3d_out = nnx.Linear(256, paligemma_config.width, kernel_init=nnx.initializers.zeros,
+                                       bias_init=nnx.initializers.zeros, rngs=rngs)
         self.anti_shortcut = getattr(config, "anti_shortcut", False)
         if self.map_k > 0:
             self.map_proj_in = nnx.Linear(config.map_token_dim, 256, rngs=rngs)
@@ -261,8 +291,14 @@ class Pi0(_model.BaseModel):
         ar_mask = []
         tokens = []
         # embed images
-        for name in obs.images:
+        for _ci, name in enumerate(obs.images):
             image_tokens, _ = self.PaliGemma.img(obs.images[name], train=False)
+            if self.pe3d and obs.patch_xyz is not None:
+                # A1: zero-init 3D positional encoding of the patch's base-frame point (invalid patches -> 0 encoding)
+                _xyz = obs.patch_xyz[:, _ci].astype(jnp.float32)                       # [b, 256, 3]
+                _val = obs.patch_valid[:, _ci].astype(jnp.float32)[..., None]          # [b, 256, 1]
+                _pe = self.pe3d_out(nnx.swish(self.pe3d_in(_sincos3d(_xyz, self.pe3d_freqs)))) * _val
+                image_tokens = image_tokens + _pe.astype(image_tokens.dtype)
 
             tokens.append(image_tokens)
             input_mask.append(
@@ -306,6 +342,18 @@ class Pi0(_model.BaseModel):
         if _n_map:
             pos_weight = input_mask.at[:, -_n_map:].set(False)
         return tokens, input_mask, ar_mask, pos_weight
+
+    def prefix_key_geometry(self, obs: _model.Observation, n_prefix: int):
+        """A3: base-frame 3D position + validity for every prefix key, aligned with embed_prefix's layout
+        (images in obs.images order, 256 patches each; text/map/other tokens -> invalid)."""
+        b = obs.patch_xyz.shape[0]
+        xyz = obs.patch_xyz.astype(jnp.float32).reshape(b, -1, 3)
+        val = obs.patch_valid.reshape(b, -1)
+        n_img = xyz.shape[1]
+        pad = max(n_prefix - n_img, 0)
+        xyz = jnp.concatenate([xyz, jnp.zeros((b, pad, 3), jnp.float32)], axis=1)[:, :n_prefix]
+        val = jnp.concatenate([val, jnp.zeros((b, pad), bool)], axis=1)[:, :n_prefix]
+        return xyz, val
 
     def compute_head_gist(self, image: at.Float[at.Array, "b h w c"]) -> at.Float[at.Array, "b d"]:
         """TEMPORAL FORCING serve helper: [-1, 1] image at model resolution -> gist = mean of the 256 projected
@@ -533,8 +581,15 @@ class Pi0(_model.BaseModel):
         ar_mask = jnp.concatenate([prefix_ar_mask, suffix_ar_mask], axis=0)
         attn_mask = make_attn_mask(input_mask, ar_mask)
         positions = jnp.cumsum(jnp.concatenate([prefix_posw, suffix_mask], axis=1), axis=1) - 1
+        _geo = None
+        if self.geo_attention and observation.patch_xyz is not None and observation.anchors is not None:
+            _np_, _ns_ = prefix_tokens.shape[1], suffix_tokens.shape[1]
+            _kx, _kv = self.prefix_key_geometry(observation, _np_)
+            _kx = jnp.concatenate([_kx, jnp.zeros((_kx.shape[0], _ns_, 3), jnp.float32)], axis=1)   # suffix keys: no position
+            _kv = jnp.concatenate([_kv, jnp.zeros((_kv.shape[0], _ns_), bool)], axis=1)
+            _geo = _geo_kernel(_kx, _kv, observation.anchors.astype(jnp.float32), self.geo_sigma, _np_, _ns_)
         (prefix_out, suffix_out), _ = self.PaliGemma.llm(
-            [prefix_tokens, suffix_tokens], mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond]
+            [prefix_tokens, suffix_tokens], mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond], geo=_geo
         )
         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
         loss = jnp.mean(jnp.square(v_t - u_t), axis=-1)
@@ -688,12 +743,21 @@ class Pi0(_model.BaseModel):
             # `positions` is shape (b, suffix_len) indicating the positions of the suffix tokens
             positions = jnp.sum(prefix_posw, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
 
+            _geo = None
+            if self.geo_attention and observation.patch_xyz is not None and observation.anchors is not None:
+                # keys = [prefix (cached) ; suffix]; queries = suffix only -> [b, suffix_len, prefix+suffix, A]
+                _np_, _ns_ = prefix_tokens.shape[1], suffix_tokens.shape[1]
+                _kx, _kv = self.prefix_key_geometry(observation, _np_)
+                _kx = jnp.concatenate([_kx, jnp.zeros((_kx.shape[0], _ns_, 3), jnp.float32)], axis=1)
+                _kv = jnp.concatenate([_kv, jnp.zeros((_kv.shape[0], _ns_), bool)], axis=1)
+                _geo = _geo_kernel(_kx, _kv, observation.anchors.astype(jnp.float32), self.geo_sigma, 0, _ns_)
             (prefix_out, suffix_out), _ = self.PaliGemma.llm(
                 [None, suffix_tokens],
                 mask=full_attn_mask,
                 positions=positions,
                 kv_cache=kv_cache,
                 adarms_cond=[None, adarms_cond],
+                geo=_geo,
             )
             assert prefix_out is None
             v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])

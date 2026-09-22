@@ -379,3 +379,10 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
 - Reading: consistent with trajectory replay keyed on proprio/time; the grasp attitude the demos hold for ~190 frames is
   not an attractor for the policy. This is the state the corrective corpus must cover (DART-style offsets around P0 with
   the servo supervisor), and the state the 3D-attendable tokens must be trained on.
+- 03:30 UTC 09-22 vision-only / wrist rerun (tr2 canonical pose; tr3 partial): RADIO moved 3 cm with proprio fixed ->
+  push-back +0.004 m (12 trials) = sample noise; HAND moved 3 cm (image+proprio) on the same state -> +0.034/+0.020
+  (near-full correction). The correction is PROPRIO-driven (joint-trajectory return), not image-driven: copycat measured
+  directly. Wrist +-10 deg: not corrected; ends at the policy's preferred attitude (0.38 rad off on tr2, 1.44 on tr3)
+  regardless of start. Baseline from the canonical pose: 17 cm of motion per chunk, 2.6 cm of progress. Spec for the
+  fix: ARCH_4D_ATTENTION_SPEC.md (3D-positioned patch + 4D history tokens, geometric attention bias, corrective corpus,
+  proprio noise, gripper reopen rule).

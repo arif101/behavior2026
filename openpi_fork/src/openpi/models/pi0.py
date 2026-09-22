@@ -157,6 +157,8 @@ class Pi0(_model.BaseModel):
             self.hist_registers = nnx.Param(jnp.zeros((self.hist_cells, _w), jnp.float32))
             self.hist_ground_in = nnx.Linear(_w, 128, rngs=rngs)
             self.hist_ground_out = nnx.Linear(128, 3, rngs=rngs)
+            self.hist_stage_in = nnx.Linear(_w, 128, rngs=rngs)      # stage CE from the history tokens alone (phase is temporal)
+            self.hist_stage_out = nnx.Linear(128, 4, rngs=rngs)
         self.anti_shortcut = getattr(config, "anti_shortcut", False)
         if self.map_k > 0:
             self.map_proj_in = nnx.Linear(config.map_token_dim, 256, rngs=rngs)
@@ -430,6 +432,21 @@ class Pi0(_model.BaseModel):
         toks, _ = self.PaliGemma.img(image, train=False)
         return toks.astype(jnp.float32).mean(axis=1)
 
+    def predict_stage(self, observation: _model.Observation) -> at.Float[at.Array, "b 4"]:
+        """SYSTEM-2 STAGE (2025 winner's recipe): the model's OWN stage head (aux_stage_*, CE-trained on the stage labels
+        from the mean of the 3 cameras' prefix outputs) evaluated at serve: one prefix pass -> 4-class logits."""
+        observation = _model.preprocess_observation(None, observation, train=False)
+        prefix_tokens, prefix_mask, prefix_ar_mask, prefix_posw = self.embed_prefix(observation)
+        prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
+        _hist_on = bool(self.n_hist and observation.history_tokens is not None)
+        if _hist_on:
+            prefix_attn_mask = self._hist_attn_mask(prefix_attn_mask, prefix_tokens.shape[1])
+        positions = jnp.cumsum(prefix_posw, axis=1) - 1
+        _kb_p = self._hist_key_bias(prefix_tokens.shape[0], prefix_tokens.shape[1], 0) if _hist_on else None
+        (prefix_out, _), _ = self.PaliGemma.llm([prefix_tokens, None], mask=prefix_attn_mask, positions=positions, key_bias=_kb_p)
+        feat = prefix_out[:, : 3 * 256, :].mean(axis=1)
+        return self.aux_stage_out(nnx.swish(self.aux_stage_in(feat))).astype(jnp.float32)
+
     def compute_head_tokens(self, image: at.Float[at.Array, "b h w c"]) -> at.Float[at.Array, "b 16 d"]:
         """A2 serve helper: [-1, 1] head image -> the 256 projected SigLIP tokens average-pooled to a 4x4 grid
         (precompute_hist_tokens.py contract; the tower is frozen so this equals the training precompute)."""
@@ -695,6 +712,11 @@ class Pi0(_model.BaseModel):
             _any = (observation.history_valid.reshape(_ho.shape[0], -1).any(-1)).astype(jnp.float32)
             _e = jnp.mean(jnp.square(_pred - _tgt), axis=-1) * _any
             loss = loss + (self.hist_ground_weight * _e).astype(loss.dtype)[:, None]
+            if observation.stage is not None:
+                _sl = jax.nn.log_softmax(self.hist_stage_out(nnx.swish(self.hist_stage_in(_pool))).astype(jnp.float32), axis=-1)
+                _st = jnp.clip(observation.stage.reshape(-1), 0, 3)
+                _es = -jnp.take_along_axis(_sl, _st[:, None], axis=-1)[:, 0] * _any
+                loss = loss + (self.hist_ground_weight * _es).astype(loss.dtype)[:, None]
 
         # FOVEATED MEMORY aux decodes (patch_aux_losses.py): anti-sink + visual grounding.
         tp_raw = getattr(observation, "target_points", None)

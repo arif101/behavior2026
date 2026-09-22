@@ -402,3 +402,9 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   and feed it back; we have a 4-class stage aux head since Run-2 (aux_stage_*, training-only) and the labels, but serve
   a geometry tracker. Next: expose the model's own stage head at serve (predict_stage) with the winner's voting, use it
   for the stage input AND the reopen rule; add a stage CE on the 4D history tokens as a second temporal-grounding aux.
+- 04:40 UTC SYSTEM-2 STAGE built: `Pi0.predict_stage` (one prefix pass -> the aux_stage head the full ckpt already
+  trained), `Policy.predict_stage`, and a serve-side voter in eval_b1k_wrapper (every replan step; 2-of-3 advances,
+  unanimous rolls back; SERVE_STAGE_SOURCE=head overrides stage_v2/progress/target_points_v2; head-vs-tracker logged
+  per call to stage_head_log.jsonl). Training: a stage CE on the 4D history tokens next to the rail-position aux.
+  Sim box queue: reopen2 (running) -> S2STAGE eval n=25 (full ckpt, head-driven stage + reopen rule; tests the
+  stage-mismatch hypothesis directly) -> FK precompute (+HF upload) -> DART clips.

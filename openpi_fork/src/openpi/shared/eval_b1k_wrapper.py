@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import torch
 from openpi_client.base_policy import BasePolicy
@@ -59,6 +60,7 @@ class B1KPolicyWrapper:
         self._gist_steps = 0
         self._htok_ring = None
         self._htok_steps = 0
+        self._s2 = None
         self.policy.reset()
 
     def _ensure_batch_initialized(self, batch_size: int, action_dim: int = None):
@@ -146,6 +148,39 @@ class B1KPolicyWrapper:
                     past = [past[j] for j in np.random.permutation(len(past))]
                 processed_input[i]["gist_head"] = np.stack(past + [g_now]).astype(np.float32)
             self._gist_steps += 1
+        # SYSTEM-2 STAGE (2025 winner): at each replan step run the model's own stage head; 2-of-3 window advances the
+        # served stage, unanimous window rolls back. SERVE_STAGE_SOURCE=head overrides stage_v2/progress/target_points_v2
+        # (the client tracker's values are kept for logging); default "tracker" leaves the inputs untouched but still
+        # logs head-vs-tracker to /root/stage_head_log.jsonl.
+        _pst = getattr(self.policy, "predict_stage", None)
+        if _pst is not None and getattr(self.policy, "_stage_fn", None) is not None:
+            if getattr(self, "_s2", None) is None:
+                self._s2 = {"votes": [[] for _ in range(batch_size)], "stage": [0] * batch_size, "t0": [0] * batch_size, "n": 0, "logits": [None] * batch_size}
+            _src = _os2.environ.get("SERVE_STAGE_SOURCE", "tracker").lower()
+            _every = int(_os2.environ.get("SERVE_STAGE_EVERY", "16"))
+            if self._s2["n"] % _every == 0:
+                for i in range(batch_size):
+                    try:
+                        lg = _pst(processed_input[i]); self._s2["logits"][i] = lg
+                        pred = int(np.argmax(lg)); v = self._s2["votes"][i]; v.append(pred); del v[:-3]
+                        cur = self._s2["stage"][i]
+                        if len(v) == 3:
+                            if sum(1 for x in v if x == cur + 1) >= 2: self._s2["stage"][i] = cur + 1; self._s2["t0"][i] = self._s2["n"]
+                            elif all(x == cur - 1 for x in v) and cur > 0: self._s2["stage"][i] = cur - 1; self._s2["t0"][i] = self._s2["n"]
+                        with open("/root/stage_head_log.jsonl", "a") as _fh:
+                            _fh.write(json.dumps({"step": self._s2["n"], "head_pred": pred, "head_logits": [round(float(x), 3) for x in lg],
+                                                  "served": self._s2["stage"][i], "tracker": (int(np.asarray(processed_input[i]["stage_v2"]).reshape(-1)[0]) if "stage_v2" in processed_input[i] else None)}) + "\n")
+                    except Exception as _e:
+                        print(f"STAGE_HEAD_ERR {_e!r}", flush=True)
+            if _src == "head":
+                _typ = np.array([1065.0, 189.0, 154.0, 741.0])
+                for i in range(batch_size):
+                    st = self._s2["stage"][i]; frac = min((self._s2["n"] - self._s2["t0"][i]) / _typ[st], 0.99)
+                    processed_input[i]["stage_v2"] = np.int32(st); processed_input[i]["progress"] = np.float32((st + frac) / 4.0)
+                    if "target_points" in processed_input[i]:
+                        tp = np.asarray(processed_input[i]["target_points"], np.float32).reshape(-1, 3)
+                        processed_input[i]["target_points_v2"] = (tp + (np.array([0, 0, 0.141], np.float32) if st <= 1 else 0.0)).astype(np.float32)
+            self._s2["n"] += 1
         # A2 4D HISTORY TOKENS: stride-aligned ring buffer of pooled head tokens + cell points (base frame at capture,
         # from gt_depth head 16x16 + cam_pose head) + odometry; packed as the (K+1)-slot stacks the training loader
         # produces (hist_tok/hist_cellxyz/hist_cellvalid/odom_xyyaw), consumed by B1KInputs.pack_history_tokens.

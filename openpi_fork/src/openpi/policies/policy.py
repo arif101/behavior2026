@@ -68,6 +68,10 @@ class Policy(BasePolicy):
             self._gist_fn = None
             if getattr(model, 'temporal_conditioning', False) and hasattr(model, 'compute_head_gist'):
                 self._gist_fn = nnx_utils.module_jit(model.compute_head_gist)
+            # SYSTEM-2 stage: the model's own aux stage head (present when the Run-2 aux heads exist)
+            self._stage_fn = None
+            if hasattr(model, 'aux_stage_in') and hasattr(model, 'predict_stage'):
+                self._stage_fn = nnx_utils.module_jit(model.predict_stage)
             # A2 4D history tokens serve helper (pooled 4x4 head tokens)
             self._htok_fn = None
             if getattr(model, 'hist_tokens', False) and hasattr(model, 'compute_head_tokens'):
@@ -81,6 +85,16 @@ class Policy(BasePolicy):
             return None
         img = jnp.asarray(image_u8_224, jnp.float32)[None] / 255.0 * 2.0 - 1.0
         return np.asarray(self._gist_fn(img))[0]
+
+    def predict_stage(self, obs: dict) -> np.ndarray | None:
+        """Run the policy's input transforms on one (unbatched) serve input and return the stage head's 4 logits."""
+        if getattr(self, '_stage_fn', None) is None:
+            return None
+        inputs = jax.tree.map(lambda x: x, obs)
+        inputs = self._input_transform(inputs)
+        inputs = jax.tree.map(lambda x: jnp.asarray(x)[np.newaxis, ...], inputs)
+        observation = _model.Observation.from_dict(inputs)
+        return np.asarray(self._stage_fn(observation))[0]
 
     def compute_head_tokens(self, image_u8_224: np.ndarray) -> np.ndarray | None:
         """[H, W, 3] uint8 head image -> [16, D] float32 pooled tokens, or None without the history-token pathway."""

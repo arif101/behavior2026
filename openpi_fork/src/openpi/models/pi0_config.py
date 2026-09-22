@@ -115,6 +115,21 @@ class Pi0Config(_model.BaseModelConfig):
     proprio_noise_std: float = 0.0     # B2 copycat remedy (raw joint radians); 0 = off
     proprio_heavy_p: float = 0.0
     proprio_heavy_std: float = 0.3
+    # A2 4D HISTORY TOKENS: K past head frames x `hist_cells` pooled tower tokens (projected width `hist_dim`), each with
+    # a base-frame 3D cell point re-expressed in the CURRENT base frame + time offset (4D PE, zero-init), appended to the
+    # prefix tail (position-transparent). History tokens attend only among themselves; everyone else sees them through
+    # a per-key visibility bias (`hist_vis_bias`, gains init 1 -> near-invisible at init). Aux: predict the current rail
+    # position from the history outputs alone (`hist_ground_weight`).
+    hist_tokens: bool = False
+    hist_k: int = 8
+    hist_cells: int = 16
+    hist_dim: int = 2048
+    hist_stride: int = 32
+    hist_vis_bias: float = -10.0
+    hist_ground_weight: float = 0.05
+    # A4 (2025 winner): each expert layer reads a learned blend of ALL VLM layers' cached K/V (identity init). Training
+    # switches to the two-pass form (prefix pass -> cache -> suffix pass), numerically equivalent to the joint pass.
+    mixed_layer_attention: bool = False
     pytorch_compile_mode: str | None = "max-autotune"
 
     def __post_init__(self):
@@ -201,6 +216,12 @@ class Pi0Config(_model.BaseModelConfig):
                 anchors=(
                     jax.ShapeDtypeStruct([batch_size, self.geo_anchors, 3], jnp.float32) if self.geo_attention else None
                 ),
+                history_tokens=(
+                    jax.ShapeDtypeStruct([batch_size, self.hist_k, self.hist_cells, self.hist_dim], jnp.float32) if self.hist_tokens else None
+                ),
+                history_xyz=(jax.ShapeDtypeStruct([batch_size, self.hist_k, self.hist_cells, 3], jnp.float32) if self.hist_tokens else None),
+                history_valid=(jax.ShapeDtypeStruct([batch_size, self.hist_k, self.hist_cells], bool) if self.hist_tokens else None),
+                history_dt=(jax.ShapeDtypeStruct([batch_size, self.hist_k], jnp.float32) if self.hist_tokens else None),
             )
         action_spec = jax.ShapeDtypeStruct([batch_size, self.action_horizon, self.action_dim], jnp.float32)
 

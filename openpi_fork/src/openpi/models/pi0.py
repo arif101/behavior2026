@@ -52,6 +52,14 @@ def _sincos3d(xyz: at.Float[at.Array, "b n 3"], n_freqs: int) -> at.Float[at.Arr
     return jnp.concatenate([jnp.sin(ang), jnp.cos(ang)], axis=-1).reshape(*xyz.shape[:-1], -1)
 
 
+def _sincos4d(xyzt: at.Float[at.Array, "b n 4"], n_freqs: int) -> at.Float[at.Array, "b n f"]:
+    """Sinusoidal features of (x, y, z) in meters and t in seconds (t scaled so 8.5 s ~ 4 m)."""
+    scaled = jnp.concatenate([xyzt[..., :3], xyzt[..., 3:4] * (4.0 / 8.5)], axis=-1)
+    freqs = 2.0 * jnp.pi / (0.05 * (80.0 ** (jnp.arange(n_freqs, dtype=jnp.float32) / max(n_freqs - 1, 1))))
+    ang = scaled[..., :, None] * freqs[None, None, None, :]
+    return jnp.concatenate([jnp.sin(ang), jnp.cos(ang)], axis=-1).reshape(*xyzt.shape[:-1], -1)
+
+
 def _geo_kernel(key_xyz, key_valid, anchors, sigma, n_prefix_q, n_suffix_q):
     """[b, S, 3] key positions (+validity) and [b, A, 3] anchors -> geo [b, T, S, A] for T = n_prefix_q + n_suffix_q
     queries: exp(-|p_s - a|^2 / sigma^2) for the suffix queries, 0 for prefix queries and invalid keys."""
@@ -97,7 +105,10 @@ class Pi0(_model.BaseModel):
             )
         )
         llm.lazy_init(rngs=rngs, method="init", use_adarms=[False, True] if config.pi05 else [False, False],
-                      use_geo=(int(getattr(config, "geo_anchors", 2)) if getattr(config, "geo_attention", False) else 0))
+                      use_geo=(int(getattr(config, "geo_anchors", 2)) if getattr(config, "geo_attention", False) else 0),
+                      use_key_bias=bool(getattr(config, "hist_tokens", False)),
+                      use_mixed_layers=bool(getattr(config, "mixed_layer_attention", False)))
+        self.mixed_layer_attention = bool(getattr(config, "mixed_layer_attention", False))
         img = nnx_bridge.ToNNX(
             _siglip.Module(
                 num_classes=paligemma_config.width,
@@ -130,6 +141,22 @@ class Pi0(_model.BaseModel):
             self.pe3d_in = nnx.Linear(3 * 2 * self.pe3d_freqs, 256, rngs=rngs)
             self.pe3d_out = nnx.Linear(256, paligemma_config.width, kernel_init=nnx.initializers.zeros,
                                        bias_init=nnx.initializers.zeros, rngs=rngs)
+        # A2 4D HISTORY TOKENS: content projection (identity when hist_dim == width: the stored tokens already live in
+        # the LLM embedding space), zero-init 4D PE, zero-init registers; near-invisible at init via hist_vis_bias.
+        self.hist_tokens = bool(getattr(config, "hist_tokens", False))
+        self.hist_k = int(getattr(config, "hist_k", 8)); self.hist_cells = int(getattr(config, "hist_cells", 16))
+        self.n_hist = self.hist_k * self.hist_cells if self.hist_tokens else 0
+        self.hist_vis_bias = float(getattr(config, "hist_vis_bias", -10.0))
+        self.hist_ground_weight = float(getattr(config, "hist_ground_weight", 0.05))
+        if self.hist_tokens:
+            _hd = int(getattr(config, "hist_dim", 2048)); _w = paligemma_config.width
+            _kinit = (lambda key, shape, dtype=jnp.float32: jnp.eye(shape[0], shape[1], dtype=dtype)) if _hd == _w else nnx.initializers.lecun_normal()
+            self.hist_in = nnx.Linear(_hd, _w, kernel_init=_kinit, bias_init=nnx.initializers.zeros, rngs=rngs)
+            self.hist_pe_in = nnx.Linear(4 * 2 * self.pe3d_freqs, 256, rngs=rngs)
+            self.hist_pe_out = nnx.Linear(256, _w, kernel_init=nnx.initializers.zeros, bias_init=nnx.initializers.zeros, rngs=rngs)
+            self.hist_registers = nnx.Param(jnp.zeros((self.hist_cells, _w), jnp.float32))
+            self.hist_ground_in = nnx.Linear(_w, 128, rngs=rngs)
+            self.hist_ground_out = nnx.Linear(128, 3, rngs=rngs)
         self.anti_shortcut = getattr(config, "anti_shortcut", False)
         if self.map_k > 0:
             self.map_proj_in = nnx.Linear(config.map_token_dim, 256, rngs=rngs)
@@ -332,6 +359,20 @@ class Pi0(_model.BaseModel):
             _n_map = _mt.shape[1]
         else:
             _n_map = 0
+        _n_hist = 0
+        if self.hist_tokens and obs.history_tokens is not None:
+            _b = obs.history_tokens.shape[0]
+            _ht = obs.history_tokens.astype(jnp.float32).reshape(_b, self.n_hist, -1)
+            _hx = obs.history_xyz.astype(jnp.float32).reshape(_b, self.n_hist, 3)
+            _hdt = jnp.repeat(obs.history_dt.astype(jnp.float32), self.hist_cells, axis=1)[..., None]      # [b, n_hist, 1]
+            _pe = self.hist_pe_out(nnx.swish(self.hist_pe_in(_sincos4d(jnp.concatenate([_hx, _hdt], -1), self.pe3d_freqs))))
+            _reg = jnp.tile(self.hist_registers.value[None], (1, self.hist_k, 1))
+            _hv = obs.history_valid.reshape(_b, self.n_hist)
+            _tok = (self.hist_in(_ht) + _pe + _reg) * _hv.astype(jnp.float32)[..., None]
+            tokens.append(_tok.astype(tokens[0].dtype))
+            input_mask.append(_hv)
+            ar_mask += [False] * self.n_hist
+            _n_hist = self.n_hist
         tokens = jnp.concatenate(tokens, axis=1)
         input_mask = jnp.concatenate(input_mask, axis=1)
         ar_mask = jnp.array(ar_mask)
@@ -339,9 +380,32 @@ class Pi0(_model.BaseModel):
         # suffix (and nothing else) keeps IDENTICAL positions with or without them. Measured:
         # naive appending shifted every suffix position by K -> 3x warm-start loss perturbation.
         pos_weight = input_mask
-        if _n_map:
-            pos_weight = input_mask.at[:, -_n_map:].set(False)
+        if _n_map + _n_hist:
+            pos_weight = input_mask.at[:, -(_n_map + _n_hist):].set(False)
         return tokens, input_mask, ar_mask, pos_weight
+
+    def _map_out(self, prefix_out):
+        """Map-token outputs (the K tokens before the history tail)."""
+        if self.n_hist:
+            return prefix_out[:, -(self.map_k + self.n_hist) : -self.n_hist, :]
+        return prefix_out[:, -self.map_k :, :]
+
+    def _hist_attn_mask(self, attn_mask, n_prefix):
+        """History tokens attend ONLY among themselves (so the temporal-grounding aux cannot copy the current frame)."""
+        if not self.n_hist:
+            return attn_mask
+        rows = jnp.arange(attn_mask.shape[1]); cols = jnp.arange(attn_mask.shape[2])
+        is_hist_row = (rows >= n_prefix - self.n_hist) & (rows < n_prefix)
+        is_hist_col = (cols >= n_prefix - self.n_hist) & (cols < n_prefix)
+        block = is_hist_row[:, None] & (~is_hist_col)[None, :]
+        return jnp.where(block[None], False, attn_mask)
+
+    def _hist_key_bias(self, batch, n_prefix, n_suffix):
+        if not self.n_hist:
+            return None
+        cols = jnp.arange(n_prefix + n_suffix)
+        is_hist = (cols >= n_prefix - self.n_hist) & (cols < n_prefix)
+        return jnp.broadcast_to((is_hist.astype(jnp.float32) * self.hist_vis_bias)[None], (batch, n_prefix + n_suffix))
 
     def prefix_key_geometry(self, obs: _model.Observation, n_prefix: int):
         """A3: base-frame 3D position + validity for every prefix key, aligned with embed_prefix's layout
@@ -350,9 +414,13 @@ class Pi0(_model.BaseModel):
         xyz = obs.patch_xyz.astype(jnp.float32).reshape(b, -1, 3)
         val = obs.patch_valid.reshape(b, -1)
         n_img = xyz.shape[1]
-        pad = max(n_prefix - n_img, 0)
-        xyz = jnp.concatenate([xyz, jnp.zeros((b, pad, 3), jnp.float32)], axis=1)[:, :n_prefix]
-        val = jnp.concatenate([val, jnp.zeros((b, pad), bool)], axis=1)[:, :n_prefix]
+        n_tail = self.n_hist if (self.n_hist and obs.history_xyz is not None) else 0
+        pad = max(n_prefix - n_img - n_tail, 0)
+        parts_x = [xyz, jnp.zeros((b, pad, 3), jnp.float32)]; parts_v = [val, jnp.zeros((b, pad), bool)]
+        if n_tail:
+            parts_x.append(obs.history_xyz.astype(jnp.float32).reshape(b, n_tail, 3)); parts_v.append(obs.history_valid.reshape(b, n_tail))
+        xyz = jnp.concatenate(parts_x, axis=1)[:, :n_prefix]
+        val = jnp.concatenate(parts_v, axis=1)[:, :n_prefix]
         return xyz, val
 
     def compute_head_gist(self, image: at.Float[at.Array, "b h w c"]) -> at.Float[at.Array, "b d"]:
@@ -580,19 +648,46 @@ class Pi0(_model.BaseModel):
         input_mask = jnp.concatenate([prefix_mask, suffix_mask], axis=1)
         ar_mask = jnp.concatenate([prefix_ar_mask, suffix_ar_mask], axis=0)
         attn_mask = make_attn_mask(input_mask, ar_mask)
+        _np_, _ns_ = prefix_tokens.shape[1], suffix_tokens.shape[1]
+        _hist_on = bool(self.n_hist and observation.history_tokens is not None)
+        if _hist_on:
+            attn_mask = self._hist_attn_mask(attn_mask, _np_)
         positions = jnp.cumsum(jnp.concatenate([prefix_posw, suffix_mask], axis=1), axis=1) - 1
         _geo = None
         if self.geo_attention and observation.patch_xyz is not None and observation.anchors is not None:
-            _np_, _ns_ = prefix_tokens.shape[1], suffix_tokens.shape[1]
             _kx, _kv = self.prefix_key_geometry(observation, _np_)
             _kx = jnp.concatenate([_kx, jnp.zeros((_kx.shape[0], _ns_, 3), jnp.float32)], axis=1)   # suffix keys: no position
             _kv = jnp.concatenate([_kv, jnp.zeros((_kv.shape[0], _ns_), bool)], axis=1)
             _geo = _geo_kernel(_kx, _kv, observation.anchors.astype(jnp.float32), self.geo_sigma, _np_, _ns_)
-        (prefix_out, suffix_out), _ = self.PaliGemma.llm(
-            [prefix_tokens, suffix_tokens], mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond], geo=_geo
-        )
+        _kb = self._hist_key_bias(prefix_tokens.shape[0], _np_, _ns_) if _hist_on else None
+        if getattr(self, "mixed_layer_attention", False):
+            # A4 two-pass training: prefix pass (its own mask/positions) -> cached K/V of every layer -> suffix pass
+            # attending to a learned per-layer blend of them. Equivalent to the joint pass at identity init.
+            _pm = attn_mask[:, :_np_, :_np_]; _pp = positions[:, :_np_]
+            _kb_p = self._hist_key_bias(prefix_tokens.shape[0], _np_, 0) if _hist_on else None
+            (prefix_out, _), _kvc = self.PaliGemma.llm([prefix_tokens, None], mask=_pm, positions=_pp, key_bias=_kb_p)
+            _sm = attn_mask[:, _np_:, :]; _sp = positions[:, _np_:]
+            _geo_s = None if _geo is None else _geo[:, _np_:, :, :]
+            (_, suffix_out), _ = self.PaliGemma.llm([None, suffix_tokens], mask=_sm, positions=_sp, kv_cache=_kvc,
+                                                    adarms_cond=[None, adarms_cond], geo=_geo_s, key_bias=_kb, mixed_layers=True)
+        else:
+            (prefix_out, suffix_out), _ = self.PaliGemma.llm(
+                [prefix_tokens, suffix_tokens], mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond], geo=_geo,
+                key_bias=_kb,
+            )
         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
         loss = jnp.mean(jnp.square(v_t - u_t), axis=-1)
+        if _hist_on and observation.rail_now is not None and self.hist_ground_weight > 0:
+            # A2 temporal grounding: the current rail position (base frame, /0.3 m units) from the HISTORY outputs only
+            # (history rows cannot attend to the current frame), masked-mean over valid history tokens.
+            _ho = prefix_out[:, -self.n_hist :, :].astype(jnp.float32)
+            _hm = observation.history_valid.reshape(_ho.shape[0], self.n_hist).astype(jnp.float32)[..., None]
+            _pool = (_ho * _hm).sum(1) / jnp.maximum(_hm.sum(1), 1.0)
+            _pred = self.hist_ground_out(nnx.swish(self.hist_ground_in(_pool)))
+            _tgt = observation.rail_now.astype(jnp.float32) / 0.3
+            _any = (observation.history_valid.reshape(_ho.shape[0], -1).any(-1)).astype(jnp.float32)
+            _e = jnp.mean(jnp.square(_pred - _tgt), axis=-1) * _any
+            loss = loss + (self.hist_ground_weight * _e).astype(loss.dtype)[:, None]
 
         # FOVEATED MEMORY aux decodes (patch_aux_losses.py): anti-sink + visual grounding.
         tp_raw = getattr(observation, "target_points", None)
@@ -602,7 +697,7 @@ class Pi0(_model.BaseModel):
             tpm = getattr(observation, "target_points_mask", None)
             w = (jnp.repeat(tpm.reshape(b, -1)[:, :2].astype(jnp.float32), 3, axis=-1)
                  if tpm is not None else jnp.ones((b, 6), jnp.float32))
-            map_out = prefix_out[:, -self.map_k :, :].mean(axis=1)
+            map_out = self._map_out(prefix_out).mean(axis=1)
             img_out = prefix_out[:, :256, :].mean(axis=1)  # camera 0 = base_0_rgb (head)
             pred_map = self.aux_map_head_out(nnx.swish(self.aux_map_head_in(map_out)))
             pred_img = self.aux_img_head_out(nnx.swish(self.aux_img_head_in(img_out)))
@@ -612,7 +707,7 @@ class Pi0(_model.BaseModel):
             # reconstruction anti-sink: predict tanh(x/4) of the raw 72-d inputs from the
             # outputs at the map positions (bounded target balances mixed feature scales)
             recon = self.map_recon_out(nnx.swish(self.map_recon_in(
-                prefix_out[:, -self.map_k :, :])))
+                self._map_out(prefix_out))))
             tgt_n = jnp.tanh(observation.map_tokens.astype(jnp.float32) / 4.0)
             e_recon = jnp.abs(recon.astype(jnp.float32) - tgt_n).mean((-1, -2))
             loss = loss + (0.1 * (e_map + e_img) + 0.1 * e_recon).astype(loss.dtype)[:, None]
@@ -718,8 +813,12 @@ class Pi0(_model.BaseModel):
         # first fill KV cache with a forward pass of the prefix
         prefix_tokens, prefix_mask, prefix_ar_mask, prefix_posw = self.embed_prefix(observation)
         prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
+        _hist_on = bool(self.n_hist and observation.history_tokens is not None)
+        if _hist_on:
+            prefix_attn_mask = self._hist_attn_mask(prefix_attn_mask, prefix_tokens.shape[1])
         positions = jnp.cumsum(prefix_posw, axis=1) - 1
-        _, kv_cache = self.PaliGemma.llm([prefix_tokens, None], mask=prefix_attn_mask, positions=positions)
+        _kb_p = self._hist_key_bias(prefix_tokens.shape[0], prefix_tokens.shape[1], 0) if _hist_on else None
+        _, kv_cache = self.PaliGemma.llm([prefix_tokens, None], mask=prefix_attn_mask, positions=positions, key_bias=_kb_p)
 
         def step(carry):
             x_t, time = carry
@@ -751,6 +850,7 @@ class Pi0(_model.BaseModel):
                 _kx = jnp.concatenate([_kx, jnp.zeros((_kx.shape[0], _ns_, 3), jnp.float32)], axis=1)
                 _kv = jnp.concatenate([_kv, jnp.zeros((_kv.shape[0], _ns_), bool)], axis=1)
                 _geo = _geo_kernel(_kx, _kv, observation.anchors.astype(jnp.float32), self.geo_sigma, 0, _ns_)
+            _kb_s = self._hist_key_bias(suffix_tokens.shape[0], prefix_tokens.shape[1], suffix_tokens.shape[1]) if _hist_on else None
             (prefix_out, suffix_out), _ = self.PaliGemma.llm(
                 [None, suffix_tokens],
                 mask=full_attn_mask,
@@ -758,6 +858,8 @@ class Pi0(_model.BaseModel):
                 kv_cache=kv_cache,
                 adarms_cond=[None, adarms_cond],
                 geo=_geo,
+                key_bias=_kb_s,
+                mixed_layers=getattr(self, "mixed_layer_attention", False),
             )
             assert prefix_out is None
             v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])

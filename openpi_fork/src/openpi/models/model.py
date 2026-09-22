@@ -137,6 +137,14 @@ class Observation(Generic[ArrayT]):
     patch_xyz: at.Float[ArrayT, "*b nc np 3"] | None = None
     patch_valid: at.Bool[ArrayT, "*b nc np"] | None = None
     anchors: at.Float[ArrayT, "*b na 3"] | None = None
+    # 4D HISTORY TOKENS (ARCH_4D_ATTENTION_SPEC A2): K past head frames x cells pooled tower tokens, their cell points
+    # in the CURRENT base frame, validity, time offsets (s, negative); rail_now = current rail position (base frame),
+    # label for the temporal-grounding aux (train only).
+    history_tokens: at.Float[ArrayT, "*b hk hc hd"] | None = None
+    history_xyz: at.Float[ArrayT, "*b hk hc 3"] | None = None
+    history_valid: at.Bool[ArrayT, "*b hk hc"] | None = None
+    history_dt: at.Float[ArrayT, "*b hk"] | None = None
+    rail_now: at.Float[ArrayT, "*b 3"] | None = None
 
     @classmethod
     def from_dict(cls, data: at.PyTree[ArrayT]) -> "Observation[ArrayT]":
@@ -167,6 +175,11 @@ class Observation(Generic[ArrayT]):
             patch_xyz=data.get("patch_xyz"),
             patch_valid=data.get("patch_valid"),
             anchors=data.get("anchors"),
+            history_tokens=data.get("history_tokens"),
+            history_xyz=data.get("history_xyz"),
+            history_valid=data.get("history_valid"),
+            history_dt=data.get("history_dt"),
+            rail_now=data.get("rail_now"),
             map_tokens=data.get("map_tokens"),
             stage=data.get("stage"),
             aux_pixels=data.get("aux_pixels"),
@@ -270,6 +283,11 @@ def preprocess_observation(
         patch_xyz=observation.patch_xyz,
         patch_valid=observation.patch_valid,
         anchors=observation.anchors,
+        history_tokens=observation.history_tokens,
+        history_xyz=observation.history_xyz,
+        history_valid=observation.history_valid,
+        history_dt=observation.history_dt,
+        rail_now=observation.rail_now,
     )
 
 

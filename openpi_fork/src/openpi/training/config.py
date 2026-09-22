@@ -511,10 +511,19 @@ class LeRobotB1KDataConfig(DataConfigFactory):
                 repack_mapping["gt_depth"] = "gt_depth_ds"
         temporal_conditioning = getattr(model_config, "temporal_conditioning", False)
         history_offsets = None
+        _hist_tokens = bool(getattr(model_config, "hist_tokens", False))
+        if _hist_tokens:
+            _K, _S = model_config.hist_k, model_config.hist_stride
+            _offs = [-(_K - i) * _S for i in range(_K)] + [0]
+            history_offsets = {k: _offs for k in ("hist_tok", "hist_cellxyz", "hist_cellvalid", "odom_xyyaw")}
+            for _hk in ("hist_tok", "hist_tok_is_pad", "hist_cellxyz", "hist_cellvalid", "odom_xyyaw"):
+                repack_mapping[_hk] = _hk
+            if "target_points_v2" not in repack_mapping and self.target_points_key:
+                repack_mapping["target_points_v2"] = self.target_points_key
         if temporal_conditioning:
             _K, _S = model_config.temporal_k, model_config.temporal_stride
             _offs = [-(_K - i) * _S for i in range(_K)] + [0]
-            history_offsets = {"gist_head": _offs, "hist_geo": _offs}
+            history_offsets = dict(history_offsets or {}); history_offsets.update({"gist_head": _offs, "hist_geo": _offs})
             for _hk in ("gist_head", "gist_head_is_pad", "hist_geo", "hist_geo_is_pad"):
                 repack_mapping[_hk] = _hk
         repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(repack_mapping)])
@@ -537,6 +546,11 @@ class LeRobotB1KDataConfig(DataConfigFactory):
                 temporal_conditioning=temporal_conditioning,
                 temporal_k=getattr(model_config, "temporal_k", 8),
                 geo_inputs=_geo,
+                hist_tokens=_hist_tokens,
+                hist_k=getattr(model_config, "hist_k", 8),
+                hist_cells=getattr(model_config, "hist_cells", 16),
+                hist_dim=getattr(model_config, "hist_dim", 2048),
+                hist_stride=getattr(model_config, "hist_stride", 32),
             )
         )
         if float(getattr(model_config, "proprio_noise_std", 0.0)) > 0:
@@ -1326,6 +1340,82 @@ _CONFIGS = [
         log_interval=100,
         num_workers=8,
         exp_name="radio_geo",
+        assets_base_dir="./outputs/assets",
+        checkpoint_base_dir="./outputs/checkpoints",
+    ),
+    TrainConfig(
+        # FULL STACK = press fix + temporal forcing (2026-09-16). Base comment: A4 recipe (map + factory + episodes + poison-downweight) with
+        # stage_conditioning ENABLED — the one flag that was OFF for every Run-3 arm. Feeds the
+        # action expert the already-labeled task stage (the 'stage' column, now packed to
+        # stage_tokens via the b1k_policy derivation) so it can separate grasp- from press-behavior
+        # and execute the toggle. Warm-start from A4 (keeps the grasp); the new zero-init
+        # stage_embed/stage_proj graft on as a no-op and learn. Controlled test: only stage_conditioning
+        # differs from A4. See behavior2026/PRESS_FIX_SPEC.md. NOTE for training box: confirm the A4
+        # mix at dataset_root and the A4 params at the weight_loader path are present (reassemble/pull).
+        name="pi05_radio_4d",
+        model=pi0_config.Pi0Config(
+            action_horizon=32,
+            pi05=True,
+            point_conditioning=True,
+            point_noise_std=0.02,
+            stage_conditioning=True,   # <-- THE FIX (was False/default for all Run-3 arms)
+            progress_conditioning=True,   # continuous [0,1] progress into adaRMS (code ready)
+            map_tokens_k=8,
+            anti_shortcut=False,
+            modality_dropout_p=0.2,
+            map_geo_conditioning=True,
+            depth_aux=True,
+            stage_head=True,
+            temporal_conditioning=True,   # FULL STACK (2026-09-16): + temporal forcing (K=8 gists @ stride 32, zero-init gate)
+            # 4D-ATTENDABLE PERCEPTION (ARCH_4D_ATTENTION_SPEC, 2026-09-22): zero-init 3D PE on patch tokens (A1),
+            # zero-init geometric attention gains between the expert's queries and 3D-positioned keys (A3),
+            # proprio noise as the copycat remedy (B2). Bit-parity with pi05_radio_full at step 0.
+            pe3d=True,
+            geo_attention=True,
+            geo_sigma=0.15,
+            geo_anchors=2,
+            proprio_noise_std=0.03,
+            proprio_heavy_p=0.2,
+            # A2: 4D history tokens in the prefix (K=8 past head frames x 16 cells @ stride 32), near-invisible at init
+            hist_tokens=True,
+            hist_k=8,
+            hist_cells=16,
+            hist_dim=2048,
+            hist_stride=32,
+            hist_vis_bias=-10.0,
+            hist_ground_weight=0.05,
+        ),
+        data=LeRobotB1KDataConfig(
+            repo_id="b1k_radio",
+            base_config=DataConfig(
+                data_cls=_lerobot_compat.LeRobotDataset,
+                dataset_root="/root/b1k_radio_mix_full",   # v2 labels + gist_head/hist_geo (precompute_gists.py)
+                prompt_from_task=True,
+                dataset_kwargs={"tolerance_s": 5e-4},
+            ),
+            robot_config_name="b1k/R1Pro",
+            extra_delta_transform=False,
+            # v2 labels (RELABEL_V2.md): crisp 4-class stage, progress clock, stage-indexed target (rail before lift,
+            # button after). Every source of the mix must carry these columns (relabel_v2.py).
+            stage_key="stage_v2",
+            progress_key="progress",
+            target_points_key="target_points_v2",
+            stage_tokens_key=None,   # no such column: B1KInputs broadcasts stage_v2 to both arms
+            cam_pose_key="cam_pose",   # FK precompute column (fk_cam_poses.py); absent -> 3D path inert
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "/root/ckpt_full_init/params",   # symlink -> A4 (default) or S1 params: chosen by the S1 eval (2026-09-16)
+            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*|.*pe3d_.*|.*geo_gain.*|.*hist_.*|.*key_bias_gain.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
+        ),
+        # the SigLIP tower is FROZEN so the serve-time gists (computed by the model's own tower) equal the precomputed
+        # ones from the A4 tower (precompute_gists.py). Deviation from the A4 recipe, logged in RUN3_CONFIG.md.
+        freeze_filter=nnx.Any(nnx_utils.PathRegex(".*map_(proj|registers|alpha|recon).*"), nnx_utils.PathRegex(".*PaliGemma.*img.*")),
+        batch_size=32,
+        num_train_steps=10_000,   # warm-start fine-tune from A4; tune as needed
+        save_interval=2_500,
+        log_interval=100,
+        num_workers=8,
+        exp_name="radio_4d",
         assets_base_dir="./outputs/assets",
         checkpoint_base_dir="./outputs/checkpoints",
     ),

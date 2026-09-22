@@ -161,7 +161,7 @@ class Attention(nn.Module):
     configs: Sequence[Config]
 
     @nn.compact
-    def __call__(self, xs, positions, attn_mask, kv_cache, geo=None):
+    def __call__(self, xs, positions, attn_mask, kv_cache, geo=None, key_bias=None, kv_all=None, layer_idx=None):
         # GEOMETRIC ATTENTION BIAS (ARCH_4D_ATTENTION_SPEC A3): `geo` = [B, T, S, A] float32 kernels
         # exp(-|p_key - anchor_query|^2 / sigma^2) (0 for keys without a 3D position and for prefix queries);
         # per-layer, per-head gains `geo_gain` [A, num_heads] are ZERO-INIT -> bit-identical logits at init.
@@ -213,6 +213,16 @@ class Attention(nn.Module):
 
         if kv_cache is not None:
             cache_k, cache_v = kv_cache
+            if kv_all is not None and layer_idx is not None:
+                # MIXED-LAYER ATTENTION (2025 BEHAVIOR winner; ARCH_4D_ATTENTION_SPEC A4): this layer's prefix K/V =
+                # one-hot(own layer) + zero-init delta over ALL VLM layers' cached K/V -> identity at init.
+                all_k, all_v = kv_all                                              # [L, B, S, K, H]
+                L = all_k.shape[0]
+                onehot = jax.nn.one_hot(layer_idx, L, dtype=jnp.float32)
+                mix_k = onehot + self.param("mix_k_delta", nn.initializers.zeros_init(), (L,))
+                mix_v = onehot + self.param("mix_v_delta", nn.initializers.zeros_init(), (L,))
+                cache_k = jnp.einsum("l,lbskh->bskh", mix_k.astype(all_k.dtype), all_k)
+                cache_v = jnp.einsum("l,lbskh->bskh", mix_v.astype(all_v.dtype), all_v)
             k = jnp.concatenate([cache_k, k], axis=1)
             v = jnp.concatenate([cache_v, v], axis=1)
 
@@ -223,6 +233,14 @@ class Attention(nn.Module):
             geo_gain = self.param("geo_gain", nn.initializers.zeros_init(), (geo.shape[-1], _K * _G))
             _bias = jnp.einsum("BTSA,AN->BNTS", geo.astype(jnp.float32), geo_gain.astype(jnp.float32))
             logits = logits + _bias.reshape(_bias.shape[0], _K, _G, _bias.shape[-2], _bias.shape[-1])
+        if key_bias is not None:
+            # KEY VISIBILITY BIAS (ARCH_4D_ATTENTION_SPEC A2): `key_bias` [B, S] (e.g. -10 on history tokens) added to
+            # every query's logits, scaled by per-layer/per-head gains `key_bias_gain` initialised at 1.0 -> the tokens
+            # are (near-)invisible at init and training opens them per head; the gains are the liveness readout.
+            _K, _G = logits.shape[1], logits.shape[2]
+            kb_gain = self.param("key_bias_gain", nn.initializers.ones_init(), (_K * _G,))
+            _kb = key_bias.astype(jnp.float32)[:, None, None, :] * kb_gain.astype(jnp.float32)[None, :, None, None]
+            logits = logits + _kb.reshape(_kb.shape[0], _K, _G, 1, _kb.shape[-1])
 
         if attn_mask.shape != (q.shape[0], 1, q.shape[1], k.shape[1]):
             raise ValueError(
@@ -298,7 +316,7 @@ class Block(nn.Module):
     dropout_bdims: tuple[int, ...] = ()
 
     @nn.compact
-    def __call__(self, xs, kv_cache, positions, attn_mask, adarms_cond, deterministic=True, geo=None):  # noqa: FBT002
+    def __call__(self, xs, kv_cache, positions, attn_mask, adarms_cond, deterministic=True, geo=None, key_bias=None, kv_all=None, layer_idx=None):  # noqa: FBT002
         xs = sharding.activation_sharding_constraint(xs)
         drop = nn.Dropout(self.dropout, self.dropout_bdims) if self.dropout else lambda x, _: x
 
@@ -313,7 +331,7 @@ class Block(nn.Module):
             gates.append(gate if x is not None else None)
 
         pre_attn = sharding.activation_sharding_constraint(pre_attn)
-        post_attn, kv_cache = attn(pre_attn, positions, attn_mask, kv_cache, geo)
+        post_attn, kv_cache = attn(pre_attn, positions, attn_mask, kv_cache, geo, key_bias, kv_all, layer_idx)
         post_attn = jax.tree.map(lambda x: drop(x, deterministic), post_attn)
         post_attn = sharding.activation_sharding_constraint(post_attn)
         xs = [_gated_residual(x, y, gate) for x, y, gate in zip(xs, post_attn, gates, strict=True)]
@@ -381,7 +399,10 @@ class Module(nn.Module):
                 nn.broadcast,
                 nn.broadcast,
                 nn.broadcast,
-            ),  # 0=kv_cache, 1=positions, 2=mask, 3=adarms_cond, 4=deterministic, 5=geo (geometric attention kernels)
+                nn.broadcast,
+                nn.broadcast,
+                0,
+            ),  # 0=kv_cache, 1=positions, 2=mask, 3=adarms_cond, 4=deterministic, 5=geo, 6=key_bias, 7=kv_all (all layers), 8=layer_idx
             length=self.configs[0].depth,
         )(
             configs=self.configs,
@@ -406,13 +427,17 @@ class Module(nn.Module):
         kv_cache: KVCache | None = None,
         deterministic: bool = True,
         geo: at.Float[at.Array, "b t s a"] | None = None,
+        key_bias: at.Float[at.Array, "b s"] | None = None,
+        mixed_layers: bool = False,
     ) -> tuple[Sequence[at.Float[at.Array, "b _t _d"] | None], KVCache]:
         embedded = jax.tree.map(lambda e: e.astype(self.embed_dtype), embedded)
         mask = jnp.asarray(mask)[:, None, :, :]
         if adarms_cond is None:
             adarms_cond = [None] * len(self.configs)
 
-        embedded, kv_cache = self.layers(embedded, kv_cache, positions, mask, adarms_cond, deterministic, geo)
+        kv_all = kv_cache if (mixed_layers and kv_cache is not None) else None
+        layer_idx = jnp.arange(self.configs[0].depth, dtype=jnp.int32)
+        embedded, kv_cache = self.layers(embedded, kv_cache, positions, mask, adarms_cond, deterministic, geo, key_bias, kv_all, layer_idx)
 
         assert all(e.dtype == jnp.dtype(self.embed_dtype) for e in embedded if e is not None)
 
@@ -420,7 +445,7 @@ class Module(nn.Module):
             f(e, a)[0] if e is not None else e for f, e, a in zip(self.final_norms, embedded, adarms_cond, strict=True)
         ], kv_cache
 
-    def init(self, use_adarms: Sequence[bool], use_geo: int = 0):
+    def init(self, use_adarms: Sequence[bool], use_geo: int = 0, use_key_bias: bool = False, use_mixed_layers: bool = False):
         """Convenience method for initializing all parameters, necessary due to the quirks of linen.
         use_geo > 0 also creates the (zero-init) geometric-attention gains for `use_geo` anchors."""
         self.embed(jnp.zeros((1, 1), dtype=jnp.int32))
@@ -431,7 +456,22 @@ class Module(nn.Module):
             jnp.zeros((1, n, n), dtype=bool),
             adarms_cond=[jnp.zeros((1, c.width)) if u else None for u, c in zip(use_adarms, self.configs, strict=True)],
             geo=jnp.zeros((1, n, n, use_geo), jnp.float32) if use_geo > 0 else None,
+            key_bias=jnp.zeros((1, n), jnp.float32) if use_key_bias else None,
         )
+        if use_mixed_layers:
+            # a second (cached) pass so the mixed-layer parameters exist: prefix pass -> kv_cache -> suffix pass
+            c0 = self.configs[0]
+            _, kvc = self(
+                [jnp.zeros((1, 1, c.width)) if i == 0 else None for i, c in enumerate(self.configs)],
+                jnp.zeros((1, 1), dtype=jnp.int32), jnp.zeros((1, 1, 1), dtype=bool),
+                adarms_cond=[None] * n,
+            )
+            self(
+                [None if i == 0 else jnp.zeros((1, 1, c.width)) for i, c in enumerate(self.configs)],
+                jnp.zeros((1, 1), dtype=jnp.int32), jnp.zeros((1, 1, 2), dtype=bool),
+                adarms_cond=[jnp.zeros((1, c.width)) if u else None for u, c in zip(use_adarms, self.configs, strict=True)],
+                kv_cache=kvc, mixed_layers=True,
+            )
 
 
 def _apply_rope(x, *, positions, max_wavelength=10_000):

@@ -50,6 +50,43 @@ def lift_patches_to_base(depth_3x16x16: np.ndarray, cam_pose_3x7: np.ndarray):
     return xyz, val
 
 
+def _rot2(yaw):
+    c, s_ = np.cos(yaw), np.sin(yaw)
+    return np.array([[c, -s_], [s_, c]])
+
+
+def pack_history_tokens(data, K, cells, dim, stride, fps=30.0):
+    """Build history_tokens [K, cells, dim], history_xyz [K, cells, 3] (current base frame), history_valid [K, cells],
+    history_dt [K] from the loader's (K+1)-slot stacks (train) or the wrapper's ring buffer (serve, same keys)."""
+    tok = data.get("hist_tok"); cxyz = data.get("hist_cellxyz"); cval = data.get("hist_cellvalid"); odom = data.get("odom_xyyaw")
+    if tok is None or cxyz is None or odom is None:
+        return None
+    tok = np.asarray(tok); cxyz = np.asarray(cxyz, np.float32); odom = np.asarray(odom, np.float32)
+    if tok.ndim == 1: tok = tok[None]
+    n = tok.shape[0]
+    tok = tok.reshape(n, -1)[:, : cells * dim].reshape(n, cells, dim).astype(np.float32)
+    cxyz = cxyz.reshape(n, cells, 3); odom = odom.reshape(n, 3)
+    cval = np.ones((n, cells), bool) if cval is None else np.asarray(cval).reshape(n, cells).astype(bool)
+    pad = data.get("hist_tok_is_pad")
+    is_pad = np.asarray(pad, bool).reshape(-1) if pad is not None else np.zeros(n, bool)
+    if n < K + 1:   # left-pad to K+1 slots
+        z = K + 1 - n
+        tok = np.concatenate([np.zeros((z, cells, dim), np.float32), tok]); cxyz = np.concatenate([np.zeros((z, cells, 3), np.float32), cxyz])
+        cval = np.concatenate([np.zeros((z, cells), bool), cval]); odom = np.concatenate([np.repeat(odom[:1], z, 0), odom]); is_pad = np.concatenate([np.ones(z, bool), is_pad])
+    tok, cxyz, cval, odom, is_pad = tok[-(K + 1):], cxyz[-(K + 1):], cval[-(K + 1):], odom[-(K + 1):], is_pad[-(K + 1):]
+    xc, yc, yawc = odom[-1]; Rc = _rot2(yawc)
+    out_xyz = np.zeros((K, cells, 3), np.float32)
+    for j in range(K):
+        xj, yj, yawj = odom[j]; Rj = _rot2(yawj)
+        p_w = cxyz[j, :, :2] @ Rj.T + np.array([xj, yj])[None]            # episode frame
+        out_xyz[j, :, :2] = (p_w - np.array([xc, yc])[None]) @ Rc         # current base frame
+        out_xyz[j, :, 2] = cxyz[j, :, 2]
+    valid = cval[:K] & (~is_pad[:K])[:, None]
+    out_xyz[~valid] = 0.0
+    dt = -np.arange(K, 0, -1, dtype=np.float32) * stride / fps                 # oldest .. newest (negative seconds)
+    return {"history_tokens": tok[:K], "history_xyz": out_xyz, "history_valid": valid, "history_dt": dt}
+
+
 def extract_state_from_proprio(proprio_data, robot_config: RobotConfig) -> np.ndarray:
     """Extract state from proprioception data based on robot configuration.
 
@@ -120,6 +157,16 @@ class B1KInputs(transforms.DataTransformFn):
     # (cam_pose: 3 x [px py pz qx qy qz qw] of each camera in the robot base frame; train: FK precompute column;
     # serve: the eval wrapper's rel(sensor)). Anchors = [right EE, left EE] positions from raw proprio (base frame).
     geo_inputs: bool = False
+    # A2 4D history tokens: delta-timestamp stacks (oldest .. current) of hist_tok [K+1, cells*dim] (fp16), hist_cellxyz
+    # [K+1, cells*3] (base frame at capture), hist_cellvalid [K+1, cells], odom_xyyaw [K+1, 3] (dead-reckoned base pose
+    # in the episode frame) -> history_tokens/xyz/valid/dt for the K PAST frames, cell points re-expressed in the
+    # CURRENT base frame; rail_now label = target_points_v2[right] + EE_R (base frame). Serve: the wrapper supplies the
+    # same keys from its ring buffer.
+    hist_tokens: bool = False
+    hist_k: int = 8
+    hist_cells: int = 16
+    hist_dim: int = 2048
+    hist_stride: int = 32
 
     def __call__(self, data: dict) -> dict:
         proprio_data = data["observation/state"]
@@ -230,6 +277,15 @@ class B1KInputs(transforms.DataTransformFn):
                 inputs["patch_xyz"] = xyz.astype(np.float32); inputs["patch_valid"] = val
                 _pr = np.asarray(proprio_data, np.float64).reshape(-1)
                 inputs["anchors"] = np.stack([_pr[42:45], _pr[17:20]]).astype(np.float32)   # [right EE, left EE], base frame
+
+        if self.hist_tokens:
+            _pack = pack_history_tokens(data, self.hist_k, self.hist_cells, self.hist_dim, self.hist_stride)
+            if _pack is not None:
+                inputs.update(_pack)
+            _tp2 = data.get("target_points_v2", data.get("target_points"))
+            if _tp2 is not None and "actions" in data:
+                _t = np.asarray(_tp2, np.float32).reshape(-1, 3); _pr = np.asarray(proprio_data, np.float64).reshape(-1)
+                inputs["rail_now"] = (_t[1 if _t.shape[0] > 1 else 0] + _pr[42:45]).astype(np.float32)
 
         if self.temporal_conditioning:
             K = self.temporal_k

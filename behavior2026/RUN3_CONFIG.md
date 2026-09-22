@@ -359,3 +359,23 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   near-grasp states on training layouts, run the factory servo as an OFFLINE teacher from each to a verified grasp,
   train from A4 on that corpus; runtime stays a pure policy. Gripper probe (6, uninstrumented gate) also 0/6.
   Sim box idle again (S1/full servers parked).
+
+## CORRECTIVE-FIELD MEASUREMENT (2026-09-21/22, full ckpt, jacobian_probe.sh) — does the policy servo at the pre-grasp?
+- Protocol: restore a harvested near-grasp state (train layouts), servo the right hand to the canonical pre-grasp pose P0
+  (0.10 m up the corridor, canonical attitude; ground-truth radio pose, diagnostic), apply one perturbation (hand +-3/+-6
+  cm lateral or vertical; wrist +-10 deg; or move the RADIO so only the image changes), hand over for one executed chunk
+  (16 steps), record the EE motion. Restoring displacement = -(disp - disp_base) . offset_dir.
+- Placement: the 7-DOF arm-only servo reached P0 on near_tr2 (0.116 m, servo_ok 89 %), got to 0.166 m on tr3, 0.244 m on
+  tr1, and could not reach from tr0 (a 1.8 m freeze). Attitude set exactly (oerr_start 0.00) on all.
+- RESULT (108 trials, 4 states x 9 position conditions x 3): pooled restoring displacement +0.011 m per chunk against
+  offsets of 0.03-0.06 m, 66 % of trials with positive sign, correlation with offset magnitude 0.013. Per-condition
+  means +0.000 to +0.020 with sem ~0.01, identical for 3 cm and 6 cm. A servoing policy would push back by a growing
+  fraction of the offset; this is an offset-INDEPENDENT drift with a slight positive bias -> NO corrective field at the
+  pre-grasp. Also: from the exact canonical pose (tr2) the policy advances only +0.02 m per chunk and rotates the wrist
+  0.36 rad (20 deg) away from the grasp attitude within 16 steps (0.8-1.35 rad on the other states); 0 grasps in 108
+  chunks. The policy does not hold or refine the grasp attitude even when placed in it.
+- Wrist-rotation and vision-only conditions crashed on a condition-parser bug ("yaw" matched the "y" branch); fixed,
+  rerun on tr2/tr3 (jacobian_probe2.sh) for the copycat (image-driven vs proprio-driven) readout.
+- Reading: consistent with trajectory replay keyed on proprio/time; the grasp attitude the demos hold for ~190 frames is
+  not an attractor for the policy. This is the state the corrective corpus must cover (DART-style offsets around P0 with
+  the servo supervisor), and the state the 3D-attendable tokens must be trained on.

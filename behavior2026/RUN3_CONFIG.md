@@ -386,3 +386,19 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   regardless of start. Baseline from the canonical pose: 17 cm of motion per chunk, 2.6 cm of progress. Spec for the
   fix: ARCH_4D_ATTENTION_SPEC.md (3D-positioned patch + 4D history tokens, geometric attention bias, corrective corpus,
   proprio noise, gripper reopen rule).
+
+## STAGE INPUT TRAIN/SERVE MISMATCH (found 2026-09-22 04:10 UTC while reviewing the winner's stage head)
+- The served stage for the `full` arm comes from the geometric StageV2Tracker: lifted = predicted-button z rises > 3 cm
+  over its running minimum, no gripper check, monotone. With the served pointer 0.2-0.3 m noisy, this fires on noise:
+  in every corrective-field probe episode the tracker jumped 0 -> 2 (transport) within <= 12 steps with the hand ~10 cm
+  from the radio and the gripper open. Training used exact labels (true object z). So the stage-conditioned policy
+  was very likely served "transport/press" conditioning during the reach in the full-arm eval -> a direct candidate
+  cause for its close-on-schedule (transport = closed gripper + lift) and for the reopen rule never firing (it
+  requires NOT lifted). The 1-rollout eval processes never dumped the tracker stats, which is why this went unseen.
+- Fix (deployed): LIFT_DZ 0.03 -> 0.08 m, lift requires a CLOSED gripper (proprio) for 10 consecutive steps; the served
+  stage timeline is now logged per rollout (stage_series/stage_counts/stage_first in the wrapper stats). The reopen eval
+  was restarted as a clean n=25 (TAG _reopen2; the 2 rollouts under the old tracker discarded).
+- Winner comparison: they predict the stage with a LEARNED linear head on VLM features (99 % train acc) + 2-of-3 voting
+  and feed it back; we have a 4-class stage aux head since Run-2 (aux_stage_*, training-only) and the labels, but serve
+  a geometry tracker. Next: expose the model's own stage head at serve (predict_stage) with the winner's voting, use it
+  for the stage input AND the reopen rule; add a stage CE on the 4D history tokens as a second temporal-grounding aux.

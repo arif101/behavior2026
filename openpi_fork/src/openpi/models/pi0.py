@@ -61,10 +61,16 @@ def _sincos4d(xyzt: at.Float[at.Array, "b n 4"], n_freqs: int) -> at.Float[at.Ar
 
 
 def _geo_kernel(key_xyz, key_valid, anchors, sigma, n_prefix_q, n_suffix_q):
-    """[b, S, 3] key positions (+validity) and [b, A, 3] anchors -> geo [b, T, S, A] for T = n_prefix_q + n_suffix_q
-    queries: exp(-|p_s - a|^2 / sigma^2) for the suffix queries, 0 for prefix queries and invalid keys."""
-    d2 = jnp.sum((key_xyz[:, :, None, :] - anchors[:, None, :, :]) ** 2, axis=-1)          # [b, S, A]
-    k = jnp.exp(-d2 / (sigma * sigma)) * key_valid.astype(jnp.float32)[..., None]           # [b, S, A]
+    """[b, S, 3] key positions (+validity) and [b, A, 3] anchors -> geo [b, T, S, 4A] for T = n_prefix_q + n_suffix_q
+    queries. Per anchor, FOUR channels the per-head gains combine linearly (QUERYABLE 3D ATTENTION, 09-24):
+      w = exp(-|p_s - a|^2 / sigma^2)   (radial window: "near the hand")
+      w * dx/sigma, w * dy/sigma, w * dz/sigma   (signed offsets: a head can prefer keys to one SIDE of the hand)
+    0 for prefix queries and invalid keys."""
+    off = key_xyz[:, :, None, :] - anchors[:, None, :, :]                                  # [b, S, A, 3]
+    d2 = jnp.sum(off ** 2, axis=-1)                                                          # [b, S, A]
+    w = jnp.exp(-d2 / (sigma * sigma)) * key_valid.astype(jnp.float32)[..., None]            # [b, S, A]
+    k = jnp.concatenate([w[..., None], w[..., None] * off / sigma], axis=-1)                 # [b, S, A, 4]
+    k = k.reshape(k.shape[0], k.shape[1], -1)                                                # [b, S, 4A]
     suffix_rows = jnp.broadcast_to(k[:, None], (k.shape[0], n_suffix_q, k.shape[1], k.shape[2]))
     if n_prefix_q > 0:
         prefix_rows = jnp.zeros((k.shape[0], n_prefix_q, k.shape[1], k.shape[2]), jnp.float32)
@@ -105,7 +111,7 @@ class Pi0(_model.BaseModel):
             )
         )
         llm.lazy_init(rngs=rngs, method="init", use_adarms=[False, True] if config.pi05 else [False, False],
-                      use_geo=(int(getattr(config, "geo_anchors", 2)) if getattr(config, "geo_attention", False) else 0),
+                      use_geo=(4 * int(getattr(config, "geo_anchors", 2)) if getattr(config, "geo_attention", False) else 0),   # 4 channels per anchor
                       use_key_bias=bool(getattr(config, "hist_tokens", False)),
                       use_mixed_layers=bool(getattr(config, "mixed_layer_attention", False)))
         self.mixed_layer_attention = bool(getattr(config, "mixed_layer_attention", False))

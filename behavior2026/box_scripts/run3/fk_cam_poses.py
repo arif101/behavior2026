@@ -24,7 +24,7 @@ def r2q(R):
 
 demo = int(sys.argv[1]) if len(sys.argv) > 1 else 10
 w = HDF5PlaybackWrapper.create_from_hdf5(input_path=f"/root/rawdemos/task-0000/episode_{demo:08d}.hdf5", output_path=f"/root/fk_tmp_{demo}.hdf5",
-                                         robot_obs_modalities=("proprio",), robot_proprio_keys=EVAL_PROPRIO_KEYS)
+                                         robot_obs_modalities=("proprio", "rgb"), robot_proprio_keys=EVAL_PROPRIO_KEYS)   # rgb: instantiate the camera sensors (poses only; no rendering)
 rob = w.scene.robots[0]
 sensors = {}
 for sname, sensor in rob.sensors.items():

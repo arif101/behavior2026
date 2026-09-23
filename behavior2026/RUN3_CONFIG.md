@@ -408,3 +408,21 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   per call to stage_head_log.jsonl). Training: a stage CE on the 4D history tokens next to the rail-position aux.
   Sim box queue: reopen2 (running) -> S2STAGE eval n=25 (full ckpt, head-driven stage + reopen rule; tests the
   stage-mismatch hypothesis directly) -> FK precompute (+HF upload) -> DART clips.
+
+## 2026-09-22/23 overnight: reopen-rule evals, stage head, DART round 1
+- REOPEN2 (full ckpt + reopen rule, fixed tracker, n=25, 301): grasp 0/25, success 0/25. Early rollouts: hand to
+  0.14 m, gripper closed on air 900-2,163 steps; the tracker still declared "lifted" once a closed gripper coincided
+  with the pointer drifting up -> the rule fired only twice in total. The pointer cannot supply the failed-grasp signal.
+- S2STAGE (full ckpt, stage inputs AND reopen gate from the model's own stage head with 2-of-3 voting, n=25): grasp
+  0/25, success 0/25. The head's served stage stayed 0 for the whole episode in 21/25 (max 1 in 3, one late 3 on a
+  closed-on-air hover). Behaviour changed markedly: the gripper never closed in 22/25 (tracker-driven: closed early in
+  most), hands hovered farther (median closest 0.37 m vs 0.14). Reading: the stage input STEERS close-vs-hover; with a
+  clean stage the policy sits in approach mode and never finishes the last 15 cm, so stage 1 is never reached by any
+  source. The stage machinery is now sound (head + voting) but cannot help until the approach completes -> the
+  alignment skill (corrective data + 3D attention) remains the only lever; spurious stage>=2 was an aggravator, not the
+  cap.
+- DART round 1: 40 attempts before the disk filled (renders 1.5-2.2 GB each), 18 strict-honest clips (d020/040/080/
+  170/180/210 x y5/z5/zm4/yaw20/yawm20/mix1) -> converting to b1k_radio_dart_r1 (names re-encoded for the converter),
+  push to HF, renders deleted; further rounds run disk-safely in batches of 14 (dart_round.sh).
+- FK precompute crashed: the robot was created without camera sensors (modalities lacked "rgb"); fixed; runs in the
+  round driver after the conversion. factory_obs2 (36 GB of v13 renders, already converted + on HF) deleted.

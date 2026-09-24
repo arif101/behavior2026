@@ -110,7 +110,7 @@ class Pi0Config(_model.BaseModelConfig):
     pe3d: bool = False
     geo_attention: bool = False
     geo_sigma: float = 0.15
-    geo_anchors: int = 2
+    geo_anchors: int = 3     # [right EE, left EE, target]
     pe3d_freqs: int = 16
     proprio_noise_std: float = 0.0     # B2 copycat remedy (raw joint radians); 0 = off
     proprio_heavy_p: float = 0.0

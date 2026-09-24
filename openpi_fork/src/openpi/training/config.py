@@ -1305,7 +1305,7 @@ _CONFIGS = [
             pe3d=True,
             geo_attention=True,
             geo_sigma=0.15,
-            geo_anchors=2,
+            geo_anchors=3,   # right EE, left EE, stage-indexed target (the pointer as an attendable place)
             proprio_noise_std=0.03,
             proprio_heavy_p=0.2,
         ),
@@ -1373,7 +1373,7 @@ _CONFIGS = [
             pe3d=True,
             geo_attention=True,
             geo_sigma=0.15,
-            geo_anchors=2,
+            geo_anchors=3,   # right EE, left EE, stage-indexed target (the pointer as an attendable place)
             proprio_noise_std=0.03,
             proprio_heavy_p=0.2,
             # A2: 4D history tokens in the prefix (K=8 past head frames x 16 cells @ stride 32), near-invisible at init

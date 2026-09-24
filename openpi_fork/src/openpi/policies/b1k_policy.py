@@ -276,7 +276,14 @@ class B1KInputs(transforms.DataTransformFn):
                 xyz, val = lift_patches_to_base(np.asarray(_dep, np.float32).reshape(3, 16, 16), np.asarray(_cp, np.float32).reshape(3, 7))
                 inputs["patch_xyz"] = xyz.astype(np.float32); inputs["patch_valid"] = val
                 _pr = np.asarray(proprio_data, np.float64).reshape(-1)
-                inputs["anchors"] = np.stack([_pr[42:45], _pr[17:20]]).astype(np.float32)   # [right EE, left EE], base frame
+                _tp = data.get("target_points_v2", data.get("target_points"))
+                _tgt = _pr[42:45]                                                  # fallback: no target -> degenerate anchor at EE_R
+                if _tp is not None:
+                    _t = np.asarray(_tp, np.float32).reshape(-1, 3)
+                    _tgt = _pr[42:45] + _t[1 if _t.shape[0] > 1 else 0]         # target = EE_R + (target - EE_R)
+                # anchors = [right EE, left EE, TARGET] (base frame): the pointer becomes a place attention can look at,
+                # instead of a global vector through the adaRMS gate (which cannot localize)
+                inputs["anchors"] = np.stack([_pr[42:45], _pr[17:20], _tgt]).astype(np.float32)
 
         if self.hist_tokens:
             _pack = pack_history_tokens(data, self.hist_k, self.hist_cells, self.hist_dim, self.hist_stride)

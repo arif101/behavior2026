@@ -27,7 +27,7 @@ def loss_for(name, batch_obs, batch_act, rng):
 
 names = ["pi05_radio_full", "pi05_radio_geo", "pi05_radio_4d"]
 cfg4 = _c.get_config("pi05_radio_4d")
-loader = _dl.create_b1k_data_loader(cfg4, shuffle=False, num_workers=0)
+loader = _dl.create_b1k_data_loader(cfg4, shuffle=False, num_batches=1)
 batch = next(iter(loader)); obs, act = batch
 rng = jax.random.key(1)
 res = {}

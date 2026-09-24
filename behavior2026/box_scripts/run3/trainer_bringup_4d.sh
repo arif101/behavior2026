@@ -32,12 +32,13 @@ elif what == "mixes":
     snapshot_download("arif101/b26-run3-mixes", repo_type="dataset", token=tok, local_dir="/root/mixes_bk", allow_patterns=["mix_full/*", "fk/*"])
 print(f"DL_OK {what}", flush=True)
 PY
-for w in map manu a4 mixes; do (setsid nohup python3 /root/dl_4d.py $w > /root/run3_logs/dl_$w.log 2>&1 &); done
-say STAGE_DL_LAUNCHED
+# downloads with the venv python (system python3 has no huggingface_hub on this image); run AFTER uv sync
+DL_PY=/root/openpi_fork/.venv/bin/python
 [ -x /root/.local/bin/uv ] || curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
 rm -rf /root/openpi_fork && cp -a $R/openpi_fork /root/openpi_fork && cd /root/openpi_fork
 GIT_LFS_SKIP_SMUDGE=1 uv sync 2>&1 | tail -3 && say STAGE_UV_SYNC_OK
 .venv/bin/python -c "import openpi, jax; import openpi.training.config as c; [c.get_config(n) for n in ('pi05_radio_full','pi05_radio_geo','pi05_radio_4d')]; print('configs ok; devices', jax.devices())" && say STAGE_FORK_OK
+for w in map manu a4 mixes; do (setsid nohup $DL_PY /root/dl_4d.py $w > /root/run3_logs/dl_$w.log 2>&1 &); done; say STAGE_DL_LAUNCHED
 for w in map manu a4 mixes; do until grep -qE "DL_OK|Traceback" /root/run3_logs/dl_$w.log; do sleep 20; done; grep -q DL_OK /root/run3_logs/dl_$w.log && say "download $w ok" || { say "download $w FAILED"; tail -3 /root/run3_logs/dl_$w.log; }; done
 # ---- mix: rebuild the video layout with the assembler, then overwrite tables + meta from the backup -----------------
 PY=/root/openpi_fork/.venv/bin/python; R3=/root/run3

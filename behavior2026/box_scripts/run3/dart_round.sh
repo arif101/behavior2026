@@ -21,11 +21,11 @@ PERTS="0.05,0,0,y5 -0.05,0,0,ym5 0,0.05,0,z5 0,-0.04,0,zm4 0,0,20,yaw20 0,0,-20,
 n=0
 for d in $DEMOS; do for pert in $PERTS; do tag=${pert##*,}
   [ -f /root/factory_clips_dart/d$(printf %03d $d)_${tag}_meta.json ] && continue
-  [ -s /root/dart_logs/d${d}_${tag}.log ] && grep -qE "RESULT d|OBS_SAVED" /root/dart_logs/d${d}_${tag}.log && continue
+  [ -s /root/dart_logs/d${d}_${tag}.log ] && grep -qE "RESULT d|OBS_SAVED|PERTURB dy" /root/dart_logs/d${d}_${tag}.log && continue   # ran before (incl. silent timeouts) -> skip
   free=$(df -BG / | tail -1 | awk "{print \$4}" | tr -d G); if [ "$free" -lt 25 ]; then say "disk low ($free G) -> stop batch"; break 2; fi
   find /tmp -mindepth 1 -maxdepth 1 -type d -name "tmp????????" -mmin +120 -exec rm -rf {} + 2>/dev/null
   OG_PLAYBACK_REAL_FREQS=1 PYTHONPATH=/root OMNI_KIT_ALLOW_ROOT=1 OMNIGIBSON_HEADLESS=1 XDG_RUNTIME_DIR=/tmp/xdg CUDA_VISIBLE_DEVICES=0 \
-    timeout 2400 $PY -u /root/factory_approach_cap_v13_dart.py --demo $d --perturb "$pert" > /root/dart_logs/d${d}_${tag}.log 2>&1
+    timeout 2400 $PY -u /root/factory_approach_cap_v13_dart.py --demo $d --perturb="$pert" > /root/dart_logs/d${d}_${tag}.log 2>&1
   rm -f /root/fap_tmp_$d.hdf5; n=$((n+1))
   echo "d$d $tag $(date -u +%H:%M) $(grep -oE "RESULT d[0-9]+ [A-Z_]+|OBS_SAVED rac_[0-9a-z_]+_200.npz \([0-9]+ steps\)" /root/dart_logs/d${d}_${tag}.log | tail -1)"
   [ $n -ge 14 ] && { say "batch of 14 done -> convert"; break 2; }

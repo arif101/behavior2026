@@ -49,7 +49,7 @@ for n in range(N):
     k = keys[n].tobytes()
     if k in cache: out[n] = cache[k]; hits += 1; continue
     rob.set_joint_positions(th.as_tensor(Q[n], dtype=th.float32), indices=th.as_tensor(idx), drive=False)
-    og.sim.step(render=False)
+    og.sim.step_physics()   # physics only (this OmniGibson has no render kwarg)
     r = rel_poses(); cache[k] = r; out[n] = r
     if n % 5000 == 0: print(f"{n}/{N} cache={len(cache)} hits={hits} {time.time()-t0:.0f}s", flush=True); np.save("/root/fk/cam_pose.npy", out)
 np.save("/root/fk/cam_pose.npy", out); print("FK_DONE", out.shape, "unique", len(cache), flush=True)

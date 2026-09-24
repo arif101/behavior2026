@@ -23,6 +23,7 @@ EE_TOL = float(os.environ.get("FREEZE_EE", 0.04))    # 09-17: S1 idles with the 
 Q_TOL = float(os.environ.get("FREEZE_Q", 0.10))
 V_TOL = float(os.environ.get("FREEZE_V", 0.02))
 CAP = int(os.environ.get("FREEZE_CAP", 1500))       # fallback: dump the state at this step if parked-but-dithering never met the bars
+NEAR_R = float(os.environ.get("FREEZE_NEAR_R", 0))    # >0: ALSO dump the first time the right EE is within NEAR_R of the target (near-grasp harvest, 09-21)
 OUT = os.environ.get("FREEZE_OUT", "/root/freeze_states")
 TAG = os.environ.get("FREEZE_TAG", "untagged")
 
@@ -109,11 +110,15 @@ class FreezeHarvestWrapper(AffordanceMapFullRes):
         self._record(out[0])
         stationary = self._stationary()
         at_cap = (self._n >= CAP) and not self._stats.get("grasp") and self._stats.get("ag_weld_right_step") is None
-        if stationary or at_cap:
+        near = False
+        if NEAR_R > 0 and self._n > 100:
+            dr = self._stats.get("dist_R_true") or []
+            near = bool(dr) and dr[-1] < NEAR_R
+        if stationary or at_cap or near:
             self._frozen = True
             try:
                 meta = self._dump_freeze(out[0])
-                meta["stationary"] = bool(stationary)
+                meta["stationary"] = bool(stationary); meta["near"] = bool(near)
                 json.dump(meta, open(f"{OUT}/{TAG}.json", "w"), indent=1)
                 print(f"FREEZE_HARVESTED tag={TAG} step={self._n} stationary={int(stationary)} base_to_radio={meta['base_to_radio_xy']} "
                       f"distL={meta['dist_L_last']} wristL={meta['wrist_angL_last']}", flush=True)
@@ -127,3 +132,8 @@ class FreezeHarvestWrapper(AffordanceMapFullRes):
         self._frozen = False
         self._n = 0
         return super().reset()
+
+
+class FreezeHarvestV2Wrapper(FreezeHarvestWrapper, __import__("behavior2026_eval.stage_v2_wrapper", fromlist=["StageV2AffordanceWrapper"]).StageV2AffordanceWrapper):
+    """Same harvest on top of the stage-v2 passthrough (for checkpoints served with StageV2AffordanceWrapper, e.g. `full`)."""
+    pass

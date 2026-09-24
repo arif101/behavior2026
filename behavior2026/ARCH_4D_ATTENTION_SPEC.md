@@ -41,3 +41,14 @@ B3 Serving: stage-conditioned gripper REOPEN rule (winner's 2.2x): gripper close
 3 (sim box, parallel, 3 days) B1 corpus + A2 token precompute (tower pass; reuse decode pipeline).
 4 (trainer, 2 days) fine-tune from A4, 15k steps; gamma/ablation liveness; n=25 eval with B3.
 5 4-task multi-task with A in place from the start.
+
+## A3 v2 (2026-09-24): QUERY-DEPENDENT anchors — "attend to any patch in 3D"
+The v1 kernel anchored every query at the fingertips (a hand-centred prior; it could not express "look at the rail"
+when the rail is 30 cm from the hand). v2 moves the kernel INSIDE each attention layer: every query token of the action
+expert predicts, per anchor, a 3D offset from the fingertip through a zero-init Dense on its own pre-attention input
+(`geo3_anchor`), so anchor_q = fingertip + offset(query). The 4-feature kernel (radial window + signed offsets, sigma
+0.15 m) is evaluated between that chosen point and every 3D-positioned key (patches of all cameras, history cells) and
+turned into logit bias by zero-init per-layer/per-head gains (`geo3_gain`). At init this equals v1's hand prior; trained,
+a head can move its point of interest anywhere in the scene and the gains/offsets are the liveness readout. Keys keep
+their absolute 3D encoding (A1), so content attention can also address positions directly. A gated 3D rotary encoding
+on q/k (relative-offset attention without an explicit anchor) remains the fuller alternative if v2's offsets saturate.

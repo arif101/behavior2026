@@ -111,7 +111,8 @@ class Pi0(_model.BaseModel):
             )
         )
         llm.lazy_init(rngs=rngs, method="init", use_adarms=[False, True] if config.pi05 else [False, False],
-                      use_geo=(4 * int(getattr(config, "geo_anchors", 2)) if getattr(config, "geo_attention", False) else 0),   # 4 channels per anchor
+                      use_geo=0,   # v1 precomputed-kernel path retired in favour of query-dependent anchors (geo3)
+                      use_geo3=(int(getattr(config, "geo_anchors", 2)) if getattr(config, "geo_attention", False) else 0),
                       use_key_bias=bool(getattr(config, "hist_tokens", False)),
                       use_mixed_layers=bool(getattr(config, "mixed_layer_attention", False)))
         self.mixed_layer_attention = bool(getattr(config, "mixed_layer_attention", False))
@@ -683,12 +684,12 @@ class Pi0(_model.BaseModel):
         if _hist_on:
             attn_mask = self._hist_attn_mask(attn_mask, _np_)
         positions = jnp.cumsum(jnp.concatenate([prefix_posw, suffix_mask], axis=1), axis=1) - 1
-        _geo = None
+        _geo = None; _geo3 = None
         if self.geo_attention and observation.patch_xyz is not None and observation.anchors is not None:
             _kx, _kv = self.prefix_key_geometry(observation, _np_)
             _kx = jnp.concatenate([_kx, jnp.zeros((_kx.shape[0], _ns_, 3), jnp.float32)], axis=1)   # suffix keys: no position
             _kv = jnp.concatenate([_kv, jnp.zeros((_kv.shape[0], _ns_), bool)], axis=1)
-            _geo = _geo_kernel(_kx, _kv, observation.anchors.astype(jnp.float32), self.geo_sigma, _np_, _ns_)
+            _geo3 = (_kx, _kv, observation.anchors.astype(jnp.float32), jnp.full((1,), self.geo_sigma, jnp.float32))
         _kb = self._hist_key_bias(prefix_tokens.shape[0], _np_, _ns_) if _hist_on else None
         if getattr(self, "mixed_layer_attention", False):
             # A4 two-pass training: prefix pass (its own mask/positions) -> cached K/V of every layer -> suffix pass
@@ -699,11 +700,11 @@ class Pi0(_model.BaseModel):
             _sm = attn_mask[:, _np_:, :]; _sp = positions[:, _np_:]
             _geo_s = None if _geo is None else _geo[:, _np_:, :, :]
             (_, suffix_out), _ = self.PaliGemma.llm([None, suffix_tokens], mask=_sm, positions=_sp, kv_cache=_kvc,
-                                                    adarms_cond=[None, adarms_cond], geo=_geo_s, key_bias=_kb, mixed_layers=True)
+                                                    adarms_cond=[None, adarms_cond], geo=_geo_s, key_bias=_kb, mixed_layers=True, geo3=_geo3)
         else:
             (prefix_out, suffix_out), _ = self.PaliGemma.llm(
                 [prefix_tokens, suffix_tokens], mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond], geo=_geo,
-                key_bias=_kb,
+                key_bias=_kb, geo3=_geo3,
             )
         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
         loss = jnp.mean(jnp.square(v_t - u_t), axis=-1)
@@ -877,14 +878,14 @@ class Pi0(_model.BaseModel):
             # `positions` is shape (b, suffix_len) indicating the positions of the suffix tokens
             positions = jnp.sum(prefix_posw, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
 
-            _geo = None
+            _geo = None; _geo3 = None
             if self.geo_attention and observation.patch_xyz is not None and observation.anchors is not None:
-                # keys = [prefix (cached) ; suffix]; queries = suffix only -> [b, suffix_len, prefix+suffix, A]
+                # keys = [prefix (cached) ; suffix]; queries = suffix only
                 _np_, _ns_ = prefix_tokens.shape[1], suffix_tokens.shape[1]
                 _kx, _kv = self.prefix_key_geometry(observation, _np_)
                 _kx = jnp.concatenate([_kx, jnp.zeros((_kx.shape[0], _ns_, 3), jnp.float32)], axis=1)
                 _kv = jnp.concatenate([_kv, jnp.zeros((_kv.shape[0], _ns_), bool)], axis=1)
-                _geo = _geo_kernel(_kx, _kv, observation.anchors.astype(jnp.float32), self.geo_sigma, 0, _ns_)
+                _geo3 = (_kx, _kv, observation.anchors.astype(jnp.float32), jnp.full((1,), self.geo_sigma, jnp.float32))
             _kb_s = self._hist_key_bias(suffix_tokens.shape[0], prefix_tokens.shape[1], suffix_tokens.shape[1]) if _hist_on else None
             (prefix_out, suffix_out), _ = self.PaliGemma.llm(
                 [None, suffix_tokens],
@@ -895,6 +896,7 @@ class Pi0(_model.BaseModel):
                 geo=_geo,
                 key_bias=_kb_s,
                 mixed_layers=getattr(self, "mixed_layer_attention", False),
+                geo3=_geo3,
             )
             assert prefix_out is None
             v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])

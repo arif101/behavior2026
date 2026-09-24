@@ -1329,7 +1329,7 @@ _CONFIGS = [
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
             "/root/ckpt_full_init/params",   # symlink -> A4 (default) or S1 params: chosen by the S1 eval (2026-09-16)
-            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*|.*pe3d_.*|.*geo_gain.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
+            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*|.*pe3d_.*|.*geo_gain.*|.*geo3_.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
         ),
         # the SigLIP tower is FROZEN so the serve-time gists (computed by the model's own tower) equal the precomputed
         # ones from the A4 tower (precompute_gists.py). Deviation from the A4 recipe, logged in RUN3_CONFIG.md.
@@ -1405,7 +1405,7 @@ _CONFIGS = [
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
             "/root/ckpt_full_init/params",   # symlink -> A4 (default) or S1 params: chosen by the S1 eval (2026-09-16)
-            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*|.*pe3d_.*|.*geo_gain.*|.*hist_.*|.*key_bias_gain.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
+            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*|.*pe3d_.*|.*geo_gain.*|.*geo3_.*|.*hist_.*|.*key_bias_gain.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
         ),
         # the SigLIP tower is FROZEN so the serve-time gists (computed by the model's own tower) equal the precomputed
         # ones from the A4 tower (precompute_gists.py). Deviation from the A4 recipe, logged in RUN3_CONFIG.md.

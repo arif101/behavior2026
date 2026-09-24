@@ -426,3 +426,9 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   push to HF, renders deleted; further rounds run disk-safely in batches of 14 (dart_round.sh).
 - FK precompute crashed: the robot was created without camera sensors (modalities lacked "rgb"); fixed; runs in the
   round driver after the conversion. factory_obs2 (36 GB of v13 renders, already converted + on HF) deleted.
+- 2026-09-24: FK camera poses DONE for all 473,161 mix frames (338k unique joint configs) and uploaded to HF
+  (b26-run3-mixes/fk/). DART round 2: 1 leftover clip converted (b1k_radio_dart_r2), 14 attempts -> 8 renders (26
+  strict clips total); the round driver exited after its batch by design and the box idled 13 h -> dart_loop.sh now
+  chains rounds (convert+push, then 14 attempts) until the perturbation grid is exhausted. Fork additions since the
+  last note: query-dependent 3D anchors (geo3, per attention layer), the target point as the third anchor
+  (geo_anchors=3), directional kernel channels. Trainer still not up (awaiting go-ahead); bring-up chain ready.

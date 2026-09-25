@@ -15,6 +15,7 @@ for f in sorted(glob.glob(str(root / "data/**/*.parquet"), recursive=True)):
     assert not missing, f"{f}: missing {missing}"
     pq.write_table(t.select(order), f); n += len(t)
 info = json.loads((root / "meta/info.json").read_text())
-for c in [c for c in list(info["features"]) if c not in order and not c.startswith("observation.") and c not in ("timestamp", "index", "episode_index", "frame_index", "task_index")]:
-    pass
+dropped = [c for c in list(info["features"]) if c not in order and not c.startswith("observation.")]
+for c in dropped: del info["features"][c]
+if dropped: (root / "meta/info.json").write_text(json.dumps(info, indent=4)); print(f"  deregistered dropped columns: {dropped}")
 print(f"CANONICAL_OK {root.name} rows={n} cols={len(order)}")

@@ -597,3 +597,19 @@ same FULL warm start, same 15k steps, driver arm `4dpd`. Param tree identical to
 unchanged). Pre-launch chain `prep_4dpd_launchcheck.sh` (parity with PARITY_EXTRA=pi05_radio_4d_pd, must equal full at
 train=False; 40-step smoke with the memory sampler) waits for the trainer GPU to be free; the driver launch is manual.
 Eval plan for this arm: pointer-on and pointer-off from the same checkpoint decide whether the pointer is deleted for good.
+
+### 2026-09-25 23:05 UTC — 4D arm: step-7500 gains (still yellow) + corrective-field probe on ckpt 5000 (NO field)
+
+Gains (2500 -> 5000 -> 7500): geo3_gain norm 0.055 -> 0.087 -> 0.108; per-layer max abs 0.006 -> 0.009 -> 0.012;
+geo3_anchor kernel 0.24 -> 0.38 -> 0.48; key_bias_gain min 0.9963 -> 0.9925 -> 0.9884; pe3d_out 0.80 -> 1.30 -> 1.70;
+hist_in-I 1.65 -> 2.55 -> 3.20; temp_out 0.87 -> 1.07 -> 1.23. Linear drift throughout, no takeoff. Geometry logit bias
+still ~0.01; history visibility bias still -10 x 0.99. Training itself healthy (step 8170, loss 0.048, 6.7 s/step).
+Probe (`jacobian_probe_4d.sh`, ckpt 5000 served with the 4D stack, same 4 harvested near-grasp states, 15 conditions x
+3 samples x 4 states = 180 chunks, 0 tracebacks): pooled restoring displacement +0.0103 m per 16-step chunk vs offsets
+0.03-0.06 m; corr(restoring, offset) = 0.086; 65% of trials restore > 0; 0 grasps in-chunk. Baseline (09-21, full ckpt):
++0.011 m, corr 0.013. => the 4D arm at 5000 steps has NO corrective field either. Per state: only near_tr2 had a valid
+handover placement (dist_start 0.11, servo_ok 0.93; tr0/tr1/tr3 placed at 1.05/0.24/0.17 m, servo_ok 0) and there the
+y-offsets show +0.05/+0.065/+0.048 m restoring for y+3/y+6/y-6 (n=3 each) but +0.001 for y-3 and z mixed — a hint, not a
+field. Decision rule (pre-registered 09-25 17:xx): gains flat at 7500 AND no field at 5000 -> stop the 4d run early and
+hand the trainer to the pointer-dropout arm. Both conditions are met; awaiting the operator's word (ckpt 7500 params are
+on HF; its train_state is on box until the next save, so a later resume stays possible).

@@ -432,3 +432,29 @@ full-stack retrain; build order in PRESS_FIX_SPEC.md; S1's params seed it if the
   chains rounds (convert+push, then 14 attempts) until the perturbation grid is exhausted. Fork additions since the
   last note: query-dependent 3D anchors (geo3, per attention layer), the target point as the third anchor
   (geo_anchors=3), directional kernel channels. Trainer still not up (awaiting go-ahead); bring-up chain ready.
+
+## 2026-09-25 00:20 UTC — 4D arm data prep launched on the new trainer (154.54.102.48:13245)
+
+Chain `box_scripts/run3/prep_4d_data.sh` (log `/root/run3_logs/prep_4d.out`), waits for `DL_DART_DONE`, then:
+1. sample weights per source (map: poison windows 0.1; factory + DART rounds 4.78; episodes 2.0); `gt_depth_ds` registered on map.
+2. map/factory/episodes get their v2 labels + gists + FK `cam_pose` COPIED BACK from the backed-up `mix_full` tables
+   (`unassemble_columns.py`, keyed by mix (episode, frame); mix episode order map 0-199 / factory 200-237 / episodes 238-295 /
+   approach 296-314). DART r1..r3 roots (18 + 1 + 7 strict clips): `relabel_v2.py --press-anchor none`, gists with A4 params,
+   `cam_pose` from `fk_dart_r<k>` (sim-box FK; r1 redone after the ROUND mix-up).
+3. `canonicalize_columns.py` puts every root's columns in one order (the assembler's schema-equality assert is order-sensitive),
+   then `assemble_run3_mix.py --sources map factory episodes dart_r1 dart_r2 dart_r3 --out /root/b1k_radio_mix_4d`.
+   **approach_v2 is DROPPED** (S1 readout 09-16: the approach source hurt, 0/5 with stalls >= 0.56 m).
+4. frame cache (head cam, ~71 GB) -> `hist_tok/hist_cellxyz/hist_cellvalid/odom_xyyaw` computed with the **FULL** tower
+   (the warm start; `hist_in` is identity-init so the tokens must live in the starting tower's space; the serve wrapper computes
+   them from the live tower). Gists stay A4 (the gist_head consumer was trained on A4 gists). Cache deleted afterwards.
+5. `/root/ckpt_4d_init/params -> /root/run3_dl/full/params`; A4 norm stats copied to `outputs/assets/pi05_radio_4d/`.
+6. `parity_smoke_4d.py` (full vs geo vs 4d on one batch, A4 params: must be bit-equal at init) + 40-step GPU smoke of `pi05_radio_4d`.
+
+Config: `pi05_radio_4d` now points at `/root/b1k_radio_mix_4d`, warm start `/root/ckpt_4d_init/params`, 15k steps; driver arm `4d`
+(`ARMS=4d RUN3_STEPS=15000 bash run3_driver.sh`, oversample 8 + sample_weight column). Launch only after both smokes pass.
+Download quirk: `dl_dart.py` waited for post-00:02 commits on ALL three `fk_dart_r<k>` but r2/r3 were correct before that and are
+never re-uploaded -> `dl_dart_finish.py` waits for the r1 redo only, fetches all three, prints `FK_MATCH r<k>` (fk rows vs root
+rows, missing/extra must be 0), kills `dl_dart.py` by pid and appends `DL_DART_DONE`.
+Readouts, in order: geo3_gain / geo3_anchor / key_bias_gain norms moving by hour 2; corrective-field probe (`jacobian_probe.sh`,
+sim box) on the step-5k params; then n=25 on instance 301 with SERVE_STAGE_SOURCE=head + REOPEN_STAGE_SOURCE=head and the two
+ablations (3D off, history off). Never train on instance 301; evals stay on the sim box.

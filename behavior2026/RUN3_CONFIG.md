@@ -542,3 +542,25 @@ radio_4d (keep-period 5000, pruned/off-boxed by the driver, final params -> HF b
 32 steps at 07:42 (rate still compile-dominated). Readouts, in order: (1) geo3_gain / geo3_anchor / key_bias_gain norms at
 hour 2 (must move; flat = the attention never used the geometry); (2) corrective-field probe on step-5k params (sim box);
 (3) n=25 on instance 301 with SERVE_STAGE_SOURCE=head + REOPEN_STAGE_SOURCE=head, plus 3D-off and history-off ablations.
+
+### 2026-09-25 13:20 UTC — 4D arm, step-2500 liveness readout (`read_gains.py`, ckpt 2500, off-boxed to HF)
+
+| parameter (init) | step 2500 |
+|---|---|
+| geo3_gain (0) | norm 0.055; per-layer max abs 0.0026-0.0060 across the 18 layers |
+| geo3_anchor kernel / bias (0) | 0.241 / 0.0077 |
+| key_bias_gain (1.0) | mean 1.0000, min 0.9963, max 1.0035 |
+| pe3d_out kernel (0) | 0.80 (256x2048; ~1e-3 per element) |
+| hist_pe_out kernel (0) | 1.83 |
+| hist_in kernel minus identity (0) | 1.65 (2048x2048; ~8e-4 per element) |
+| temp_out kernel (FULL ckpt 0.618) | 0.868 (+40%) |
+
+Reading: every 4D pathway receives gradient (nothing is exactly zero), but the attention-side numbers are tiny: a
+geometry logit bias of at most ~0.006 and a history visibility bias still at -10 x 1.00 (history tokens remain
+near-invisible). Under Adam a parameter with a consistent gradient sign drifts ~lr per step, so 2500 steps allow ~0.06
+per element; the observed 0.006 max means the geometry gradient's sign is inconsistent (no stable use found yet).
+The gist gate (`temp_out`) keeps growing from the FULL value, as in the temporal-forcing dossier. Verdict: YELLOW —
+live but negligible at 2500; the 5000/7500 checkpoints decide (green if geo3 max abs > ~0.05 or key_bias_gain min < 0.9;
+red if still at this level at 7500). Training otherwise healthy: step 3180 at 13:36, loss 0.062-0.067, 6.7 s/step,
+ETA ~11:30 UTC 09-26; anon memory 92 GB after the save (cap 266 GiB); disk 85 GB free with one 39 GB ckpt on box
+(driver prunes train_state after the next save).

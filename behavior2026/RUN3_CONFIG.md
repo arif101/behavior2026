@@ -530,3 +530,15 @@ Smoke fix: the 40-step smoke had failed with "different pytree metadata at pjit 
 `kernel_init` in the graphdef and `hist_in`'s identity initializer was a per-instance lambda, so eval_shape's graphdef and
 the jitted init's differed. Hoisted to a module-level `_eye_init` (+ a shared `_LECUN_INIT`). Part F `prep_4d_launchcheck.sh`
 (log `prep_4d_f.out`) = parity (FULL params, flow-only 4d) -> 40-step smoke with the memory sampler -> PREP_4D_DONE.
+
+### 2026-09-25 07:37 UTC — 4D ARM LAUNCHED (`ARMS=4d RUN3_STEPS=15000 run3_driver.sh`)
+
+Gates at launch: parity vs FULL warm start bit-exact (geo 0, 4d flow-only 0); 40-step smoke clean (step 0 loss 0.3939,
+grad_norm 2.82, checkpoint written at step 39); smoke memory sampler max anon 125 GB (cgroup cap 266 GiB; memory.current
+touched the cap only through reclaimable file cache, oom_kill stayed 1); loader lines verified by the driver
+(`[sample-weight] 2.10% of frames down-weighted (min 0.10)`, `[stage-oversample] 8.0x on 390 transitions`).
+Run: pid in /root/run3_logs/4d.pid, arm log train_4d.log, driver log driver_4d.out, ckpts outputs/checkpoints/pi05_radio_4d/
+radio_4d (keep-period 5000, pruned/off-boxed by the driver, final params -> HF b26-run3-params/4d). First progress line:
+32 steps at 07:42 (rate still compile-dominated). Readouts, in order: (1) geo3_gain / geo3_anchor / key_bias_gain norms at
+hour 2 (must move; flat = the attention never used the geometry); (2) corrective-field probe on step-5k params (sim box);
+(3) n=25 on instance 301 with SERVE_STAGE_SOURCE=head + REOPEN_STAGE_SOURCE=head, plus 3D-off and history-off ablations.

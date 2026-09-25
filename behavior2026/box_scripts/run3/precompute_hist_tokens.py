@@ -126,7 +126,9 @@ def main():
             t = t.append_column("hist_cellxyz", fsl(cxyz.reshape(n, -1), pa.float32()))
             t = t.append_column("hist_cellvalid", fsl(cval, pa.bool_()))
             t = t.append_column("odom_xyyaw", fsl(odom, pa.float32()))
-            pq.write_table(t, f + ".tmp"); os.replace(f + ".tmp", f)          # never leave a half-written parquet
+            pq.write_table(t, f + ".tmp", row_group_size=16384); os.replace(f + ".tmp", f)   # atomic; row groups <= 16k rows: the arrow parquet
+            # reader builds each row group's list column with int32 offsets -> a 229k-row group of 32768-wide lists (7.5e9 elements)
+            # fails with "OSError: List index overflow" (reproduced 2026-09-25); 16384 x 32768 = 5.4e8 stays far below 2^31
         wrote += n; print(f"  {pathlib.Path(f).name}: {n} rows, valid cells {cval.mean():.2f}, {time.time()-t0:.0f}s", flush=True)
     if not a.dry_run:
         info["features"]["hist_tok"] = {"dtype": "float16", "shape": [16 * 2048], "names": None}

@@ -472,3 +472,16 @@ a rerun skips the 30-min tower pass. Verified on a 9,520-row scratch parquet: re
 fixed-size-list type preserved, round trip exact. Part B `prep_4d_hist.sh` (log `prep_4d_b.out`) waits for part A to exit,
 recomputes the tokens with the FULL tower, verifies `MIX4D_HIST_OK`, drops the frame cache, then parity + 40-step smoke.
 The cron tick now reads part B's log only; the launch rule additionally requires `MIX4D_HIST_OK`.
+
+### 2026-09-25 03:10 UTC — part B: history tokens OK; parity failed on a parquet reader limit; part C queued
+
+Part B wrote all four history columns to the seven mix parquets (475,622 rows, every cell valid, no OOM; 1978 s) and dropped
+the frame cache. The parity smoke then died in the dataset build with `OSError: List index overflow` (surfaced by HF datasets
+as DatasetGenerationError). Reproduced in isolation: `read_row_group(0, columns=["hist_tok"])` on the 229,565-row map file
+fails after 284 s; the arrow parquet reader reconstructs a row group's list column with int32 offsets and 229,565 x 32,768 =
+7.5e9 elements exceeds 2^31. A 24,794-row group (8.1e8) reads fine; `iter_batches(16384)` on the big file reads fine.
+Fix: `regroup_parquets.py` streams each file into <= 16,384-row row groups (5.4e8 elements; atomic replace);
+`precompute_hist_tokens.py` now writes with `row_group_size=16384` at the source. Part C `prep_4d_smoke.sh`
+(log `prep_4d_c.out`) = regroup -> FULL_READ_OK on the biggest file -> parity (full log `parity4d.log`) -> 40-step smoke
+(prints the cgroup memory peak; launch rule requires < 240 GB of the 286 GB cap) -> PREP_4D_DONE. Parts A/B logs are void.
+Regroup pace ~730 rows/s on the token column -> ~12 min; parity + smoke each rebuild the 37 GB dataset (~20 min each).

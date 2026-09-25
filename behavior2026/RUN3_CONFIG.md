@@ -564,3 +564,36 @@ live but negligible at 2500; the 5000/7500 checkpoints decide (green if geo3 max
 red if still at this level at 7500). Training otherwise healthy: step 3180 at 13:36, loss 0.062-0.067, 6.7 s/step,
 ETA ~11:30 UTC 09-26; anon memory 92 GB after the save (cap 266 GiB); disk 85 GB free with one 39 GB ckpt on box
 (driver prunes train_state after the next save).
+
+### 2026-09-25 17:09 UTC — 4D arm, step-5000 liveness readout (ckpt 5000 off-boxed 17:04)
+
+| parameter (init) | step 2500 | step 5000 |
+|---|---|---|
+| geo3_gain norm (0) | 0.055 | 0.087 |
+| geo3_gain per-layer max abs | 0.0026-0.0060 | 0.0036-0.0089 |
+| geo3_anchor kernel / bias (0) | 0.241 / 0.0077 | 0.383 / 0.0114 |
+| key_bias_gain min / max (1.0) | 0.9963 / 1.0035 | 0.9925 / 1.0039 |
+| pe3d_out kernel (0) | 0.80 | 1.30 |
+| hist_pe_out kernel (0) | 1.83 | 2.72 |
+| hist_in minus identity (0) | 1.65 | 2.55 |
+| temp_out gate (FULL 0.618) | 0.868 | 1.073 |
+
+Everything grows ~linearly (+55-65% per 2500 steps): a steady weak drift, no takeoff. The geometry logit bias is still
+< 0.01 and the history visibility bias still -10 x 0.99. Verdict stays YELLOW (green needed geo3 max abs > 0.05 or
+key_bias min < 0.9). Consistent with the redundancy reading (exact pointer + exact anchor make the geometry unnecessary
+for the flow loss). Next: corrective-field probe on ckpt 5000 (sim box), then the 7500 readout decides early stop.
+Training healthy: step 5000 loss 0.056, 6.7 s/step, ETA ~11:30 UTC 09-26; disk 85 GB free (driver prunes 2500's
+train_state after the next save).
+
+### 2026-09-25 17:10 UTC — pointer-dropout arm `pi05_radio_4d_pd` prepared (not launched)
+
+One variable vs `pi05_radio_4d`: `pointer_drop_p=0.7` (pointer mask False for 70% of samples, train only),
+`pointer_serve_noise_std=0.15` (kept samples: ONE Gaussian error vector per sample, 0.15 m per axis ~ 0.26 m norm, added to
+both hands' offsets = the measured 20-30 cm affordance error on the held-out layout), `pointer_anchor_follow=True` (the
+third geometry anchor is rebuilt IN-MODEL from the current pointer: EE_R + pointer_R when present, EE_R when absent; train
+and serve). Finding while wiring it: in the base 4D arm the anchor is built from the CLEAN target in the data pipeline, so
+modality dropout (20%) and the 2 cm point noise never reached it — an exact-target leak into the geometry keys. Same mix,
+same FULL warm start, same 15k steps, driver arm `4dpd`. Param tree identical to 4d (no new params; missing_regex
+unchanged). Pre-launch chain `prep_4dpd_launchcheck.sh` (parity with PARITY_EXTRA=pi05_radio_4d_pd, must equal full at
+train=False; 40-step smoke with the memory sampler) waits for the trainer GPU to be free; the driver launch is manual.
+Eval plan for this arm: pointer-on and pointer-off from the same checkpoint decide whether the pointer is deleted for good.

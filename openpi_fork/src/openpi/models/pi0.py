@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 
 import einops
@@ -152,6 +153,10 @@ class Pi0(_model.BaseModel):
         self.geo_attention = bool(getattr(config, "geo_attention", False))
         self.geo_sigma = float(getattr(config, "geo_sigma", 0.15))
         self.pe3d_freqs = int(getattr(config, "pe3d_freqs", 16))
+        # POINTER DROPOUT ARM (pi0_config.py): train-only pointer dropout + serving-level noise; anchor follows the pointer
+        self.pointer_drop_p = float(getattr(config, "pointer_drop_p", 0.0))
+        self.pointer_serve_noise_std = float(getattr(config, "pointer_serve_noise_std", 0.0))
+        self.pointer_anchor_follow = bool(getattr(config, "pointer_anchor_follow", False))
         if self.pe3d:
             self.pe3d_in = nnx.Linear(3 * 2 * self.pe3d_freqs, 256, rngs=rngs)
             self.pe3d_out = nnx.Linear(256, paligemma_config.width, kernel_init=nnx.initializers.zeros,
@@ -425,6 +430,20 @@ class Pi0(_model.BaseModel):
         is_hist = (cols >= n_prefix - self.n_hist) & (cols < n_prefix)
         return jnp.broadcast_to((is_hist.astype(jnp.float32) * self.hist_vis_bias)[None], (batch, n_prefix + n_suffix))
 
+    def _follow_anchor(self, observation: _model.Observation) -> _model.Observation:
+        """pointer_anchor_follow: third geometry anchor = EE_R + the pointer's right-hand offset when the pointer is
+        present, else EE_R (degenerate). Reads the observation's CURRENT target_points (after train-time dropout/noise),
+        so train and serve agree and the anchor never carries a target the pointer does not."""
+        if not self.pointer_anchor_follow or observation.anchors is None or observation.target_points is None or observation.anchors.shape[1] < 3:
+            return observation
+        _tp = observation.target_points.astype(jnp.float32)
+        _tpr = _tp[:, 1] if _tp.shape[1] > 1 else _tp[:, 0]                                   # [button - EE_L, button - EE_R]
+        _m = observation.target_points_mask
+        _mr = ((_m[:, 1] if _m.shape[1] > 1 else _m[:, 0]) if _m is not None else jnp.ones((_tp.shape[0],), bool))
+        _a = observation.anchors.astype(jnp.float32)
+        _a2 = jnp.where(_mr[:, None], _a[:, 0] + _tpr, _a[:, 0])
+        return dataclasses.replace(observation, anchors=_a.at[:, 2].set(_a2).astype(observation.anchors.dtype))
+
     def prefix_key_geometry(self, obs: _model.Observation, n_prefix: int):
         """A3: base-frame 3D position + validity for every prefix key, aligned with embed_prefix's layout
         (images in obs.images order, 256 patches each; text/map/other tokens -> invalid)."""
@@ -666,6 +685,20 @@ class Pi0(_model.BaseModel):
                     _mdmasks[_mdnm] = jnp.logical_and(_mdmasks[_mdnm], _mdkc)
             observation = _mdc.replace(observation, image_masks=_mdmasks)
 
+        # POINTER DROPOUT (pointer-dropout arm, 2026-09-25): serving-regime pointer at train time. fold_in(4173) keeps
+        # every existing rng stream bit-identical when both knobs are 0. ONE error vector per sample shifts both hands'
+        # offsets (an affordance error moves the estimated button, not the hands).
+        if train and (self.pointer_drop_p > 0 or self.pointer_serve_noise_std > 0) and observation.target_points is not None:
+            _pd_keep_r, _pd_noise_r = jax.random.split(jax.random.fold_in(rng, 4173), 2)
+            _pdb = observation.state.shape[0]
+            _pd_tp = observation.target_points; _pd_tpm = observation.target_points_mask
+            if self.pointer_serve_noise_std > 0:
+                _pd_tp = _pd_tp + (self.pointer_serve_noise_std * jax.random.normal(_pd_noise_r, (_pdb, 1, 3))).astype(_pd_tp.dtype)
+            if self.pointer_drop_p > 0 and _pd_tpm is not None:
+                _pd_keep = jax.random.bernoulli(_pd_keep_r, 1.0 - self.pointer_drop_p, (_pdb,))
+                _pd_tpm = jnp.logical_and(_pd_tpm, _pd_keep[:, None])
+            observation = dataclasses.replace(observation, target_points=_pd_tp, target_points_mask=_pd_tpm)
+
         if self.point_conditioning and train and self.point_noise_std > 0 and observation.target_points is not None:
             # Anti-brittleness: train-time Gaussian noise on target points. Derived via fold_in so the
             # point_conditioning=False rng stream (preprocess/noise/time) stays bit-identical to stock.
@@ -693,6 +726,7 @@ class Pi0(_model.BaseModel):
         if _hist_on:
             attn_mask = self._hist_attn_mask(attn_mask, _np_)
         positions = jnp.cumsum(jnp.concatenate([prefix_posw, suffix_mask], axis=1), axis=1) - 1
+        observation = self._follow_anchor(observation)
         _geo = None; _geo3 = None
         if self.geo_attention and observation.patch_xyz is not None and observation.anchors is not None:
             _kx, _kv = self.prefix_key_geometry(observation, _np_)
@@ -848,6 +882,7 @@ class Pi0(_model.BaseModel):
         noise: at.Float[at.Array, "b ah ad"] | None = None,
     ) -> _model.Actions:
         observation = _model.preprocess_observation(None, observation, train=False)
+        observation = self._follow_anchor(observation)   # once, before the sampling loop (assigning inside `step` would shadow the closure variable)
         # note that we use the convention more common in diffusion literature, where t=1 is noise and t=0 is the target
         # distribution. yes, this is the opposite of the pi0 paper, and I'm sorry.
         dt = -1.0 / num_steps

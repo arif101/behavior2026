@@ -115,6 +115,15 @@ class Pi0Config(_model.BaseModelConfig):
     proprio_noise_std: float = 0.0     # B2 copycat remedy (raw joint radians); 0 = off
     proprio_heavy_p: float = 0.0
     proprio_heavy_std: float = 0.3
+    # POINTER DROPOUT ARM (2026-09-25): the exact training pointer makes vision/geometry redundant (geo3 gains flat at
+    # step 2500 of the base 4D arm). Train-only: drop the pointer (mask False) with prob `pointer_drop_p`; when kept, shift
+    # BOTH hands' offsets by ONE Gaussian error vector (std per axis, metres) = the serving regime (affordance error
+    # 20-30 cm on the held-out layout). `pointer_anchor_follow` rebuilds the third geometry anchor from the CURRENT
+    # (dropped/noised) pointer in-model, train AND serve, so the anchor cannot leak the exact target (it did in the base
+    # 4D arm) and pointer-off serving degenerates it to EE_R.
+    pointer_drop_p: float = 0.0
+    pointer_serve_noise_std: float = 0.0
+    pointer_anchor_follow: bool = False
     # A2 4D HISTORY TOKENS: K past head frames x `hist_cells` pooled tower tokens (projected width `hist_dim`), each with
     # a base-frame 3D cell point re-expressed in the CURRENT base frame + time offset (4D PE, zero-init), appended to the
     # prefix tail (position-transparent). History tokens attend only among themselves; everyone else sees them through

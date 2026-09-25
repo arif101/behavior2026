@@ -33,7 +33,7 @@ def loss_for(name, batch_obs, batch_act, rng, model_cfg=None):
     return float(jnp.mean(loss)), missing, cfg
 
 def main():
-    names = ["pi05_radio_full", "pi05_radio_geo", "pi05_radio_4d"]
+    names = ["pi05_radio_full", "pi05_radio_geo", "pi05_radio_4d"] + [n for n in os.environ.get("PARITY_EXTRA", "").split(",") if n]
     cfg4 = _c.get_config("pi05_radio_4d")
     loader = _dl.create_b1k_data_loader(cfg4, shuffle=False, num_batches=1)
     batch = next(iter(loader)); obs, act = batch
@@ -51,6 +51,8 @@ def main():
     d_geo = abs(res["pi05_radio_geo"] - res["pi05_radio_full"]) / max(res["pi05_radio_full"], 1e-9)
     d_4d = abs(l4f - res["pi05_radio_full"]) / max(res["pi05_radio_full"], 1e-9)
     d_4d_aux = abs(res["pi05_radio_4d"] - res["pi05_radio_full"]) / max(res["pi05_radio_full"], 1e-9)
+    for n in names[3:]:
+        print(f"PARITY_EXTRA {n} rel_diff={abs(res[n] - res['pi05_radio_full']) / max(res['pi05_radio_full'], 1e-9):.2e} (vs full; expect <=1e-5 for a train-only change)", flush=True)
     print(f"PARITY_RESULT geo_rel_diff={d_geo:.2e} (expect ~0) 4d_rel_diff={d_4d:.2e} (flow only, expect <1e-2) 4d_with_aux_rel_diff={d_4d_aux:.2e} inputs: patch_xyz={obs.patch_xyz is not None} hist={obs.history_tokens is not None}", flush=True)
 
 

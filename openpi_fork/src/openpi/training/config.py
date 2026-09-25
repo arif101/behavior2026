@@ -1418,6 +1418,87 @@ _CONFIGS = [
         exp_name="radio_4d",
         assets_base_dir="./outputs/assets",
         checkpoint_base_dir="./outputs/checkpoints",
+    ),    TrainConfig(
+        # FULL STACK = press fix + temporal forcing (2026-09-16). Base comment: A4 recipe (map + factory + episodes + poison-downweight) with
+        # stage_conditioning ENABLED — the one flag that was OFF for every Run-3 arm. Feeds the
+        # action expert the already-labeled task stage (the 'stage' column, now packed to
+        # stage_tokens via the b1k_policy derivation) so it can separate grasp- from press-behavior
+        # and execute the toggle. Warm-start from A4 (keeps the grasp); the new zero-init
+        # stage_embed/stage_proj graft on as a no-op and learn. Controlled test: only stage_conditioning
+        # differs from A4. See behavior2026/PRESS_FIX_SPEC.md. NOTE for training box: confirm the A4
+        # mix at dataset_root and the A4 params at the weight_loader path are present (reassemble/pull).
+        name="pi05_radio_4d_pd",
+        model=pi0_config.Pi0Config(
+            action_horizon=32,
+            pi05=True,
+            point_conditioning=True,
+            point_noise_std=0.02,
+            stage_conditioning=True,   # <-- THE FIX (was False/default for all Run-3 arms)
+            progress_conditioning=True,   # continuous [0,1] progress into adaRMS (code ready)
+            map_tokens_k=8,
+            anti_shortcut=False,
+            modality_dropout_p=0.2,
+            map_geo_conditioning=True,
+            depth_aux=True,
+            stage_head=True,
+            temporal_conditioning=True,   # FULL STACK (2026-09-16): + temporal forcing (K=8 gists @ stride 32, zero-init gate)
+            # 4D-ATTENDABLE PERCEPTION (ARCH_4D_ATTENTION_SPEC, 2026-09-22): zero-init 3D PE on patch tokens (A1),
+            # zero-init geometric attention gains between the expert's queries and 3D-positioned keys (A3),
+            # proprio noise as the copycat remedy (B2). Bit-parity with pi05_radio_full at step 0.
+            pe3d=True,
+            geo_attention=True,
+            geo_sigma=0.15,
+            geo_anchors=3,   # right EE, left EE, stage-indexed target (the pointer as an attendable place)
+            proprio_noise_std=0.03,
+            proprio_heavy_p=0.2,
+            # A2: 4D history tokens in the prefix (K=8 past head frames x 16 cells @ stride 32), near-invisible at init
+            hist_tokens=True,
+            hist_k=8,
+            hist_cells=16,
+            hist_dim=2048,
+            hist_stride=32,
+            hist_vis_bias=-10.0,
+            hist_ground_weight=0.05,
+            # POINTER DROPOUT ARM (2026-09-25): ONE variable vs pi05_radio_4d — the pointer is unreliable at train time
+            # the way it is at eval (dropped 70%, else shifted by a 0.15 m/axis error), and the third geometry anchor
+            # follows the (dropped/noised) pointer in-model so it cannot leak the exact target.
+            pointer_drop_p=0.7,
+            pointer_serve_noise_std=0.15,
+            pointer_anchor_follow=True,
+        ),
+        data=LeRobotB1KDataConfig(
+            repo_id="b1k_radio",
+            base_config=DataConfig(
+                data_cls=_lerobot_compat.LeRobotDataset,
+                dataset_root="/root/b1k_radio_mix_4d",   # map + factory + episodes + DART corrective clips (approach_v2 dropped); + cam_pose/hist_tok columns
+                prompt_from_task=True,
+                dataset_kwargs={"tolerance_s": 5e-4},
+            ),
+            robot_config_name="b1k/R1Pro",
+            extra_delta_transform=False,
+            # v2 labels (RELABEL_V2.md): crisp 4-class stage, progress clock, stage-indexed target (rail before lift,
+            # button after). Every source of the mix must carry these columns (relabel_v2.py).
+            stage_key="stage_v2",
+            progress_key="progress",
+            target_points_key="target_points_v2",
+            stage_tokens_key=None,   # no such column: B1KInputs broadcasts stage_v2 to both arms
+            cam_pose_key="cam_pose",   # FK precompute column (fk_cam_poses.py); absent -> 3D path inert
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "/root/ckpt_4d_init/params",   # symlink -> the FULL checkpoint (warm start of the 4D arm)
+            missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*|.*pe3d_.*|.*geo_gain.*|.*geo3_.*|.*hist_.*|.*key_bias_gain.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
+        ),
+        # the SigLIP tower is FROZEN so the serve-time gists (computed by the model's own tower) equal the precomputed
+        # ones from the A4 tower (precompute_gists.py). Deviation from the A4 recipe, logged in RUN3_CONFIG.md.
+        freeze_filter=nnx.Any(nnx_utils.PathRegex(".*map_(proj|registers|alpha|recon).*"), nnx_utils.PathRegex(".*PaliGemma.*img.*")),
+        batch_size=32,
+        num_train_steps=15_000,   # warm-start fine-tune from the full checkpoint
+        save_interval=2_500,
+        log_interval=100,
+        num_workers=8,
+        exp_name="radio_4d_pd",
+        assets_base_dir="./outputs/assets",
+        checkpoint_base_dir="./outputs/checkpoints",
     ),
     TrainConfig(
         # G3 arms 3 AND 4: descriptive prompts + AdaLN 3D-point conditioning. This single

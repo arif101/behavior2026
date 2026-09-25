@@ -485,3 +485,15 @@ Fix: `regroup_parquets.py` streams each file into <= 16,384-row row groups (5.4e
 (log `prep_4d_c.out`) = regroup -> FULL_READ_OK on the biggest file -> parity (full log `parity4d.log`) -> 40-step smoke
 (prints the cgroup memory peak; launch rule requires < 240 GB of the 286 GB cap) -> PREP_4D_DONE. Parts A/B logs are void.
 Regroup pace ~730 rows/s on the token column -> ~12 min; parity + smoke each rebuild the 37 GB dataset (~20 min each).
+
+### 2026-09-25 03:55 UTC — part C: regroup + full read OK; parity smoke needed a __main__ guard; part D queued
+
+Regroup: map file 229,565 rows -> 15 row groups (660 s), second file 200,363 -> 13, episodes 24,794 -> 2; the four small
+files were already fine. FULL_READ_OK on the map file's token column in 23 s (was OSError after 284 s). The dataset build
+then completed: 37 GB arrow cache under ~/.cache/huggingface/datasets (reused by every later load of the same files).
+Parity smoke died again, differently: the b1k loader uses 8 spawn workers, each re-imports the main script, and
+`parity_smoke_4d.py` had its work at module level -> every worker re-ran the whole smoke and hit the multiprocessing
+bootstrap RuntimeError; the parent waited on dead workers (killed by pid). Fix: body moved under `main()` with a
+`__main__` guard. Part C continues into the 40-step smoke (train_b1k.py is guarded; this is the real loader/train path and
+the cgroup-peak readout). Part D `prep_4d_parity.sh` (log `prep_4d_d.out`) waits for part C, then runs the guarded parity.
+Launch rule now = part C smoke clean + peak < 240 GB + part D PARITY_RESULT (geo <= 1e-5, 4d < 1e-2).

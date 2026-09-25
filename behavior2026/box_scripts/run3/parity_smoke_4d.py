@@ -1,7 +1,8 @@
 """Parity smoke (ARCH_4D_ATTENTION_SPEC): load A4 params into pi05_radio_full, pi05_radio_geo and pi05_radio_4d, compute
 the flow loss on ONE fixed batch (same rng), and report: geo must equal full to float precision (zero-init PE, zero-init
 gains, kernel * 0); 4d must be within ~1e-3 relative (history tokens near-invisible: bias -10 -> e^-10 mass) and the
-liveness parameters must exist (geo_gain, key_bias_gain, hist_*). Runs on the GPU with on-demand allocation."""
+liveness parameters must exist (geo_gain, key_bias_gain, hist_*). Runs on the GPU with on-demand allocation. Guarded main(): the b1k loader uses spawn workers, which re-import this
+file (an unguarded module body re-ran the whole smoke inside the worker and died with the multiprocessing bootstrap error, 2026-09-25)."""
 import os; os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 import jax, jax.numpy as jnp, numpy as np
 from flax import nnx
@@ -25,15 +26,20 @@ def loss_for(name, batch_obs, batch_act, rng):
     loss = model.compute_loss(rng, batch_obs, batch_act, train=False)
     return float(jnp.mean(loss)), missing, cfg
 
-names = ["pi05_radio_full", "pi05_radio_geo", "pi05_radio_4d"]
-cfg4 = _c.get_config("pi05_radio_4d")
-loader = _dl.create_b1k_data_loader(cfg4, shuffle=False, num_batches=1)
-batch = next(iter(loader)); obs, act = batch
-rng = jax.random.key(1)
-res = {}
-for n in names:
-    l, missing, cfg = loss_for(n, obs, act, rng)
-    res[n] = l; print(f"PARITY {n}: loss={l:.6f} fresh_params={len(missing)} ({', '.join(sorted(set(m.split('/')[1] for m in missing))[:8])})", flush=True)
-d_geo = abs(res["pi05_radio_geo"] - res["pi05_radio_full"]) / max(res["pi05_radio_full"], 1e-9)
-d_4d = abs(res["pi05_radio_4d"] - res["pi05_radio_full"]) / max(res["pi05_radio_full"], 1e-9)
-print(f"PARITY_RESULT geo_rel_diff={d_geo:.2e} (expect ~0) 4d_rel_diff={d_4d:.2e} (expect <1e-2) inputs: patch_xyz={obs.patch_xyz is not None} hist={obs.history_tokens is not None}", flush=True)
+def main():
+    names = ["pi05_radio_full", "pi05_radio_geo", "pi05_radio_4d"]
+    cfg4 = _c.get_config("pi05_radio_4d")
+    loader = _dl.create_b1k_data_loader(cfg4, shuffle=False, num_batches=1)
+    batch = next(iter(loader)); obs, act = batch
+    rng = jax.random.key(1)
+    res = {}
+    for n in names:
+        l, missing, cfg = loss_for(n, obs, act, rng)
+        res[n] = l; print(f"PARITY {n}: loss={l:.6f} fresh_params={len(missing)} ({', '.join(sorted(set(m.split('/')[1] for m in missing))[:8])})", flush=True)
+    d_geo = abs(res["pi05_radio_geo"] - res["pi05_radio_full"]) / max(res["pi05_radio_full"], 1e-9)
+    d_4d = abs(res["pi05_radio_4d"] - res["pi05_radio_full"]) / max(res["pi05_radio_full"], 1e-9)
+    print(f"PARITY_RESULT geo_rel_diff={d_geo:.2e} (expect ~0) 4d_rel_diff={d_4d:.2e} (expect <1e-2) inputs: patch_xyz={obs.patch_xyz is not None} hist={obs.history_tokens is not None}", flush=True)
+
+
+if __name__ == "__main__":   # the loader spawns workers that re-import this file: module-level work must not run in them
+    main()

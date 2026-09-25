@@ -458,3 +458,17 @@ rows, missing/extra must be 0), kills `dl_dart.py` by pid and appends `DL_DART_D
 Readouts, in order: geo3_gain / geo3_anchor / key_bias_gain norms moving by hour 2; corrective-field probe (`jacobian_probe.sh`,
 sim box) on the step-5k params; then n=25 on instance 301 with SERVE_STAGE_SOURCE=head + REOPEN_STAGE_SOURCE=head and the two
 ablations (3D off, history off). Never train on instance 301; evals stay on the sim box.
+
+### 2026-09-25 02:05 UTC — prep chain part A: mix_4d built; history-token stage OOM-killed; part B queued
+
+Part A results: mix_4d = 322 eps / 475,622 frames (map 200 / factory 38 / episodes 58 / DART 18+1+7), every FK index matched
+its root exactly, unassembly 0 missing rows, gists on the mix in 40 min, 71.6 GB frame cache written.
+Failure: `precompute_hist_tokens.py` was cgroup-OOM-killed (memory.events oom_kill=1 at the 286 GB cap) while writing the
+229k-row map parquet: `toks[idx].tolist()` materialised ~7.5e9 Python floats (16x2048 halffloats per row). The stage left
+no marker and the chain ran on, so part A's parity/smoke lines are void (no hist_tok columns -> not the 4D input).
+Fix (`precompute_hist_tokens.py`): arrow-native column reads (`col_np`), zero-copy `FixedSizeListArray.from_arrays` writes
+(`fsl`), tmp+`os.replace` so a kill cannot leave a half-written parquet, and `--toks-cache` (float16 memmap + `.done` marker) so
+a rerun skips the 30-min tower pass. Verified on a 9,520-row scratch parquet: reads bit-equal to the old path, halffloat
+fixed-size-list type preserved, round trip exact. Part B `prep_4d_hist.sh` (log `prep_4d_b.out`) waits for part A to exit,
+recomputes the tokens with the FULL tower, verifies `MIX4D_HIST_OK`, drops the frame cache, then parity + 40-step smoke.
+The cron tick now reads part B's log only; the launch rule additionally requires `MIX4D_HIST_OK`.

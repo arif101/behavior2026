@@ -7,7 +7,7 @@ body-frame [vx, vy, wz] at fps (the serving wrapper integrates the same way). Ad
 of a LeRobot root and registers them. Reuses the frame cache written by precompute_gists.py (--from-cache).
   XLA_PYTHON_CLIENT_PREALLOCATE=false python precompute_hist_tokens.py --root ROOT --params /root/ckpt_a4/params --from-cache /root/frame_cache/mix.npy
 """
-import argparse, glob, json, pathlib, time
+import argparse, os, glob, json, pathlib, time
 import numpy as np, pyarrow as pa, pyarrow.parquet as pq
 
 _PATCH_RAY = 1080.0 / 874.5   # R1 cameras: fx = fy = 874.5 @ 1080 px, principal point at the centre (camera_intrinsics.json)
@@ -71,27 +71,48 @@ def odometry(state_ep, fps):
     return out
 
 
+def col_np(t, name, dtype=None):
+    """arrow column -> numpy without Python lists (list / fixed-size-list columns come back flat: reshape at the call site)."""
+    a = t.column(name).combine_chunks()
+    if pa.types.is_fixed_size_list(a.type) or pa.types.is_list(a.type): a = a.flatten()
+    x = a.to_numpy(zero_copy_only=False)
+    return x.astype(dtype, copy=False) if dtype is not None else x
+
+
+def fsl(np2d, pa_type):
+    """[n, k] numpy -> fixed_size_list<pa_type>[k] arrow array, zero-copy (no .tolist())."""
+    np2d = np.ascontiguousarray(np2d); n, k = np2d.shape
+    return pa.FixedSizeListArray.from_arrays(pa.array(np2d.reshape(-1), type=pa_type), k)
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--root", required=True); ap.add_argument("--params", required=True)
+    ap.add_argument("--toks-cache", help="float16 memmap [n_rows, 16, 2048] for the pooled tokens; reused (tower pass skipped) when PATH.done exists")
     ap.add_argument("--config", default="pi05_radio_run3_a4"); ap.add_argument("--batch", type=int, default=48)
     ap.add_argument("--from-cache", required=True, help="224x224 uint8 frame memmap written by precompute_gists.py --cache-frames")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(); root = pathlib.Path(a.root); t0 = time.time()
     info = json.loads((root / "meta/info.json").read_text()); fps = float(info["fps"])
     frames = np.load(a.from_cache, mmap_mode="r"); n_rows = frames.shape[0]
-    tower, pooled = build_tower(a.params, a.config)
-    toks = np.zeros((n_rows, 16, 2048), np.float16)
-    for s0 in range(0, n_rows, a.batch):
-        toks[s0:s0 + a.batch] = np.asarray(pooled(tower, np.asarray(frames[s0:s0 + a.batch]))).astype(np.float16)
-        if (s0 // a.batch) % 500 == 0: print(f"  tower {s0}/{n_rows} {time.time()-t0:.0f}s", flush=True)
-    print(f"tower pass: {n_rows} rows, {time.time()-t0:.0f}s", flush=True)
+    tc = pathlib.Path(a.toks_cache) if a.toks_cache else None; done = tc.with_suffix(".done") if tc else None
+    if tc is not None and tc.exists() and done.exists():
+        toks = np.load(tc, mmap_mode="r"); assert toks.shape == (n_rows, 16, 2048), toks.shape
+        print(f"tower pass SKIPPED: reusing {tc} {toks.shape}", flush=True)
+    else:
+        tower, pooled = build_tower(a.params, a.config)
+        toks = np.lib.format.open_memmap(tc, mode="w+", dtype=np.float16, shape=(n_rows, 16, 2048)) if tc else np.zeros((n_rows, 16, 2048), np.float16)
+        for s0 in range(0, n_rows, a.batch):
+            toks[s0:s0 + a.batch] = np.asarray(pooled(tower, np.asarray(frames[s0:s0 + a.batch]))).astype(np.float16)
+            if (s0 // a.batch) % 500 == 0: print(f"  tower {s0}/{n_rows} {time.time()-t0:.0f}s", flush=True)
+        if tc: toks.flush(); done.touch()
+        print(f"tower pass: {n_rows} rows, {time.time()-t0:.0f}s", flush=True)
     files = sorted(glob.glob(str(root / "data/**/*.parquet"), recursive=True)); wrote = 0
     for f in files:
-        t = pq.read_table(f); n = len(t); idx = np.asarray(t.column("index").to_pylist())
-        st = np.asarray(t.column("observation.state").to_pylist(), np.float32)
-        dep = np.asarray(t.column("gt_depth_ds").to_pylist(), np.float32).reshape(n, 3, 16, 16)
-        cp = np.asarray(t.column("cam_pose").to_pylist(), np.float32).reshape(n, 3, 7)
-        ep = np.asarray(t.column("episode_index").to_pylist()); fr = np.asarray(t.column("frame_index").to_pylist())
+        t = pq.read_table(f); n = len(t); idx = col_np(t, "index", np.int64)
+        st = col_np(t, "observation.state", np.float32).reshape(n, -1)
+        dep = col_np(t, "gt_depth_ds", np.float32).reshape(n, 3, 16, 16)
+        cp = col_np(t, "cam_pose", np.float32).reshape(n, 3, 7)
+        ep = col_np(t, "episode_index", np.int64); fr = col_np(t, "frame_index", np.int64)
         cxyz = np.zeros((n, 16, 3), np.float32); cval = np.zeros((n, 16), bool); odom = np.zeros((n, 3), np.float32)
         for i in range(n):
             cxyz[i], cval[i] = cell_points(dep[i, 0], cp[i, 0])
@@ -101,11 +122,11 @@ def main():
         for name in ("hist_tok", "hist_cellxyz", "hist_cellvalid", "odom_xyyaw"):
             if name in t.schema.names: t = t.drop([name])
         if not a.dry_run:
-            t = t.append_column("hist_tok", pa.array(toks[idx].reshape(n, -1).tolist(), type=pa.list_(pa.float16(), 16 * 2048)))
-            t = t.append_column("hist_cellxyz", pa.array(cxyz.reshape(n, -1).tolist(), type=pa.list_(pa.float32(), 48)))
-            t = t.append_column("hist_cellvalid", pa.array(cval.tolist(), type=pa.list_(pa.bool_(), 16)))
-            t = t.append_column("odom_xyyaw", pa.array(odom.tolist(), type=pa.list_(pa.float32(), 3)))
-            pq.write_table(t, f)
+            t = t.append_column("hist_tok", fsl(np.asarray(toks[idx]).reshape(n, -1).astype(np.float16, copy=False), pa.float16()))
+            t = t.append_column("hist_cellxyz", fsl(cxyz.reshape(n, -1), pa.float32()))
+            t = t.append_column("hist_cellvalid", fsl(cval, pa.bool_()))
+            t = t.append_column("odom_xyyaw", fsl(odom, pa.float32()))
+            pq.write_table(t, f + ".tmp"); os.replace(f + ".tmp", f)          # never leave a half-written parquet
         wrote += n; print(f"  {pathlib.Path(f).name}: {n} rows, valid cells {cval.mean():.2f}, {time.time()-t0:.0f}s", flush=True)
     if not a.dry_run:
         info["features"]["hist_tok"] = {"dtype": "float16", "shape": [16 * 2048], "names": None}

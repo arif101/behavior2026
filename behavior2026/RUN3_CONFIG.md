@@ -497,3 +497,17 @@ bootstrap RuntimeError; the parent waited on dead workers (killed by pid). Fix: 
 `__main__` guard. Part C continues into the 40-step smoke (train_b1k.py is guarded; this is the real loader/train path and
 the cgroup-peak readout). Part D `prep_4d_parity.sh` (log `prep_4d_d.out`) waits for part C, then runs the guarded parity.
 Launch rule now = part C smoke clean + peak < 240 GB + part D PARITY_RESULT (geo <= 1e-5, 4d < 1e-2).
+
+### 2026-09-25 04:40 UTC — parts C/D: loader lines OK, then a jaxtyping axis-name collision; part E queued
+
+The 40-step smoke printed the loader's `[sample-weight]` and `[stage-oversample] 8.0x` lines (the b1k loader path is the
+right one) and then every batch failed in `Observation.from_dict`: jaxtyping binds axis names across the whole dataclass,
+`history_gists` is annotated `"*b hk hd"` and arrives as [B, 9, 2048] (K+1 gists) while the 4D `history_tokens`
+`"*b hk hc hd"` arrives as [B, 8, 16, 2048] (K=8) -> hk=9 vs 8. The guarded parity (part D) failed identically, which is
+the first time the whole batch reached the model, i.e. all 4D inputs are present with the intended shapes:
+patch_xyz [B,3,256,3], patch_valid [B,3,256], anchors [B,3,3], history_tokens [B,8,16,2048], history_xyz [B,8,16,3],
+history_valid/dt, rail_now [B,3]. Fix: the 4D history axes renamed tk/tc/td in model.py (annotation only).
+Also: `memory.peak` is a high-water mark stuck at the 266 GiB cap since part A's OOM, so part C's "peak" line was void;
+part E `prep_4d_final.sh` (log `prep_4d_e.out`) = from_dict probe -> guarded parity (`parity4d_c.log`) -> 40-step smoke
+with a 5-s sampler of the cgroup's anon/current (`SMOKE_MEM` line = the run's real footprint) -> PREP_4D_DONE.
+Launch rule = PARITY_RESULT thresholds + smoke clean + SMOKE_MEM max anon < 200 GB.

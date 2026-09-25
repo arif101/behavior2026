@@ -140,10 +140,12 @@ class Observation(Generic[ArrayT]):
     # 4D HISTORY TOKENS (ARCH_4D_ATTENTION_SPEC A2): K past head frames x cells pooled tower tokens, their cell points
     # in the CURRENT base frame, validity, time offsets (s, negative); rail_now = current rail position (base frame),
     # label for the temporal-grounding aux (train only).
-    history_tokens: at.Float[ArrayT, "*b hk hc hd"] | None = None
-    history_xyz: at.Float[ArrayT, "*b hk hc 3"] | None = None
-    history_valid: at.Bool[ArrayT, "*b hk hc"] | None = None
-    history_dt: at.Float[ArrayT, "*b hk"] | None = None
+    # dims tk/tc/td are deliberately NOT hk/hd: jaxtyping binds axis names across the whole dataclass, and the gist history
+    # (history_gists, "*b hk hd") carries K+1 = 9 entries while the 4D token history carries K = 8 (2026-09-25 smoke failure).
+    history_tokens: at.Float[ArrayT, "*b tk tc td"] | None = None
+    history_xyz: at.Float[ArrayT, "*b tk tc 3"] | None = None
+    history_valid: at.Bool[ArrayT, "*b tk tc"] | None = None
+    history_dt: at.Float[ArrayT, "*b tk"] | None = None
     rail_now: at.Float[ArrayT, "*b 3"] | None = None
 
     @classmethod

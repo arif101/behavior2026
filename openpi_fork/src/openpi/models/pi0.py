@@ -45,6 +45,14 @@ def make_attn_mask(input_mask, mask_ar):
 
 
 @at.typecheck
+def _eye_init(key, shape, dtype=jnp.float32):
+    """identity kernel init (hist_in at width == hist_dim); a module-level function so every model instance shares it."""
+    return jnp.eye(shape[0], shape[1], dtype=dtype)
+
+
+_LECUN_INIT = nnx.initializers.lecun_normal()
+
+
 def _sincos3d(xyz: at.Float[at.Array, "b n 3"], n_freqs: int) -> at.Float[at.Array, "b n f"]:
     """Sinusoidal features of base-frame points: wavelengths 0.05 m .. ~4 m (geometric), per axis sin+cos."""
     freqs = 2.0 * jnp.pi / (0.05 * (80.0 ** (jnp.arange(n_freqs, dtype=jnp.float32) / max(n_freqs - 1, 1))))
@@ -157,7 +165,8 @@ class Pi0(_model.BaseModel):
         self.hist_ground_weight = float(getattr(config, "hist_ground_weight", 0.05))
         if self.hist_tokens:
             _hd = int(getattr(config, "hist_dim", 2048)); _w = paligemma_config.width
-            _kinit = (lambda key, shape, dtype=jnp.float32: jnp.eye(shape[0], shape[1], dtype=dtype)) if _hd == _w else nnx.initializers.lecun_normal()
+            _kinit = _eye_init if _hd == _w else _LECUN_INIT   # module-level objects: nnx stores kernel_init in the graphdef, and a
+            # per-instance lambda made eval_shape's graphdef differ from jit's ("different pytree metadata", 2026-09-25 smoke)
             self.hist_in = nnx.Linear(_hd, _w, kernel_init=_kinit, bias_init=nnx.initializers.zeros, rngs=rngs)
             self.hist_pe_in = nnx.Linear(4 * 2 * self.pe3d_freqs, 256, rngs=rngs)
             self.hist_pe_out = nnx.Linear(256, _w, kernel_init=nnx.initializers.zeros, bias_init=nnx.initializers.zeros, rngs=rngs)

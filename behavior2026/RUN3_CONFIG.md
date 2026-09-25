@@ -511,3 +511,22 @@ Also: `memory.peak` is a high-water mark stuck at the 266 GiB cap since part A's
 part E `prep_4d_final.sh` (log `prep_4d_e.out`) = from_dict probe -> guarded parity (`parity4d_c.log`) -> 40-step smoke
 with a 5-s sampler of the cgroup's anon/current (`SMOKE_MEM` line = the run's real footprint) -> PREP_4D_DONE.
 Launch rule = PARITY_RESULT thresholds + smoke clean + SMOKE_MEM max anon < 200 GB.
+
+### 2026-09-25 07:25 UTC — parity PASSED against the FULL checkpoint (bit-exact); the A4-based "14%" was a test artifact
+
+Bisection (`parity_diag.py`, `parity_diag2.py`, one fixed batch, same rng):
+- geo's loss did not move when patch_xyz/anchors were removed from the observation -> the 4D code paths were not the cause.
+- Flag-by-flag on top of `pi05_radio_full` with A4 params: `+geo_attention` = full to 6 digits with 0 differing weights;
+  `+pe3d` = 0.3797 vs 0.3331 with 21 differing leaves — exactly the full config's OWN heads that A4 lacks (stage_embed,
+  progress_mlp, temp_*), random-init and rng-order dependent: creating pe3d_in first shifts every later draw. Not a bug in
+  the 4D modules; a wrong reference checkpoint in the test. With the FULL checkpoint (the real warm start) all three
+  configs give loss 0.212450 exactly (geo rel diff 0; 4d flow-only 0; 4d with aux 0). Caveat: the batch is episode 0's
+  first 32 frames (no history yet -> history tokens all invalid), so the 4d number verifies the empty-history case; the
+  non-empty case is bounded by the -10 key bias by construction.
+- Fresh-param audit vs A4: every PaliGemma-side 4D parameter (geo3_anchor kernel/bias, geo3_gain) has norm 0;
+  key_bias_gain is ones as designed; pe3d_in / hist_pe_in / hist_ground_* / hist_stage_* are random but feed zero-init
+  outs or aux heads only.
+Smoke fix: the 40-step smoke had failed with "different pytree metadata at pjit out_shardings.model_def": nnx stores
+`kernel_init` in the graphdef and `hist_in`'s identity initializer was a per-instance lambda, so eval_shape's graphdef and
+the jitted init's differed. Hoisted to a module-level `_eye_init` (+ a shared `_LECUN_INIT`). Part F `prep_4d_launchcheck.sh`
+(log `prep_4d_f.out`) = parity (FULL params, flow-only 4d) -> 40-step smoke with the memory sampler -> PREP_4D_DONE.

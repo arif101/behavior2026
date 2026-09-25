@@ -1389,7 +1389,7 @@ _CONFIGS = [
             repo_id="b1k_radio",
             base_config=DataConfig(
                 data_cls=_lerobot_compat.LeRobotDataset,
-                dataset_root="/root/b1k_radio_mix_full",   # v2 labels + gist_head/hist_geo (precompute_gists.py)
+                dataset_root="/root/b1k_radio_mix_4d",   # map + factory + episodes + DART corrective clips (approach_v2 dropped); + cam_pose/hist_tok columns
                 prompt_from_task=True,
                 dataset_kwargs={"tolerance_s": 5e-4},
             ),
@@ -1404,14 +1404,14 @@ _CONFIGS = [
             cam_pose_key="cam_pose",   # FK precompute column (fk_cam_poses.py); absent -> 3D path inert
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
-            "/root/ckpt_full_init/params",   # symlink -> A4 (default) or S1 params: chosen by the S1 eval (2026-09-16)
+            "/root/ckpt_4d_init/params",   # symlink -> the FULL checkpoint (warm start of the 4D arm)
             missing_regex=".*lora.*|.*stage_head.*|.*map_geo.*|.*depth_aux.*|.*stage_embed.*|.*stage_proj.*|.*progress_.*|.*temp_.*|.*pe3d_.*|.*geo_gain.*|.*geo3_.*|.*hist_.*|.*key_bias_gain.*",  # progress_mlp_* are fresh (zero-init smoke 2026-09-12)
         ),
         # the SigLIP tower is FROZEN so the serve-time gists (computed by the model's own tower) equal the precomputed
         # ones from the A4 tower (precompute_gists.py). Deviation from the A4 recipe, logged in RUN3_CONFIG.md.
         freeze_filter=nnx.Any(nnx_utils.PathRegex(".*map_(proj|registers|alpha|recon).*"), nnx_utils.PathRegex(".*PaliGemma.*img.*")),
         batch_size=32,
-        num_train_steps=10_000,   # warm-start fine-tune from A4; tune as needed
+        num_train_steps=15_000,   # warm-start fine-tune from the full checkpoint
         save_interval=2_500,
         log_interval=100,
         num_workers=8,

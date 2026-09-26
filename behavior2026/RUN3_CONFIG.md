@@ -613,3 +613,14 @@ y-offsets show +0.05/+0.065/+0.048 m restoring for y+3/y+6/y-6 (n=3 each) but +0
 field. Decision rule (pre-registered 09-25 17:xx): gains flat at 7500 AND no field at 5000 -> stop the 4d run early and
 hand the trainer to the pointer-dropout arm. Both conditions are met; awaiting the operator's word (ckpt 7500 params are
 on HF; its train_state is on box until the next save, so a later resume stays possible).
+
+### 2026-09-26 01:41 UTC — 4D arm STOPPED at step 9500 (operator decision); pointer-dropout arm launching
+
+Stopped the driver first (so its auto-resume could not fire), then the trainer. Kept on box: ckpt 5000 params, ckpt 7500
+params (+ both on HF b26-run3-params/4d/ckpt_*); deleted 7500/train_state (28 GB), the 39 GB smoke4d checkpoint and a
+7 GB stale datasets cache -> 148 GB free. Rationale: gains linear-drift-only through 7500 and the ckpt-5000 probe showed
+no corrective field (= baseline). The pointer-dropout chain woke at 01:42:54 and is running parity, then the 40-step
+smoke; the tick launches `ARMS=4dpd RUN3_STEPS=15000 run3_driver.sh` once all gates hold. The 4dpd arm keeps the full 4D
+architecture (pe3d, geo3 anchors, 4D history tokens, proprio noise); the ONE change is the unreliable pointer + anchor
+follow. No explicit forcing loss for geometry yet (held in reserve: anchor supervision to the rail point + attention-target
+loss on the geometry-biased heads, training-only heads).

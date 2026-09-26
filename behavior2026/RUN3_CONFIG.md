@@ -762,3 +762,15 @@ attempts on demo 10 had (0 strict clips), so it is a bad demo for this factory, 
 list seeded from the hand-DART yield: demos with 0 strict hand-DART clips (10, 160, 190, 70) + the stalled 50, 60.
 Remaining 15 demos x 8 perturbations = 120 attempts (~20 h). Trainer: `mix_4d/{data,meta}` (35 GB) pushed to HF
 `b26-run3-mixes` (PUSH_MIX4D_OK) -> the trainer holds nothing unique now and can be spun down.
+
+### 2026-09-27 00:00 UTC — backup audit before the trainer spin-down
+
+HF `b26-run3-params`: full/params (+ckpt_7500), a4/params, 4d/ckpt_7500, 4d/ckpt_5000 (re-uploaded: the driver's
+keep-newest-1 rule had pruned it; it is the probed checkpoint), 4dpd/ckpt_5000. `b26-run3-mixes`: mix_4d/{data,meta}
+(7 parquets, 16k-row row groups), fk/, fk_dart_r1-3/, run3_logs/run3_logs_trainer_20260926.tar.gz (all trainer logs:
+4d + 4dpd train/driver, parity/smoke/prep chains) and run3_logs/simbox_analysis_20260926.tar.gz (the three corrective-
+field probes, harvested near states, DART/ODART attempt logs). `b26-radio-manufactured`: every DART/ODART root.
+Trainer therefore holds nothing unique -> spin down. Bring-up later: trainer_bringup_4d.sh chain (+ the 09-25 fixes) ~3 h.
+NOT backed up: 23 local commits on the repo's main (229a7eb..6f8a07a, this session's code) are unpushed to origin.
+Sim box stays up for ODART (~20 h remaining); its box-only state besides the running loop is the openpi/OmniGibson
+install (recreatable) and the pending ODART renders (converted+pushed per round).

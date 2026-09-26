@@ -700,3 +700,33 @@ pointer-dropout ckpt 5000 served POINTER-OFF (AFF_TAU=2, stage from the System-2
 construction) launched 12:40 (`jacobian_probe_4dpd_off.sh`, out /root/jacobian_probe_4dpd_off). Baselines: full +0.011 m /
 corr 0.013; 4D@5000 pointer-on +0.010 m / corr 0.086. A vision-driven field shows restoring displacement growing with the
 offset (corr > 0.5) — this is the arm's real verdict, the gains having been retired.
+
+### 2026-09-26 14:16 UTC — pointer-dropout ckpt 5000, POINTER-OFF corrective-field probe: NO field (third null in a row)
+
+Served with AFF_TAU=2 (no pointer -> third anchor = EE_R), online map target-blind, stage from the System-2 head; same 4
+states, 15 conditions x 3 samples, 180 chunks, 0 tracebacks.
+
+| probe | restoring displacement / 16 steps | corr(restoring, offset) | trials restoring > 0 | grasps |
+|---|---|---|---|---|
+| full ckpt, pointer on (09-21) | +0.011 m | 0.013 | 66% | 0 |
+| 4D @5000, pointer on (09-25) | +0.010 m | 0.086 | 65% | 0 |
+| pointer-dropout @5000, POINTER OFF (09-26) | +0.012 m | 0.131 | 67% | 0 |
+
+Per state (near_tr2, the only well-placed handover): y+3 +0.021, y-3 +0.012, y+6 +0.054, y-6 +0.046, z+3 +0.018,
+z-3 -0.009, z+6 +0.045, z-6 -0.006 — the same 1-5 cm proprio-driven drift the other two probes showed, not a field
+(a field: displacement ~ offset, corr > 0.5). Two readings: (1) the policy behaves the same with and without the pointer,
+so the pointer was never part of its correction (consistent with the oracle/off probes of 09-21); (2) removing the pointer
+crutch (33% of training samples without any exact target channel vs 9%) did not make vision-driven correction appear.
+Why: the flow loss reaches ~0.055 by copycat on the 97% of frames that are human demos or post-recovery DART frames; the
+vision-required signal lives only in the DART recovery phase (~2-3% of gradient mass) and both the hand perturbation and
+the hand's proprio move together, so even there proprio + a rough rail prior fits. Conclusion: crutch removal is not
+sufficient; vision use must be FORCED. Options for the next arm (single variable each):
+  F1 data: OBJECT-perturbation DART = counterfactual pairs — restore the demo state, translate the RADIO (not the hand) by
+     +-3..6 cm before the scripted pipeline runs, so the same proprio maps to a different correction and only vision can
+     tell them apart (the dynamic-hashmap dossier's ranked fix #1, "loss-floor liveness"). Requires a factory flag to move
+     the radio prim after restore; the scripted servo reads the true rail pose from the scene.
+  F2 model: geometry supervision (anchor -> rail-point regression + attention-target loss on the geometry-biased heads)
+     — forces attending, not acting; weaker.
+  F3 model: proprio dropout at 50%+ (not 20% heavy noise) so copycat is closed for the majority of samples.
+Recommendation: stop the 4dpd run (its remaining 17 h cannot change this verdict; ckpts 2500/5000 on HF) and build F1;
+the sim box is idle for it. Awaiting the operator.

@@ -730,3 +730,26 @@ sufficient; vision use must be FORCED. Options for the next arm (single variable
   F3 model: proprio dropout at 50%+ (not 20% heavy noise) so copycat is closed for the majority of samples.
 Recommendation: stop the 4dpd run (its remaining 17 h cannot change this verdict; ckpts 2500/5000 on HF) and build F1;
 the sim box is idle for it. Awaiting the operator.
+
+### 2026-09-26 14:42 -> 21:45 UTC — pointer-dropout arm STOPPED (step 6300); OBJECT-perturbation DART built, tested, loop launched
+
+Stopped driver then trainer at step 6300 (ckpts 2500/5000 on HF b26-run3-params/4dpd). Rationale: gains = Adam noise floor
+in both arms and the pointer-off probe found no corrective field; the objective, not the network, is what never asks for
+vision. Fix = counterfactual pairs: `make_v13_odart.py` -> `factory_approach_cap_v13_odart.py` adds
+`--perturb-object dlat,ddepth,yaw_deg,tag`: after the robot has been driven/staged exactly as for the unperturbed clip
+(capture off), the RADIO is teleported by dlat along the corridor normal + ddepth along the corridor and yawed about z,
+settled 30 steps (reject if it moved > 2 cm or tipped > 5 deg after settling), the grasp goal is recomputed from the new
+rest pose, and the unchanged ORIENT/STAGE/APPROACH/PUSH/closure/carry pipeline records the correction. Same robot start
+state as the unperturbed factory clip -> identical proprio at t0, different picture, different action targets = a pair
+the flow loss cannot fit from proprioception. Labels: the converter builds target_points from the RECORDED radio pose
+per frame (meta_world = radio_pos + R(radio_quat) @ P_OFF), so moved radios are labelled correctly.
+Test (d20, radio +5 cm lateral): OBJPERTURB settled_d 0.000 rot 0.0, hand->new-grasp 0.200 m, APPROACH ok, weld, carry,
+OBS_SAVED 449 steps, honest_strict True (pre_disp 0.000, pre_rot 0.01). 8 perturbations: ol5/olm5 (+-5 cm lateral),
+od5/odm5 (+-5 cm depth), oy15/oym15 (+-15 deg yaw), omix1/omix2. Scripts derived from the DART ones
+(`make_odart_scripts.py`: odart_convert.sh with tag codes 11-18 -> HF b1k_radio_odart_r<round>_<stamp>, odart_round.sh
+with the skip list/1800 s timeout/auto-skip, odart_loop.sh). Loop launched 21:41 UTC START=1 (7 h lost between the test
+finishing and the launch: no tick was armed — a tick is now). Trainer idle; mix_4d tables (35 GB) being pushed to HF
+`b26-run3-mixes/mix_4d` so the box can be spun down (awaiting the operator).
+Readout plan for the next arm (mix = current + all DART + ODART, pointer dropout kept): the flow loss on ODART frames
+whose proprio matches the unperturbed twin's — it cannot drop unless vision is consulted (loss-floor liveness); then the
+pointer-off corrective-field probe; geometry supervision losses (F2) prepared as an off-by-default flag meanwhile.

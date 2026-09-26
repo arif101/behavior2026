@@ -753,3 +753,12 @@ finishing and the launch: no tick was armed — a tick is now). Trainer idle; mi
 Readout plan for the next arm (mix = current + all DART + ODART, pointer dropout kept): the flow loss on ODART frames
 whose proprio matches the unperturbed twin's — it cannot drop unless vision is consulted (loss-floor liveness); then the
 pointer-off corrective-field probe; geometry supervision losses (F2) prepared as an off-by-default flag meanwhile.
+
+### 2026-09-26 22:05 UTC — ODART round 1 running; skip list from the hand-DART yield; mix_4d backed up
+
+Demo 10's first ODART attempts failed fast (APPROACH_FAILED, 5 min each): its BASE_STAGE already fails
+(RADIO_TOUCHED during BASE_RETREAT) and ORIENT never converges (orn_err 0.47 rad) — the same failure the hand-DART
+attempts on demo 10 had (0 strict clips), so it is a bad demo for this factory, not an object-move problem. ODART skip
+list seeded from the hand-DART yield: demos with 0 strict hand-DART clips (10, 160, 190, 70) + the stalled 50, 60.
+Remaining 15 demos x 8 perturbations = 120 attempts (~20 h). Trainer: `mix_4d/{data,meta}` (35 GB) pushed to HF
+`b26-run3-mixes` (PUSH_MIX4D_OK) -> the trainer holds nothing unique now and can be spun down.

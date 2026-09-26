@@ -657,3 +657,18 @@ clip count frozen at 211. Fix (`patch_dart_round_skip.py`, applied with the loop
 skip list (seeded 50, 60), per-attempt timeout 1800 s, and a demo is auto-added to the skip list after 2 attempts that
 yield neither OBS_SAVED nor RESULT. Loop restarted from round 8 at 10:31 (already-done attempts are skipped by the log
 rule). Successful attempts in later rounds run 7-26 min; the 1800 s cap leaves margin over the slowest observed (26 min).
+
+### 2026-09-26 10:40 UTC — DART corpus accounting CORRECTION + HF overwrite fix + r6 recovery
+
+Correction: the "clip counts" reported through the night (164 ... 211) were FILE counts of /root/factory_clips_dart (each
+clip = _meta.json + _approach.npz). True counts at 10:38 UTC: 106 clips, 98 honest_strict. The training mix holds 26.
+HF overwrite bug: `dart_round.sh` names each conversion b1k_radio_dart_r<ROUND> and `dart_convert.sh` does `rm -rf` +
+`upload_folder` to that path, so a round re-run after a pause/restart REPLACED the round's earlier push. Inventory of
+every revision (`dart_hf_inventory.py`): r1 18 / r2 1 / r3 7 (recovered 09-25 00:02), r4 9 (03:55), r5 14 (10:51),
+r6 14 (14:57) -> OVERWRITTEN by r6 9 (23:35, the START=6 restart), r7 11 (02:41), r8 9 (06:32). The 10:31 restart was
+about to overwrite r8 with a 6-clip rebuild; stopped before its push. Fix (`patch_dart_round_unique.py`): each conversion
+now pushes to b1k_radio_dart_r<round>_<UTC stamp> (first: r8_09261035, 6 eps). Recovery (`dart_recover_r6.py`, trainer):
+revision 659bc10b's 14-ep r6 re-uploaded as b1k_radio_dart_r6_0925_1457. Unique converted episodes after recovery:
+18+1+7+9+14+14+9+11+9+6 = 98 = the strict clip count. Assembling the next mix must take ALL b1k_radio_dart_r* roots
+(dl_dart pattern already does) and must NOT include both r6 versions' duplicates: r6 (9 eps, 23:35) and r6_0925_1457
+(14 eps) are DISJOINT clip sets (renders converted at 14:57 were deleted after that push), so both are valid.

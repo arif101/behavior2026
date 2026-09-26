@@ -672,3 +672,21 @@ revision 659bc10b's 14-ep r6 re-uploaded as b1k_radio_dart_r6_0925_1457. Unique 
 18+1+7+9+14+14+9+11+9+6 = 98 = the strict clip count. Assembling the next mix must take ALL b1k_radio_dart_r* roots
 (dl_dart pattern already does) and must NOT include both r6 versions' duplicates: r6 (9 eps, 23:35) and r6_0925_1457
 (14 eps) are DISJOINT clip sets (renders converted at 14:57 were deleted after that push), so both are valid.
+
+### 2026-09-26 12:37 UTC — pointer-dropout arm, step-5000 gains: again identical to the 4D arm (random-walk floor confirmed)
+
+| parameter (init) | 4D @5000 | pointer-dropout @5000 |
+|---|---|---|
+| geo3_gain norm (0) | 0.0867 | 0.0871 |
+| geo3_gain per-layer max abs | 0.0036-0.0089 | 0.0035-0.0101 |
+| geo3_anchor kernel (0) | 0.383 | 0.383 |
+| key_bias_gain min (1.0) | 0.9925 | 0.9914 |
+| pe3d_out kernel (0) | 1.304 | 1.309 |
+| hist_in minus identity (0) | 2.551 | 2.554 |
+| temp_out gate (FULL 0.618) | 1.073 | 1.076 |
+
+Growth 2500 -> 5000 is x1.58 in both arms (sqrt(2) = 1.41 plus weight-decay-free drift): the zero-init attention-side
+parameters follow Adam's noise floor regardless of whether the pointer is available (9% vs 33% of samples without any
+exact target channel). The gains readout is therefore retired as an arm verdict; the arm's verdict comes from the
+corrective-field probe (pointer-off) and the pointer-on/off eval. Training healthy: step 5290, loss 0.056-0.060,
+7.1 s/step, ckpt 5000 pushed 12:06 (HF b26-run3-params/4dpd/ckpt_5000).

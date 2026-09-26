@@ -648,3 +648,12 @@ leaves the map tokens as the location source, so vision/geometry stay unnecessar
 Training itself healthy (step 2750, loss 0.070, 7.1 s/step; ckpt 2500 off-boxed 07:05). Decision pending: stop this arm
 (the 5000 readout will be the same random walk) and run the "no location crutch" arm = pointer dropout + map target
 channel removed (map_tokens_blind or map dropout at the same 70%), or move straight to explicit geometry supervision.
+
+### 2026-09-26 10:32 UTC — DART loop: stalled-demo fix (sim box)
+
+Round 8 produced 6 clips in 7-26 min each, then demos 50 and 60 stalled in the scripted APPROACH/STAGE 0.45-0.76 m from
+the target (rdisp ~0) on every tag, each attempt running into the 2400 s timeout: 4 x 40 min lost 08:00-10:30 with the
+clip count frozen at 211. Fix (`patch_dart_round_skip.py`, applied with the loop stopped): `/root/dart_skip_demos.txt`
+skip list (seeded 50, 60), per-attempt timeout 1800 s, and a demo is auto-added to the skip list after 2 attempts that
+yield neither OBS_SAVED nor RESULT. Loop restarted from round 8 at 10:31 (already-done attempts are skipped by the log
+rule). Successful attempts in later rounds run 7-26 min; the 1800 s cap leaves margin over the slowest observed (26 min).

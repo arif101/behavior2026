@@ -9,6 +9,9 @@ say(){ echo "[prep4dpd $(date -u +%m-%dT%H:%M:%S)] $*"; }
 while pgrep -f "^bash /root/run3/run3_driver.sh|scripts/b1k/train_b1k.py|run3/parity_smoke_4d.py|run3/parity_diag" >/dev/null; do sleep 60; done; say "gpu free"
 cd /root/openpi_fork
 grep -q "pointer_anchor_follow" src/openpi/models/pi0.py && grep -q 'name="pi05_radio_4d_pd"' src/openpi/training/config.py && say "live fork has the pointer-dropout code" || { say "FORK_NOT_PATCHED"; exit 1; }
+# norm stats: a new config name needs its own outputs/assets/<name>/ (the trainer raises "Normalization stats not found"
+# otherwise; cost one smoke on 2026-09-26). Same A4 stats as every Run-3 arm.
+mkdir -p outputs/assets/pi05_radio_4d_pd && cp -r outputs/assets/pi05_radio_4d/* outputs/assets/pi05_radio_4d_pd/ && md5sum outputs/assets/pi05_radio_4d_pd/b1k_radio/norm_stats.json
 PARITY_EXTRA=pi05_radio_4d_pd $PY $R3/parity_smoke_4d.py > $L/parity4dpd.log 2>&1; grep -E "PARITY|Traceback|Error" $L/parity4dpd.log | tail -8
 grep -q "PARITY_EXTRA pi05_radio_4d_pd" $L/prep_4dpd.out || { say "PARITY_FAILED (see parity4dpd.log)"; exit 1; }
 ( while true; do a=$(grep -E "^anon " /sys/fs/cgroup/memory.stat | awk '{print $2}'); c=$(cat /sys/fs/cgroup/memory.current); echo "$a $c"; sleep 5; done ) > $L/smoke4dpd_mem.samples 2>/dev/null &

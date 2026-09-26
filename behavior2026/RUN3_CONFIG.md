@@ -624,3 +624,27 @@ smoke; the tick launches `ARMS=4dpd RUN3_STEPS=15000 run3_driver.sh` once all ga
 architecture (pe3d, geo3 anchors, 4D history tokens, proprio noise); the ONE change is the unreliable pointer + anchor
 follow. No explicit forcing loss for geometry yet (held in reserve: anchor supervision to the rail point + attention-target
 loss on the geometry-biased heads, training-only heads).
+
+### 2026-09-26 07:30 UTC — pointer-dropout arm, step-2500 gains: IDENTICAL to the 4D arm -> redundancy-via-pointer refuted
+
+| parameter (init) | 4D arm @2500 | pointer-dropout arm @2500 |
+|---|---|---|
+| geo3_gain norm (0) | 0.0552 | 0.0550 |
+| geo3_gain per-layer max abs | 0.0026-0.0060 | 0.0018-0.0056 |
+| geo3_anchor kernel (0) | 0.241 | 0.242 |
+| key_bias_gain min (1.0) | 0.9963 | 0.9974 |
+| pe3d_out kernel (0) | 0.80 | 0.79 |
+| hist_in minus identity (0) | 1.645 | 1.64 |
+| temp_out gate (FULL 0.618) | 0.868 | 0.868 |
+
+Dropping the pointer 70% (+0.15 m noise, anchor following) changed NOTHING in how the 4D pathways learn: every number
+agrees to ~1%. Two conclusions. (1) The growth of these zero-init parameters is Adam's random-walk floor, not a signal:
+the 4D arm's norms went 0.055 -> 0.087 -> 0.108 at 2500/5000/7500, i.e. x1.58 then x1.24, matching sqrt(2) and
+sqrt(1.5); a consistent gradient would grow linearly. Both arms sit on that floor. (2) The pointer was not the only exact
+target channel: the foveated map's token T0 is "target: pos_base(3), conf, staleness, range, bearing, elevation, valid",
+built offline from replay-validated poses (exact in training), decoded by the map aux loss into target_points, and fed to
+adaRMS through map_geo_conditioning; modality dropout zeroes the map tokens only 20% of the time. Removing the pointer
+leaves the map tokens as the location source, so vision/geometry stay unnecessary for the flow loss.
+Training itself healthy (step 2750, loss 0.070, 7.1 s/step; ckpt 2500 off-boxed 07:05). Decision pending: stop this arm
+(the 5000 readout will be the same random walk) and run the "no location crutch" arm = pointer dropout + map target
+channel removed (map_tokens_blind or map dropout at the same 70%), or move straight to explicit geometry supervision.

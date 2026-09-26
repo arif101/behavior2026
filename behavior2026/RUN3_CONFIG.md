@@ -690,3 +690,13 @@ parameters follow Adam's noise floor regardless of whether the pointer is availa
 exact target channel). The gains readout is therefore retired as an arm verdict; the arm's verdict comes from the
 corrective-field probe (pointer-off) and the pointer-on/off eval. Training healthy: step 5290, loss 0.056-0.060,
 7.1 s/step, ckpt 5000 pushed 12:06 (HF b26-run3-params/4dpd/ckpt_5000).
+
+### 2026-09-26 12:11 UTC — DART loop FINISHED: every demo x perturbation attempted; 103 strict clips, all converted and on HF
+
+`DART_LOOP_DONE strict=103` (round 9 found no attempts left; demos 50/60 skipped). Corpus on HF `b26-radio-manufactured`:
+b1k_radio_dart_r1 18, r2 1, r3 7, r4 9, r5 14, r6 9, r6_0925_1457 14 (recovered), r7 11, r8 9, r8_09261035 6,
+r9_09261201 5 = 103 episodes (the training mix holds r1-r3 = 26). Sim box GPU idle -> corrective-field probe of the
+pointer-dropout ckpt 5000 served POINTER-OFF (AFF_TAU=2, stage from the System-2 head, online map target-blind by
+construction) launched 12:40 (`jacobian_probe_4dpd_off.sh`, out /root/jacobian_probe_4dpd_off). Baselines: full +0.011 m /
+corr 0.013; 4D@5000 pointer-on +0.010 m / corr 0.086. A vision-driven field shows restoring displacement growing with the
+offset (corr > 0.5) — this is the arm's real verdict, the gains having been retired.

@@ -786,3 +786,11 @@ removed from the skip list and its fail count reset (its 6 untried tags run in r
 the ran-before rule). Loop budget: 6 rounds x 14 attempts = 84 < the ~110 attempts remaining at launch -> the loop will
 exit after round 6 with attempts left; the tick relaunches it once with START=7. Rounds 1-3 pushed 23 clips to HF
 (b1k_radio_odart_r1_09262141 1, r2_09270100 8, r3_09270350 14).
+
+### 2026-09-27 22:32 UTC — ODART: 6-round budget exhausted (70 strict / 84 attempts); relaunched START=7 for the last 5 demos
+
+Per demo (strict/attempted): 20 8/8, 180 8/8, 210 8/8, 260 8/8, 310 8/8, 270 7/8, 330 7/8, 250 5/8, 320 4/8, 170 3/5
+(auto-skipped), 340 4/4 so far. Failure modes: positive-yaw (+15 deg) timeouts on 170/320/330 (the scripted aligner's
+weak case), weld failures on 320, honest RADIO_TOUCHED rejections on 250/270. Rounds 1-6 pushed 58 clips to HF
+(odart roots r1..r6); 12 renders were pending at the budget end and convert first in round 7. Remaining: demo 340 x4,
+370, 390, 40, 80 (36 attempts, ~5-6 h). Cap 2400 s recovered 5 clips on demo 250 that the 1800 s cap had lost.

@@ -774,3 +774,15 @@ Trainer therefore holds nothing unique -> spin down. Bring-up later: trainer_bri
 NOT backed up: 23 local commits on the repo's main (229a7eb..6f8a07a, this session's code) are unpushed to origin.
 Sim box stays up for ODART (~20 h remaining); its box-only state besides the running loop is the openpi/OmniGibson
 install (recreatable) and the pending ODART renders (converted+pushed per round).
+
+### 2026-09-27 05:55 UTC — ODART generation: 27 strict clips / 34 attempts; cap raised to 2400 s from round 4
+
+Yield by demo so far: 20 8/8, 180 8/8, 210 8/8, 170 3/5 (auto-skipped), 250 0/2 (auto-skipped, now reinstated).
+Of the 4 timeouts: 2 align near-misses (fingers 1.4-3 cm off the certified grasp, aligner loops to the cap; the same
+failure the hand-DART factory had on those demos), 1 STAGE stall, and 1 SLOW SUCCESS cut by the 1800 s cap (d250 olm5:
+push ok, weld, carry, demo transport replay still running at 30 min — d250's transport is long). Fix: per-attempt cap
+1800 -> 2400 s (same-length in-place edit; the running round keeps the old inode, so it applies from round 4), demo 250
+removed from the skip list and its fail count reset (its 6 untried tags run in round 4; the two tried ones are skipped by
+the ran-before rule). Loop budget: 6 rounds x 14 attempts = 84 < the ~110 attempts remaining at launch -> the loop will
+exit after round 6 with attempts left; the tick relaunches it once with START=7. Rounds 1-3 pushed 23 clips to HF
+(b1k_radio_odart_r1_09262141 1, r2_09270100 8, r3_09270350 14).

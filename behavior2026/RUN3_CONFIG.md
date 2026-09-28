@@ -806,3 +806,11 @@ r9_09280546 (14), r10_09280841 (6). 99 episodes total, ~45.6k frames. (The round
 pushed root "b1k_radio_dart_r10_..." — a leftover in the derived say() text only; the HF and local root is b1k_radio_odart_r10_09280841.) Skip list ended: 10 50 60 70 160 190 170 320 80. Sim box idle; disk 87 GB free.
 Corpus now: 26 DART (in mix) + 77 DART (r4-r9, r6 recovered; not in mix) + 99 ODART = 202 corrective clips vs 296 human/
 factory/episode sources. NEXT: FK camera poses for every root without them (all but dart r1-r3), then a fresh trainer.
+
+### 2026-09-28 09:21 UTC — FK camera poses for all 18 corrective roots: DONE, on HF
+
+`fk_all.sh`: one Isaac boot over the concatenated proprio of dart r4, r5, r6, r6_0925_1457 (fetched), r7, r8 (HF 9-ep
+version fetched; the local r8 dir is a 6-ep rebuild), r8_09261035, r9_09261201 and odart r1..r10 = 81,919 rows, 35,671
+unique joint configurations, 16 min of FK after boot. Split per root and uploaded as HF `b26-run3-mixes/fk_<rootname>/
+{cam_pose,index}.npy`; every root reports zero_pose_rows=0. Together with fk/ (mix) and fk_dart_r1-3, every source now
+has camera poses. Sim box idle (87 GB free). Everything needed for the next arm's data prep is on HF.

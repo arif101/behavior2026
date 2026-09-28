@@ -794,3 +794,15 @@ Per demo (strict/attempted): 20 8/8, 180 8/8, 210 8/8, 260 8/8, 310 8/8, 270 7/8
 weak case), weld failures on 320, honest RADIO_TOUCHED rejections on 250/270. Rounds 1-6 pushed 58 clips to HF
 (odart roots r1..r6); 12 renders were pending at the budget end and convert first in round 7. Remaining: demo 340 x4,
 370, 390, 40, 80 (36 attempts, ~5-6 h). Cap 2400 s recovered 5 clips on demo 250 that the 1800 s cap had lost.
+
+### 2026-09-28 08:53 UTC — ODART GENERATION COMPLETE: 99 strict counterfactual clips / 120 attempts, all on HF
+
+Per demo (strict/attempted): 20 8/8, 180 8/8, 210 8/8, 260 8/8, 310 8/8, 340 8/8, 390 8/8, 40 8/8, 270 7/8, 330 7/8,
+80 6/8, 250 5/8, 320 4/8, 170 3/5, 370 3/8. 21 losses: 8 honest RADIO_TOUCHED rejections (hand disturbed the radio before
+contact: 250, 270, 370x4, ...), 2 weld failures (320), 11 timeouts (mostly the +15/-15 deg yaw tags and two align
+near-misses). Rounds 1-10 pushed 10 roots to HF `b26-radio-manufactured`: b1k_radio_odart_r1_09262141 (1),
+r2_09270100 (8), r3_09270350 (14), r4_09270916 (12), r5_09271508 (12), r6_09271859 (11), r7_09272231 (12), r8_09280234 (9),
+r9_09280546 (14), r10_09280841 (6). 99 episodes total, ~45.6k frames. (The round script's log line names the
+pushed root "b1k_radio_dart_r10_..." — a leftover in the derived say() text only; the HF and local root is b1k_radio_odart_r10_09280841.) Skip list ended: 10 50 60 70 160 190 170 320 80. Sim box idle; disk 87 GB free.
+Corpus now: 26 DART (in mix) + 77 DART (r4-r9, r6 recovered; not in mix) + 99 ODART = 202 corrective clips vs 296 human/
+factory/episode sources. NEXT: FK camera poses for every root without them (all but dart r1-r3), then a fresh trainer.

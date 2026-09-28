@@ -157,6 +157,12 @@ class Pi0(_model.BaseModel):
         self.pointer_drop_p = float(getattr(config, "pointer_drop_p", 0.0))
         self.pointer_serve_noise_std = float(getattr(config, "pointer_serve_noise_std", 0.0))
         self.pointer_anchor_follow = bool(getattr(config, "pointer_anchor_follow", False))
+        self.target_aux_weight = float(getattr(config, "target_aux_weight", 0.0))
+        if self.target_aux_weight > 0:
+            # training-only: expert output tokens -> (target - EE_R) in the base frame (/0.3). Created only when on, so the
+            # default configs keep their parameter tree (missing_regex covers .*target_aux_.* for warm starts).
+            self.target_aux_in = nnx.Linear(action_expert_config.width, 128, rngs=rngs)
+            self.target_aux_out = nnx.Linear(128, 3, rngs=rngs)
         if self.pe3d:
             self.pe3d_in = nnx.Linear(3 * 2 * self.pe3d_freqs, 256, rngs=rngs)
             self.pe3d_out = nnx.Linear(256, paligemma_config.width, kernel_init=nnx.initializers.zeros,
@@ -634,6 +640,7 @@ class Pi0(_model.BaseModel):
         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
     ) -> at.Float[at.Array, "*b ah"]:
         preprocess_rng, noise_rng, time_rng, _as_drop, _as_wl, _as_wr = jax.random.split(rng, 6)
+        _clean_tp = observation.target_points; _clean_tpm = observation.target_points_mask   # target-aux label (pre-dropout)
         observation = _model.preprocess_observation(preprocess_rng, observation, train=train)
 
         # ANTI-SHORTCUT (patch_antishortcut.py): train-only input-channel dropout.
@@ -751,6 +758,14 @@ class Pi0(_model.BaseModel):
             )
         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
         loss = jnp.mean(jnp.square(v_t - u_t), axis=-1)
+        if self.target_aux_weight > 0 and _clean_tp is not None:
+            # TARGET-REGRESSION FORCING: every action token predicts the clean right-hand target offset; masked mean.
+            _ta_tok = suffix_out[:, -self.action_horizon :, :].astype(jnp.float32)
+            _ta_pred = self.target_aux_out(nnx.swish(self.target_aux_in(_ta_tok)))                       # [b, H, 3]
+            _ta_tgt = (_clean_tp.astype(jnp.float32).reshape(_ta_tok.shape[0], -1, 3)[:, 1 if _clean_tp.shape[1] > 1 else 0] / 0.3)[:, None, :]
+            _ta_m = (_clean_tpm.reshape(_ta_tok.shape[0], -1)[:, 1 if _clean_tpm.shape[1] > 1 else 0].astype(jnp.float32) if _clean_tpm is not None else jnp.ones((_ta_tok.shape[0],), jnp.float32))
+            _ta_e = jnp.mean(jnp.square(_ta_pred - _ta_tgt), axis=(-1, -2)) * _ta_m                     # [b]
+            loss = loss + (self.target_aux_weight * _ta_e).astype(loss.dtype)[:, None]
         if _hist_on and observation.rail_now is not None and self.hist_ground_weight > 0:
             # A2 temporal grounding: the current rail position (base frame, /0.3 m units) from the HISTORY outputs only
             # (history rows cannot attend to the current frame), masked-mean over valid history tokens.

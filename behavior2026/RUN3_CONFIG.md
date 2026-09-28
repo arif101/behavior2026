@@ -839,3 +839,7 @@ Chain `prep_all_data.sh` (fresh trainer): sample weights -> unassemble ALL deriv
 the mix_4d backup into map/factory/episodes/dart r1-r3 -> new roots (dart r4..r9 + r6_0925_1457 + HF r8, odart r1..r10):
 relabel_v2, gists (A4), cam_pose (fk_<rootname>), hist tokens (FULL tower, 16k row groups) -> canonicalize -> assemble
 mix_all -> regroup -> MIX_ALL_OK gate -> assets for every config -> parity (PARITY_EXTRA 4d_all,4d_allf) -> 40-step smoke.
+Structural test PASSED 2026-09-28 20:07 UTC (sim box, CPU): 4d_all parameter tree == 4dpd; 4d_allf adds exactly
+target_aux_in/out; same model, w 0.05 -> 0 changes the loss by +0.026 on spec inputs (head live). Three relaunches of the
+test killed their own ssh session because `pgrep -f "test_4dall_cpu.py"` matched the remote shell running the command
+(the self-kill trap, third time): kill patterns must be anchored to the interpreter path (`^/root/.../python /root/x.py`).

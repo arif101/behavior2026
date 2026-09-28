@@ -814,3 +814,28 @@ version fetched; the local r8 dir is a 6-ep rebuild), r8_09261035, r9_09261201 a
 unique joint configurations, 16 min of FK after boot. Split per root and uploaded as HF `b26-run3-mixes/fk_<rootname>/
 {cam_pose,index}.npy`; every root reports zero_pose_rows=0. Together with fk/ (mix) and fk_dart_r1-3, every source now
 has camera poses. Sim box idle (87 GB free). Everything needed for the next arm's data prep is on HF.
+
+### 2026-09-28 19:40 UTC — next arms prepared: all-corrective data arm + target-regression forcing arm (code, readout, chain)
+
+Model: `target_aux_weight` (pi0_config; default 0 = parity-neutral, no params created). When > 0, a training-only head
+`target_aux_in/out` on the action expert's OUTPUT tokens regresses the CLEAN stage-indexed right-hand target offset
+(observation.target_points[:, 1] captured at the top of compute_loss, i.e. before anti-shortcut / modality dropout /
+pointer dropout / point noise; /0.3 m units; masked by the clean target mask), mean over the action tokens, weight w.
+Gradient reaches the whole expert stack and, through its attention, the patch/history tokens: on object-perturbed frames
+the label moves with the radio and not with the joints, so proprioception cannot satisfy it. missing_regex covers
+`.*target_aux_.*` for warm starts. Serve path untouched (head never runs).
+Configs: `pi05_radio_4d_all` = pi05_radio_4d_pd with dataset_root /root/b1k_radio_mix_all (ONE variable vs 4dpd: the data,
++103 DART +99 ODART); `pi05_radio_4d_allf` = 4d_all + target_aux_weight 0.05 (ONE variable vs 4d_all). Driver arms `4dall`,
+`4dallf`. CPU structural test `test_4dall_cpu.py`: 4d_all's parameter tree == 4dpd's; 4d_allf adds exactly the 4 head
+leaves; head toggled on ONE model instance changes the loss (a second model instance is NOT comparable: creating the head
+shifts the rng draw order of every later module, the 09-25 parity artifact again).
+Readout `paired_loss_readout.py` (trainer, per checkpoint): ODART twin map (`odart_episode_map.py` -> /root/odart_episode_map.json,
+verified: episode order = string-sorted encoded names per round, every length matched; factory root episodes = the 38
+factory_clips demos in string-sorted rac_<demo> order, verified at runtime by the shared-proprio prefix); for each of the
+99 pairs, on the W=32 frames after the divergence point: L_true (ODART obs/actions), L_swap (ODART obs with the twin's
+IMAGES swapped in), L_fact, L_cross (twin obs, ODART actions = the proprio-only score). Verdict = swap gap: proprio-only
+policy -> L_swap ~= L_true; image-reading policy -> L_swap >> L_true. Per-tag breakdown.
+Chain `prep_all_data.sh` (fresh trainer): sample weights -> unassemble ALL derived columns (incl. hist tokens, cam_pose) from
+the mix_4d backup into map/factory/episodes/dart r1-r3 -> new roots (dart r4..r9 + r6_0925_1457 + HF r8, odart r1..r10):
+relabel_v2, gists (A4), cam_pose (fk_<rootname>), hist tokens (FULL tower, 16k row groups) -> canonicalize -> assemble
+mix_all -> regroup -> MIX_ALL_OK gate -> assets for every config -> parity (PARITY_EXTRA 4d_all,4d_allf) -> 40-step smoke.

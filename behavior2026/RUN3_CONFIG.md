@@ -860,3 +860,20 @@ row group (default pq.write_table), which the next step, `canonicalize_columns.p
 row groups, atomic replace) and shipped to /root/run3/ while unassemble was still running (bash re-reads the .py on
 invocation; safe). Observation: the single-row-group hist_tok write buffers the whole column chunk in memory —
 unassemble RSS 147 GB at 8 min on the 229k-row file (cap 333 GB; cgroup v1 on this box: /sys/fs/cgroup/memory/*).
+
+### 2026-09-29 17:35 UTC — prep chain done (PREP_ALL_DONE 17:28); parity stage crashed silently (missing mix_4d root) -> rerun; target head gated to train
+
+Chain: MIX_ALL_OK (498 eps / 557,541 frames, 25 parquets, max row group 16384, no depth streams), 40-step smoke on
+pi05_radio_4d_all clean: loader lines present (sample_weight 1.79% of frames down-weighted; stage oversample 8x on 689
+transitions = 24.5% of frames), loss 0.576 / grad_norm 4.37 at step 39, no Traceback/OOM, oom_kill 0, cgroup peak stayed
+at the 227 GB set by the prep stages. SMOKE_MEM read 0: the sampler reads cgroup v2 files and this box is v1 -> sampler
+made v1/v2-agnostic in prep_all_data.sh (repo only; not a gate).
+PARITY: `parity_smoke_4d.py` built its one batch from the hardcoded `pi05_radio_4d` config (dataset_root
+/root/b1k_radio_mix_4d), absent on this box (only mix_all is assembled) -> FileNotFoundError, then LeRobot's Hub-fallback
+"401 RepositoryNotFoundError b1k_radio" (the liar), NO PARITY lines, and the chain (gated on every other marker but this
+one) ran the smoke and printed PREP_ALL_DONE anyway. Fix: `PARITY_LOADER_CFG` env (chain sets pi05_radio_4d_all) + the
+chain now exits on a missing PARITY_RESULT. Rerun launched 17:32 UTC -> /root/run3_logs/parity_all2.log.
+pi0.py: the target-regression head's loss term is now gated on `train` (it was declared training-only but fired at
+train=False too, so 4d_allf's parity vs FULL would have carried the random head's +0.026 and a paired-loss readout of an
+allf ckpt would have carried a non-flow term). 4dall unaffected (weight 0); test_4dall_cpu.py uses train=True and still
+holds. Shipped to the box (md5-verified) before the parity rerun; 4dall launches on this code.

@@ -35,7 +35,12 @@ def loss_for(name, batch_obs, batch_act, rng, model_cfg=None):
 def main():
     names = ["pi05_radio_full", "pi05_radio_geo", "pi05_radio_4d"] + [n for n in os.environ.get("PARITY_EXTRA", "").split(",") if n]
     cfg4 = _c.get_config("pi05_radio_4d")
-    loader = _dl.create_b1k_data_loader(cfg4, shuffle=False, num_batches=1)
+    # the ONE batch comes from PARITY_LOADER_CFG's dataset (default pi05_radio_4d -> /root/b1k_radio_mix_4d); on a box that
+    # only holds mix_all set PARITY_LOADER_CFG=pi05_radio_4d_all (2026-09-29: the missing root surfaced as LeRobot's bogus
+    # Hub-fallback 401 and the chain ran on with no PARITY lines). All configs read the same Observation fields.
+    loader_cfg = _c.get_config(os.environ.get("PARITY_LOADER_CFG", "pi05_radio_4d"))
+    print(f"PARITY loader: {loader_cfg.name} <- {getattr(loader_cfg.data, 'dataset_root', '?')}", flush=True)
+    loader = _dl.create_b1k_data_loader(loader_cfg, shuffle=False, num_batches=1)
     batch = next(iter(loader)); obs, act = batch
     rng = jax.random.key(1)
     res = {}

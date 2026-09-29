@@ -758,7 +758,7 @@ class Pi0(_model.BaseModel):
             )
         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
         loss = jnp.mean(jnp.square(v_t - u_t), axis=-1)
-        if self.target_aux_weight > 0 and _clean_tp is not None:
+        if self.target_aux_weight > 0 and train and _clean_tp is not None:   # training-only: parity (train=False) and the paired-loss readout see the flow loss alone
             # TARGET-REGRESSION FORCING: every action token predicts the clean right-hand target offset; masked mean.
             _ta_tok = suffix_out[:, -self.action_horizon :, :].astype(jnp.float32)
             _ta_pred = self.target_aux_out(nnx.swish(self.target_aux_in(_ta_tok)))                       # [b, H, 3]

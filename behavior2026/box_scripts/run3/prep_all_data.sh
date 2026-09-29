@@ -68,8 +68,10 @@ grep -q MIX_ALL_OK $L/prep_all.out || { say "MIX_ALL_FAILED"; exit 1; }
 # ---- 5. warm start, norm stats, twin map, parity, smoke --------------------------------------------------------------------
 mkdir -p /root/ckpt_4d_init && ln -sfn /root/run3_dl/full/params /root/ckpt_4d_init/params
 for n in pi05_radio_full pi05_radio_geo pi05_radio_4d pi05_radio_4d_pd pi05_radio_4d_all pi05_radio_4d_allf; do mkdir -p outputs/assets/$n && cp -r /root/run3_dl/a4/assets/* outputs/assets/$n/; done
-PARITY_EXTRA=pi05_radio_4d_all,pi05_radio_4d_allf $PY $R3/parity_smoke_4d.py > $L/parity_all.log 2>&1; grep -E "PARITY|Traceback|Error" $L/parity_all.log | tail -8
-( while true; do a=$(grep -E "^anon " /sys/fs/cgroup/memory.stat | awk '{print $2}'); c=$(cat /sys/fs/cgroup/memory.current); echo "$a $c"; sleep 5; done ) > $L/smoke_all_mem.samples 2>/dev/null &
+PARITY_LOADER_CFG=pi05_radio_4d_all PARITY_EXTRA=pi05_radio_4d_all,pi05_radio_4d_allf $PY $R3/parity_smoke_4d.py > $L/parity_all.log 2>&1; grep -E "PARITY|Traceback|Error" $L/parity_all.log | tail -8
+grep -q "PARITY_RESULT" $L/parity_all.log || { say "PARITY_FAILED (no PARITY_RESULT line; see parity_all.log)"; exit 1; }
+# cgroup v2 (memory.stat anon / memory.current) or v1 (memory/memory.stat total_rss / memory.usage_in_bytes; the 09-29 box)
+( while true; do if [ -f /sys/fs/cgroup/memory.current ]; then a=$(grep -E "^anon " /sys/fs/cgroup/memory.stat | awk '{print $2}'); c=$(cat /sys/fs/cgroup/memory.current); else a=$(grep -E "^total_rss " /sys/fs/cgroup/memory/memory.stat | awk '{print $2}'); c=$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes); fi; echo "$a $c"; sleep 5; done ) > $L/smoke_all_mem.samples 2>/dev/null &
 SAMPLER=$!
 XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 B1K_STAGE_OVERSAMPLE=8 B1K_SAMPLE_WEIGHT_COL=sample_weight .venv/bin/python scripts/b1k/train_b1k.py pi05_radio_4d_all --exp_name=smoke_all --overwrite --num_train_steps=40 --save_interval=1000 --no-wandb-enabled > $L/smoke_all.log 2>&1
 kill $SAMPLER 2>/dev/null

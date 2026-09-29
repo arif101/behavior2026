@@ -877,3 +877,18 @@ pi0.py: the target-regression head's loss term is now gated on `train` (it was d
 train=False too, so 4d_allf's parity vs FULL would have carried the random head's +0.026 and a paired-loss readout of an
 allf ckpt would have carried a non-flow term). 4dall unaffected (weight 0); test_4dall_cpu.py uses train=True and still
 holds. Shipped to the box (md5-verified) before the parity rerun; 4dall launches on this code.
+
+### 2026-09-29 17:43 UTC — 4DALL ARM LAUNCHED on 195.26.233.65 (data-only arm: 4dpd recipe + mix_all)
+
+Parity rerun (parity_all2.log, loader cfg pi05_radio_4d_all, FULL warm start): full = geo = 4d = 4d_all = 4d_allf =
+0.212438 on the fixed batch, every rel_diff 0.00e+00 (4d_allf fresh params = the 13 4D heads + target_aux_in/out; its
+head is train-gated so parity sees the flow loss alone). Gates: MIX_ALL_OK, PREP_ALL_DONE, TRAINER_BRINGUP_ALL_DONE,
+smoke clean, oom_kill 0. Disk: 98 GB free was below the final-save peak (~110 GB = newest full ckpt 43 + tmp 43 + two
+params-only permanents 24); deleted /root/mixes_bk/mix_4d (35 GB, HF b26-run3-mixes/mix_4d) and /root/run3_dl/a4 (12 GB,
+HF b26-run3-params/a4) -> 144 GB free. NOT deletable: /root/.cache/huggingface/datasets (43 GB) = LeRobot's arrow cache
+of the mix (regenerates on load). Launch: `ARMS=4dall RUN3_STEPS=15000 run3_driver.sh` 17:42:52 UTC, trainer pid 105379,
+`--overwrite`, env B1K_STAGE_OVERSAMPLE=8 B1K_SAMPLE_WEIGHT_COL=sample_weight; loader lines at 17:43 (sample_weight 1.79%
+down-weighted; stage oversample 8x on 689 transitions = 24.5% of 557,541 frames). Logs /root/run3_logs/train_4dall.log;
+ckpts outputs/checkpoints/pi05_radio_4d_all/radio_4d_all/{2500,5000,...}. Readouts: paired-loss at 2500, pointer-off
+corrective-field probe of 5000 on the sim box, then n=25 on 301 pointer on/off. Code on the box = 092d03a (pi0.py +
+parity_smoke_4d.py shipped by scp, md5-verified); the ODART/DART data and the train-gate are the only deltas vs c6f9d35.

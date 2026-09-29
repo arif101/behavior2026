@@ -941,3 +941,16 @@ params (= 4dall step 0): d20 ol5: L_true 0.0430 L_swap 0.0487 (+13%) L_swap_all 
 0.0595; L_cross 0.0501 / 0.0643. Reference run (86 directed pairs, ~1.4 min each) finishes ~20:50 UTC ->
 /root/run3_logs/paired_full.{out,json} on the sim box; the contaminated log kept as contaminated_v1_paired_full.out.
 Side note for training-loss reading: the logged train loss (0.58 at the smoke) is dominated by the aux terms too.
+
+### 2026-09-29 23:30 UTC — step-0 reference paired-loss result (FULL params); 4dall ckpt 2500 pushed 21:43 UTC; its readout launched
+
+REFERENCE (FULL params = 4dall warm start; 86 directed pairs, flow-only, 64 min on the sim box):
+L_true 0.0556, L_swap 0.0621 (image-derived channels from the twin: +0.0064 = +11.5%, worse on 76% of pairs),
+L_swap_all 0.0622 (+ pointer/map/anchors: +11.9%, 79%), L_fact 0.0556, L_cross 0.1021 (twin's full obs incl. proprio,
+my actions: +84%). Per direction: +-5 cm lateral/depth gaps +0.0001..+0.0053; +-15 deg yaw +0.0107/+0.0146; mixed
++0.0091/+0.0115 (the bigger the perturbation, the bigger the visual gap). Reading: at step 0 the twins are told apart
+mostly by proprio (L_cross >> L_swap); the pictures contribute ~12% and the pointer/map add nothing on top of the pictures
+(swap_all ~= swap). This is the bar: a checkpoint "uses vision" if its swap gap grows well past +12% while L_true falls.
+Trainer: ckpt 2500 committed and pushed to HF (b26-run3-params/4dall/ckpt_2500) at 21:43:49 UTC; step 3660 at 23:27,
+5.1 s/step, 0 errors, oom_kill 0, disk 102 GB free (one full ckpt on box; train_state pruned once 5000 lands). Readout of
+ckpt 2500 launched on the sim box 23:3x UTC -> /root/run3_logs/paired_2500.{out,json} (~65 min).

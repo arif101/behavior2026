@@ -843,3 +843,10 @@ Structural test PASSED 2026-09-28 20:07 UTC (sim box, CPU): 4d_all parameter tre
 target_aux_in/out; same model, w 0.05 -> 0 changes the loss by +0.026 on spec inputs (head live). Three relaunches of the
 test killed their own ssh session because `pgrep -f "test_4dall_cpu.py"` matched the remote shell running the command
 (the self-kill trap, third time): kill patterns must be anchored to the interpreter path (`^/root/.../python /root/x.py`).
+
+### 2026-09-29 14:58 UTC — fresh trainer 195.26.233.65:22952 (A100-SXM4-80GB, 300 GB, cgroup 333 GB); bring-up chain launched
+
+Gate passed (80 GB card, 300 GB free, 333 GB cap, uv/git/ffmpeg present). Repo archive at main c6f9d35 + token staged;
+`trainer_bringup_all.sh` running (log /root/bringup_all.log; prep at /root/run3_logs/prep_all.out). Expected ~3 h to
+TRAINER_BRINGUP_ALL_DONE; the tick then launches `ARMS=4dall` once parity (4d_all AND 4d_allf vs FULL, <= 1e-5), the
+40-step smoke and the memory sampler pass. 4dallf runs on a second box if one is provided, else after 4dall's readouts.

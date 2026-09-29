@@ -906,3 +906,22 @@ the FULL params (= step 0 of 4dall) launched 17:57 UTC via `simbox_readout_ref.s
 ckpt 2500 readout = `dl_readout_mix.py --step 2500` then the same command with --params /root/run3_dl/4dall_2500/4dall/ckpt_2500/params.
 Training rate: 3.8 s/it at launch, 5.7-8.5 s/it while the readout mix was being assembled on the same disk (I/O
 contention; avoid heavy disk work on the trainer mid-run), back to 4.4 s/it after; ETA ~18 h -> ckpt 2500 ~20:50 UTC.
+
+### 2026-09-29 18:35 UTC — paired-loss readout: the factory root is NOT a twin; pairs = opposite ODART perturbations of one demo; sim-box memory fixes
+
+First run on the sim box: 0/99 pairs found a shared proprio prefix (k0=-1 everywhere). `pair_diag.py`: ODART clip vs the
+`b1k_radio_factory` clip of the same demo differ by max|dstate| 0.3-0.6 from frame 0 (dims 0-1 and 28-52) — the factory
+root is the August RaC-v2 corpus (other collector, other restore state), not the v13 twin the 09-28 design assumed.
+`pair_diag2.py`: ODART clips of the SAME demo are exact twins for their prefix: max|dstate| = 0.0 for the first 10+ frames,
+k0(2e-3) = 27..173 (settle + orient), then the goals diverge (|dq| after k0: 0.05-0.2 for +-5 cm, 0.3-1.5 for +-15 deg).
+Readout redesigned: pair = the two opposite perturbations (ol5/olm5, od5/odm5, oy15/oym15, omix1/omix2) of one demo,
+both directions -> 86 directed pairs over 15 demos (43 unordered). Two swaps: L_swap = every image-derived channel from
+the twin (image, image_mask, history_tokens/xyz/valid, history_gists/mask, patch_xyz/valid, gt_depth, aux_pixels) with
+pointer/map/proprio kept -> "does it read the pictures beyond the pointer"; L_swap_all = + target_points(+mask),
+map_tokens, anchors -> "does it read any perception". Sim-box (32 GB) fixes: create the model on the CPU and device_put
+one copy per leaf (init-on-GPU + a second copy OOMed at 20.8 GB), bf16 params (the serve dtype; --fp32 to disable),
+nnx.jit'd loss, --chunk 8 frames per forward with nested-dict slicing (image/image_mask are per-camera dicts; the flat
+slice hit a jaxtyping *b mismatch). Reference readout (FULL params = 4dall step 0) running 18:34 UTC: first pair
+d20 ol5/olm5 L_true 0.879 L_swap 0.766 L_swap_all 0.760 L_fact 0.748 L_cross 0.735 (single pair; aggregate pending).
+Model on GPU 16.7 GB at chunk 8. Checkpoint readouts: `dl_readout_mix.py --step S` then the same command with
+--params /root/run3_dl/4dall_S/4dall/ckpt_S/params --out paired_S.json (tick rule).

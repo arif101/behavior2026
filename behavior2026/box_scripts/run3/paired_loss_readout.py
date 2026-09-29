@@ -1,8 +1,8 @@
 """PAIRED-LOSS READOUT (2026-09-28) — does the policy read the image? Runs against a checkpoint + an assembled mix that contains
-the factory twins and the ODART clips (the full mix on the trainer, or the 4 GB readout mix built by build_readout_mix.sh on the sim box). Every object-perturbed (ODART) episode has a twin: the unperturbed factory clip of the same demo, restored to the same
-demo frame and driven/staged identically, so the two clips share their recorded prefix (base approach) frame for frame
-until the radio is teleported; from that frame on, proprio stays ~identical for a while while the pictures and the
-required actions differ. For each pair, on the W frames after the divergence point:
+the factory twins and the ODART clips (the full mix on the trainer, or the 4 GB readout mix built by build_readout_mix.sh on the sim box). Every object-perturbed (ODART) episode has a twin: the OPPOSITE perturbation of the same demo (ol5/olm5, od5/odm5,
+oy15/oym15, omix1/omix2), restored to the same demo frame and driven by the same script, so the two clips have identical
+proprio for the first k0 = 27..173 frames (settle + orient) while the radio sits 10 cm / 30 deg apart in the picture; after
+k0 the goals diverge and the required actions differ. (The factory root is NOT a twin: RaC-v2 collector, other restore.) For each pair, on the W frames after the divergence point:
   L_true  = loss(ODART obs, ODART actions)
   L_swap  = loss(ODART obs with the TWIN's images (all cams) swapped in, ODART actions)   <- same proprio, wrong picture
   L_fact  = loss(twin obs, twin actions)
@@ -20,17 +20,28 @@ from openpi.training import config as _c, data_loader as _dl
 from openpi.models import model as _m
 
 
-def load_model(cfg, params_dir):
-    model = cfg.model.create(jax.random.key(0)); graphdef, state = nnx.split(model); pure = state.to_pure_dict()
+def load_model(cfg, params_dir, bf16=True):
+    # init on the CPU, then ONE device copy per leaf: init-on-GPU + a second GPU copy of the checkpoint OOMed the 32 GB sim-box
+    # card (RESOURCE_EXHAUSTED at 20.8 GB used, 2026-09-29); host RAM holds the init + the numpy checkpoint instead.
+    gpu = jax.devices()[0]
+    with jax.default_device(jax.devices("cpu")[0]):
+        model = cfg.model.create(jax.random.key(0))
+    graphdef, state = nnx.split(model); pure = state.to_pure_dict()
     params = _m.restore_params(params_dir, restore_type=np.ndarray); missing = []
+    def dt(v):   # bf16 params (the serve-time dtype; 6.6 GB instead of 13 GB) unless --fp32: fp32 + batch-32 activations OOM a 32 GB card
+        d = np.asarray(v).dtype; return jnp.bfloat16 if (bf16 and np.issubdtype(d, np.floating)) else d
     def merge(dst, src, path=""):
         for k, v in dst.items():
             if k in src and isinstance(v, dict) and isinstance(src[k], dict): merge(v, src[k], path + "/" + k)
-            elif k in src and not isinstance(v, dict): dst[k] = jnp.asarray(src[k], dtype=jnp.asarray(v).dtype)
-            else: missing.append(path + "/" + k)
-    merge(pure, params); state.replace_by_pure_dict(pure)
+            elif k in src and not isinstance(v, dict): dst[k] = jax.device_put(np.asarray(src[k]).astype(dt(v)), gpu)
+            else: missing.append(path + "/" + k); dst[k] = jax.device_put(np.asarray(v).astype(dt(v)), gpu) if hasattr(v, "shape") else v
+    merge(pure, params); del params; state.replace_by_pure_dict(pure)
     print(f"model loaded; params not in ckpt (kept at init): {len(missing)} {sorted(set(m.split('/')[1] for m in missing))[:6]}", flush=True)
     return nnx.merge(graphdef, state)
+
+
+SWAP_IMG = {"image", "image_mask", "history_gists", "history_mask", "history_tokens", "history_xyz", "history_valid", "patch_xyz", "patch_valid", "gt_depth", "aux_pixels"}
+SWAP_ALL = SWAP_IMG | {"target_points", "target_points_mask", "map_tokens", "anchors"}
 
 
 def collate(items):
@@ -44,7 +55,8 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--config", default="pi05_radio_4d_all"); ap.add_argument("--params", required=True)
     ap.add_argument("--mix", default="/root/b1k_radio_mix_all"); ap.add_argument("--map", default="/root/odart_episode_map.json")
     ap.add_argument("--window", type=int, default=32); ap.add_argument("--tol", type=float, default=2e-3); ap.add_argument("--max-pairs", type=int, default=999)
-    ap.add_argument("--out", default=None); a = ap.parse_args(); t0 = time.time()
+    ap.add_argument("--out", default=None); ap.add_argument("--chunk", type=int, default=8, help="frames per forward (activation memory)")
+    ap.add_argument("--fp32", action="store_true", help="keep fp32 params (needs an 80 GB card)"); a = ap.parse_args(); t0 = time.time()
     import dataclasses
     cfg = _c.get_config(a.config); data_cfg = cfg.data.create(cfg.assets_dirs, cfg.model)
     # --mix is BOTH the bookkeeping root and the dataset root (2026-09-29: the readout runs on the sim box against the
@@ -54,7 +66,7 @@ def main():
     # create_b1k_dataset (the trainer's path): honors dataset_root and the history_frame_offsets (gists/history tokens);
     # the generic create_torch_dataset ignores both (it looks in ~/.cache/huggingface/lerobot/<repo_id> -> the 401 liar)
     ds = _dl.transform_dataset(_dl.create_b1k_dataset(data_cfg, cfg.model.action_horizon), data_cfg)
-    model = load_model(cfg, a.params)
+    model = load_model(cfg, a.params, bf16=not a.fp32)
     # ---- mix bookkeeping: source -> mix episode offset; episode -> global row range; proprio per episode -----------------
     # assemble_run3_mix.py writes {"sources": [{"source": "<root path>", "episodes": [first, last], ...}, ...]}
     srcs = json.load(open(f"{a.mix}/meta/run3_sources.json"))["sources"]
@@ -68,16 +80,40 @@ def main():
         e = t.column("episode_index").to_numpy(); fr = t.column("frame_index").to_numpy(); st = np.stack(t.column("observation.state").to_pylist()).astype(np.float32)
         for eid in np.unique(e):
             m = e == eid; st_tab[int(eid)] = st[m][np.argsort(fr[m])]
-    tmap = json.load(open(a.map)); fac_off = off["b1k_radio_factory"]; fac_ep_of_demo = {int(d): int(e) for e, d in tmap["factory"].items()}
-    # ---- pairs -------------------------------------------------------------------------------------------------------
-    rng = jax.random.key(7); res = []; n_done = 0
-    def loss_of(obs_dict, act):
-        obs = _m.Observation.from_dict(obs_dict); return np.asarray(model.compute_loss(rng, obs, jnp.asarray(act), train=False)).mean()
+    tmap = json.load(open(a.map))
+    # PAIRS (2026-09-29): the b1k_radio_factory clips are NOT twins (RaC-v2 collector, other restore state: |dstate| 0.3-0.6 from
+    # frame 0, zero shared prefix on all 99). The ODART clips of the SAME demo are: same restore + settle, proprio identical
+    # (max|dstate| = 0.0) for k0 = 27..173 frames, then the goals diverge. So a pair = two opposite perturbations of one demo
+    # (ol5/olm5, od5/odm5, oy15/oym15, omix1/omix2), evaluated in both directions: same proprio prefix, radio 10 cm / 30 deg
+    # apart in the picture, different required actions. 43 unordered pairs over 15 demos -> 86 directed pairs.
+    import collections
+    by_demo = collections.defaultdict(dict)
     for root, eps in tmap["odart"].items():
         if root not in off: print(f"  {root} not in mix sources; skipped", flush=True); continue
-        for r in eps:
+        for r in eps: by_demo[int(r["demo"])][r["tag"]] = off[root] + int(r["ep"])
+    OPP = [("ol5", "olm5"), ("od5", "odm5"), ("oy15", "oym15"), ("omix1", "omix2")]
+    directed = []
+    for demo in sorted(by_demo):
+        for ta, tb in OPP:
+            if ta in by_demo[demo] and tb in by_demo[demo]:
+                directed.append((demo, ta, tb, by_demo[demo][ta], by_demo[demo][tb])); directed.append((demo, tb, ta, by_demo[demo][tb], by_demo[demo][ta]))
+    print(f"pairs: {len(directed)} directed over {len(by_demo)} demos", flush=True)
+    # ---- pairs -------------------------------------------------------------------------------------------------------
+    rng = jax.random.key(7); res = []; n_done = 0
+    @nnx.jit
+    def _loss(m, r, obs, act): return m.compute_loss(r, obs, act, train=False)   # jitted once per window length (eager = ~15 s/call)
+    def _sl(v, i, j):   # slice the batch axis through nested dicts (image / image_mask are per-camera dicts)
+        if isinstance(v, dict): return {k: _sl(x, i, j) for k, x in v.items()}
+        return v[i:j] if hasattr(v, "shape") and getattr(v, "ndim", 0) > 0 else v
+    def loss_of(obs_dict, act):   # chunked over the window (a.chunk frames per forward); per-frame mean
+        B = len(act); tot = 0.0
+        for i in range(0, B, a.chunk):
+            sub = _sl(obs_dict, i, i + a.chunk)
+            obs = _m.Observation.from_dict(sub); l = np.asarray(_loss(model, rng, obs, jnp.asarray(act[i:i + a.chunk]))); tot += float(l.mean()) * len(l)
+        return tot / B
+    for demo, ta, tb, mo, mf in directed:
+            r = dict(demo=demo, tag=f"{ta}/{tb}", ep=mo); root = f"d{demo}"
             if n_done >= a.max_pairs: break
-            mo = off[root] + r["ep"]; mf = fac_off + fac_ep_of_demo[r["demo"]]
             so, sf = st_tab[mo], st_tab[mf]; n = min(len(so), len(sf))
             d = np.abs(so[:n] - sf[:n]).max(1); same = np.where(d < a.tol)[0]
             k0 = int(same.max()) if len(same) else -1
@@ -87,19 +123,24 @@ def main():
             io = [ds[ep_from[mo] + k] for k in w]; if_ = [ds[ep_from[mf] + k] for k in w]
             bo, bf = collate(io), collate(if_)
             ao, af = bo.pop("actions"), bf.pop("actions")
-            swap = dict(bo); swap["image"] = bf["image"]; swap["image_mask"] = bf["image_mask"]
-            l_true, l_swap, l_fact, l_cross = loss_of(bo, ao), loss_of(swap, ao), loss_of(bf, af), loss_of(bf, ao)
+            if n_done == 0: print(f"batch keys: {sorted(bo)}", flush=True)
+            # swap sets: IMG = every image-derived channel (current pictures, history tokens/gists/cells, depth PE, depth/pixel
+            # labels) -> isolates "does it read the pictures" with the pointer/map/proprio kept; ALL = IMG + pointer + map + anchors
+            swap = {k: (bf[k] if k in SWAP_IMG else v) for k, v in bo.items()}; swap_all = {k: (bf[k] if k in SWAP_ALL else v) for k, v in bo.items()}
+            l_true, l_swap, l_swap_all, l_fact, l_cross = loss_of(bo, ao), loss_of(swap, ao), loss_of(swap_all, ao), loss_of(bf, af), loss_of(bf, ao)
             act_gap = float(np.abs(np.asarray(ao) - np.asarray(af)).mean()); prop_gap = float(d[w].mean())
-            res.append(dict(root=root, ep=r["ep"], demo=r["demo"], tag=r["tag"], k0=k0, n_frames=len(w), L_true=float(l_true), L_swap=float(l_swap), L_fact=float(l_fact), L_cross=float(l_cross), action_gap=act_gap, proprio_gap=prop_gap))
+            res.append(dict(root=root, ep=r["ep"], demo=r["demo"], tag=r["tag"], twin_ep=mf, k0=k0, n_frames=len(w), L_true=float(l_true), L_swap=float(l_swap), L_swap_all=float(l_swap_all), L_fact=float(l_fact), L_cross=float(l_cross), action_gap=act_gap, proprio_gap=prop_gap))
             n_done += 1
-            print(f"  d{r['demo']:>3} {r['tag']:<6} k0={k0:>4} n={len(w):>2} L_true={l_true:.4f} L_swap={l_swap:.4f} L_fact={l_fact:.4f} L_cross={l_cross:.4f} |da|={act_gap:.3f} |dq|={prop_gap:.4f}", flush=True)
+            print(f"  d{r['demo']:>3} {r['tag']:<11} k0={k0:>4} n={len(w):>2} L_true={l_true:.4f} L_swap={l_swap:.4f} L_swap_all={l_swap_all:.4f} L_fact={l_fact:.4f} L_cross={l_cross:.4f} |da|={act_gap:.3f} |dq|={prop_gap:.4f}", flush=True)
     if not res: print("PAIRED_READOUT_FAILED: no pairs"); sys.exit(1)
-    R = {k: float(np.mean([x[k] for x in res])) for k in ("L_true", "L_swap", "L_fact", "L_cross", "action_gap", "proprio_gap")}
-    gap = R["L_swap"] - R["L_true"]; rel = gap / max(R["L_true"], 1e-9)
-    print(f"\nPAIRED_RESULT pairs={len(res)} L_true={R['L_true']:.4f} L_swap={R['L_swap']:.4f} L_fact={R['L_fact']:.4f} L_cross={R['L_cross']:.4f} "
-          f"swap_gap={gap:+.4f} ({rel:+.1%}) frac_pairs_swap_worse={np.mean([x['L_swap'] > x['L_true'] for x in res]):.2f} |da|={R['action_gap']:.3f} |dq|={R['proprio_gap']:.4f}", flush=True)
+    R = {k: float(np.mean([x[k] for x in res])) for k in ("L_true", "L_swap", "L_swap_all", "L_fact", "L_cross", "action_gap", "proprio_gap")}
+    gap = R["L_swap"] - R["L_true"]; rel = gap / max(R["L_true"], 1e-9); gap_all = R["L_swap_all"] - R["L_true"]
+    print(f"\nPAIRED_RESULT pairs={len(res)} L_true={R['L_true']:.4f} L_swap={R['L_swap']:.4f} L_swap_all={R['L_swap_all']:.4f} L_fact={R['L_fact']:.4f} L_cross={R['L_cross']:.4f} "
+          f"swap_gap={gap:+.4f} ({rel:+.1%}) swap_all_gap={gap_all:+.4f} ({gap_all / max(R['L_true'], 1e-9):+.1%}) frac_pairs_swap_worse={np.mean([x['L_swap'] > x['L_true'] for x in res]):.2f} "
+          f"frac_pairs_swap_all_worse={np.mean([x['L_swap_all'] > x['L_true'] for x in res]):.2f} |da|={R['action_gap']:.3f} |dq|={R['proprio_gap']:.4f}", flush=True)
     for tag in sorted(set(x["tag"] for x in res)):
         xs = [x for x in res if x["tag"] == tag]; print(f"  {tag:<6} n={len(xs):>2} L_true={np.mean([x['L_true'] for x in xs]):.4f} L_swap={np.mean([x['L_swap'] for x in xs]):.4f} gap={np.mean([x['L_swap']-x['L_true'] for x in xs]):+.4f}", flush=True)
+    print("VERDICT_ALL (pointer+map+images swapped):", "PERCEPTION USED" if gap_all / max(R["L_true"], 1e-9) > 0.2 else "PROPRIO-ONLY/WEAK")
     print("VERDICT:", "VISION USED (swap gap > 20% of L_true and > 0 on most pairs)" if rel > 0.2 and np.mean([x['L_swap'] > x['L_true'] for x in res]) > 0.7 else "PROPRIO-ONLY (swap changes nothing)" if abs(rel) < 0.05 else "WEAK / MIXED", flush=True)
     if a.out: json.dump(dict(summary=R, swap_gap=gap, rel=rel, pairs=res, params=a.params, config=a.config), open(a.out, "w"), indent=1)
     print(f"PAIRED_READOUT_DONE {time.time()-t0:.0f}s", flush=True)

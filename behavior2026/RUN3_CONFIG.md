@@ -850,3 +850,13 @@ Gate passed (80 GB card, 300 GB free, 333 GB cap, uv/git/ffmpeg present). Repo a
 `trainer_bringup_all.sh` running (log /root/bringup_all.log; prep at /root/run3_logs/prep_all.out). Expected ~3 h to
 TRAINER_BRINGUP_ALL_DONE; the tick then launches `ARMS=4dall` once parity (4d_all AND 4d_allf vs FULL, <= 1e-5), the
 40-step smoke and the memory sampler pass. 4dallf runs on a second box if one is provided, else after 4dall's readouts.
+
+### 2026-09-29 15:10 UTC — prep_all on the new trainer: downloads in 40 s; canonicalize made streaming BEFORE the chain reached it
+
+Bring-up: venv 18 s, all 65 GB of downloads in 40 s (xet), every root's 6 video files present, 22 FK dirs, twin map.
+Caught in flight: `unassemble_columns.py` writes the map root's two parquets (229k / 200k rows) with `hist_tok` as ONE
+row group (default pq.write_table), which the next step, `canonicalize_columns.py`, then read whole -> the 09-25
+"OSError: List index overflow" would have fired. canonicalize rewritten to stream (iter_batches -> ParquetWriter, 16k-row
+row groups, atomic replace) and shipped to /root/run3/ while unassemble was still running (bash re-reads the .py on
+invocation; safe). Observation: the single-row-group hist_tok write buffers the whole column chunk in memory —
+unassemble RSS 147 GB at 8 min on the 229k-row file (cap 333 GB; cgroup v1 on this box: /sys/fs/cgroup/memory/*).

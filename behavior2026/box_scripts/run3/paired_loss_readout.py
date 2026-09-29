@@ -51,7 +51,9 @@ def main():
     # 137-episode readout mix = factory twins + ODART, not against the config's dataset_root, which lives on the trainer)
     data_cfg = dataclasses.replace(data_cfg, dataset_root=a.mix)
     print(f"dataset root: {data_cfg.dataset_root} (repo_id {data_cfg.repo_id}); assets {cfg.assets_dirs}", flush=True)
-    ds = _dl.transform_dataset(_dl.create_torch_dataset(data_cfg, cfg.model.action_horizon, cfg.model), data_cfg)
+    # create_b1k_dataset (the trainer's path): honors dataset_root and the history_frame_offsets (gists/history tokens);
+    # the generic create_torch_dataset ignores both (it looks in ~/.cache/huggingface/lerobot/<repo_id> -> the 401 liar)
+    ds = _dl.transform_dataset(_dl.create_b1k_dataset(data_cfg, cfg.model.action_horizon), data_cfg)
     model = load_model(cfg, a.params)
     # ---- mix bookkeeping: source -> mix episode offset; episode -> global row range; proprio per episode -----------------
     # assemble_run3_mix.py writes {"sources": [{"source": "<root path>", "episodes": [first, last], ...}, ...]}

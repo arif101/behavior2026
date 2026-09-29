@@ -1,5 +1,5 @@
-"""PAIRED-LOSS READOUT (2026-09-28) — does the policy read the image? Runs on the trainer against a checkpoint + the assembled
-mix. Every object-perturbed (ODART) episode has a twin: the unperturbed factory clip of the same demo, restored to the same
+"""PAIRED-LOSS READOUT (2026-09-28) — does the policy read the image? Runs against a checkpoint + an assembled mix that contains
+the factory twins and the ODART clips (the full mix on the trainer, or the 4 GB readout mix built by build_readout_mix.sh on the sim box). Every object-perturbed (ODART) episode has a twin: the unperturbed factory clip of the same demo, restored to the same
 demo frame and driven/staged identically, so the two clips share their recorded prefix (base approach) frame for frame
 until the radio is teleported; from that frame on, proprio stays ~identical for a while while the pictures and the
 required actions differ. For each pair, on the W frames after the divergence point:
@@ -45,7 +45,12 @@ def main():
     ap.add_argument("--mix", default="/root/b1k_radio_mix_all"); ap.add_argument("--map", default="/root/odart_episode_map.json")
     ap.add_argument("--window", type=int, default=32); ap.add_argument("--tol", type=float, default=2e-3); ap.add_argument("--max-pairs", type=int, default=999)
     ap.add_argument("--out", default=None); a = ap.parse_args(); t0 = time.time()
+    import dataclasses
     cfg = _c.get_config(a.config); data_cfg = cfg.data.create(cfg.assets_dirs, cfg.model)
+    # --mix is BOTH the bookkeeping root and the dataset root (2026-09-29: the readout runs on the sim box against the
+    # 137-episode readout mix = factory twins + ODART, not against the config's dataset_root, which lives on the trainer)
+    data_cfg = dataclasses.replace(data_cfg, dataset_root=a.mix)
+    print(f"dataset root: {data_cfg.dataset_root} (repo_id {data_cfg.repo_id}); assets {cfg.assets_dirs}", flush=True)
     ds = _dl.transform_dataset(_dl.create_torch_dataset(data_cfg, cfg.model.action_horizon, cfg.model), data_cfg)
     model = load_model(cfg, a.params)
     # ---- mix bookkeeping: source -> mix episode offset; episode -> global row range; proprio per episode -----------------

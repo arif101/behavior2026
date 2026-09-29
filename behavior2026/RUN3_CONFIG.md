@@ -892,3 +892,17 @@ down-weighted; stage oversample 8x on 689 transitions = 24.5% of 557,541 frames)
 ckpts outputs/checkpoints/pi05_radio_4d_all/radio_4d_all/{2500,5000,...}. Readouts: paired-loss at 2500, pointer-off
 corrective-field probe of 5000 on the sim box, then n=25 on 301 pointer on/off. Code on the box = 092d03a (pi0.py +
 parity_smoke_4d.py shipped by scp, md5-verified); the ODART/DART data and the train-gate are the only deltas vs c6f9d35.
+
+### 2026-09-29 17:56 UTC — paired-loss readout moved to the sim box (readout mix); training rate note
+
+The trainer GPU is owned by the arm (XLA fraction 0.92 -> 75 of 80 GB), so the paired-loss readout cannot run there
+mid-run. Built `/root/b1k_radio_mix_readout` on the trainer CPU (`build_readout_mix.sh`: assemble_run3_mix over
+b1k_radio_factory + the 10 ODART roots, which already carry every derived column; 137 eps / 55,095 frames / 11 parquets /
+66 videos / 4.2 GB, READOUT_MIX_OK) and uploaded it to HF `b26-run3-mixes/mix_readout` (81 files, 50 s). Sim box
+213.173.104.75:20281 (RTX PRO 4500 32 GB, idle, 87 GB free): fork src synced for the 3 files that differed (pi0.py,
+pi0_config.py, config.py; same uv.lock), assets pi05_radio_4d_all copied from 4d_pd, `dl_readout_mix.py --mix|--step N`,
+`paired_loss_readout.py` now uses --mix as the DATASET root too (dataclasses.replace on data_cfg). Reference readout with
+the FULL params (= step 0 of 4dall) launched 17:57 UTC via `simbox_readout_ref.sh` -> /root/run3_logs/paired_full.{out,json};
+ckpt 2500 readout = `dl_readout_mix.py --step 2500` then the same command with --params /root/run3_dl/4dall_2500/4dall/ckpt_2500/params.
+Training rate: 3.8 s/it at launch, 5.7-8.5 s/it while the readout mix was being assembled on the same disk (I/O
+contention; avoid heavy disk work on the trainer mid-run), back to 4.4 s/it after; ETA ~18 h -> ckpt 2500 ~20:50 UTC.

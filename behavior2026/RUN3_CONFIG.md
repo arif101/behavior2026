@@ -925,3 +925,19 @@ slice hit a jaxtyping *b mismatch). Reference readout (FULL params = 4dall step 
 d20 ol5/olm5 L_true 0.879 L_swap 0.766 L_swap_all 0.760 L_fact 0.748 L_cross 0.735 (single pair; aggregate pending).
 Model on GPU 16.7 GB at chunk 8. Checkpoint readouts: `dl_readout_mix.py --step S` then the same command with
 --params /root/run3_dl/4dall_S/4dall/ckpt_S/params --out paired_S.json (tick rule).
+
+### 2026-09-29 18:51 UTC — first paired-loss numbers were contaminated (aux terms + loader noise); flow-only rerun clean
+
+The first reference run's losses (0.7-1.6 per window) were ~95% AUX terms: at train=False compute_loss still adds the
+depth-aux (gt_depth), stage/progress, rail-grounding, temporal and map/recon terms, and swapping a twin's channels also
+swapped its LABELS (gt_depth, aux_pixels, history_xyz), so "L_swap" tracked which labels were present. Two more
+readout-killers found the same way: the loader's train-time `ProprioNoise` transform draws np.random per __getitem__
+(the same frames fetched twice differed 10-15% in loss) and `B1KInputs.map_blind_prob=0.3` picks blind/full map tokens
+per fetch. Fixes (f44dcf4): `model.flow_only = True` readout switch in pi0.py (early return after the flow MSE; default
+False, training untouched), ProprioNoise dropped + map_blind_prob 0 in the readout's data config, swap sets = INPUT
+channels only, items fetched once per pair (cache), and a determinism check (same batch twice: 0.043006 = 0.043006).
+Clean flow losses on ODART windows are 0.04-0.06 (the mix batch parity value is 0.21 incl. aux). First clean pair, FULL
+params (= 4dall step 0): d20 ol5: L_true 0.0430 L_swap 0.0487 (+13%) L_swap_all 0.0480; olm5: 0.0598 / 0.0595 (-0.5%) /
+0.0595; L_cross 0.0501 / 0.0643. Reference run (86 directed pairs, ~1.4 min each) finishes ~20:50 UTC ->
+/root/run3_logs/paired_full.{out,json} on the sim box; the contaminated log kept as contaminated_v1_paired_full.out.
+Side note for training-loss reading: the logged train loss (0.58 at the smoke) is dominated by the aux terms too.

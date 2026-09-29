@@ -40,7 +40,9 @@ def load_model(cfg, params_dir, bf16=True):
     return nnx.merge(graphdef, state)
 
 
-SWAP_IMG = {"image", "image_mask", "history_gists", "history_mask", "history_tokens", "history_xyz", "history_valid", "patch_xyz", "patch_valid", "gt_depth", "aux_pixels"}
+# INPUT channels only (labels such as gt_depth / aux_pixels / rail_now / hist_flow / stage / progress stay with the scored clip;
+# the loss is flow-only anyway, see model.flow_only)
+SWAP_IMG = {"image", "image_mask", "history_gists", "history_mask", "history_tokens", "history_xyz", "history_valid", "patch_xyz", "patch_valid"}
 SWAP_ALL = SWAP_IMG | {"target_points", "target_points_mask", "map_tokens", "anchors"}
 
 
@@ -62,11 +64,22 @@ def main():
     # --mix is BOTH the bookkeeping root and the dataset root (2026-09-29: the readout runs on the sim box against the
     # 137-episode readout mix = factory twins + ODART, not against the config's dataset_root, which lives on the trainer)
     data_cfg = dataclasses.replace(data_cfg, dataset_root=a.mix)
-    print(f"dataset root: {data_cfg.dataset_root} (repo_id {data_cfg.repo_id}); assets {cfg.assets_dirs}", flush=True)
+    # DETERMINISTIC fetch: drop the train-time ProprioNoise transform (np.random per __getitem__: 10-15% loss jitter between two
+    # fetches of the same frames, 2026-09-29) and pin the map tokens to the full map (B1KInputs.map_blind_prob draws per fetch)
+    from openpi import transforms as _tf
+    def _det(g):
+        ins = []
+        for t in g.inputs:
+            if isinstance(t, _tf.ProprioNoise): continue
+            if hasattr(t, "map_blind_prob") and dataclasses.is_dataclass(t): t = dataclasses.replace(t, map_blind_prob=0.0)
+            ins.append(t)
+        return dataclasses.replace(g, inputs=tuple(ins))
+    data_cfg = dataclasses.replace(data_cfg, data_transforms=_det(data_cfg.data_transforms), model_transforms=_det(data_cfg.model_transforms))
+    print(f"dataset root: {data_cfg.dataset_root} (repo_id {data_cfg.repo_id}); assets {cfg.assets_dirs}; transforms {[type(t).__name__ for t in data_cfg.data_transforms.inputs]}", flush=True)
     # create_b1k_dataset (the trainer's path): honors dataset_root and the history_frame_offsets (gists/history tokens);
     # the generic create_torch_dataset ignores both (it looks in ~/.cache/huggingface/lerobot/<repo_id> -> the 401 liar)
     ds = _dl.transform_dataset(_dl.create_b1k_dataset(data_cfg, cfg.model.action_horizon), data_cfg)
-    model = load_model(cfg, a.params, bf16=not a.fp32)
+    model = load_model(cfg, a.params, bf16=not a.fp32); model.flow_only = True   # flow loss only (aux terms off), see pi0.py
     # ---- mix bookkeeping: source -> mix episode offset; episode -> global row range; proprio per episode -----------------
     # assemble_run3_mix.py writes {"sources": [{"source": "<root path>", "episodes": [first, last], ...}, ...]}
     srcs = json.load(open(f"{a.mix}/meta/run3_sources.json"))["sources"]
@@ -99,7 +112,7 @@ def main():
                 directed.append((demo, ta, tb, by_demo[demo][ta], by_demo[demo][tb])); directed.append((demo, tb, ta, by_demo[demo][tb], by_demo[demo][ta]))
     print(f"pairs: {len(directed)} directed over {len(by_demo)} demos", flush=True)
     # ---- pairs -------------------------------------------------------------------------------------------------------
-    rng = jax.random.key(7); res = []; n_done = 0
+    rng = jax.random.key(7); res = []; n_done = 0; cache = {}
     @nnx.jit
     def _loss(m, r, obs, act): return m.compute_loss(r, obs, act, train=False)   # jitted once per window length (eager = ~15 s/call)
     def _sl(v, i, j):   # slice the batch axis through nested dicts (image / image_mask are per-camera dicts)
@@ -120,9 +133,15 @@ def main():
             if k0 < 5 or k0 + 2 >= n:
                 print(f"  d{r['demo']} {r['tag']}: no shared prefix (k0={k0}, n={n}) -> pairing failed, skipped", flush=True); continue
             w = list(range(k0 + 1, min(k0 + 1 + a.window, n)))
-            io = [ds[ep_from[mo] + k] for k in w]; if_ = [ds[ep_from[mf] + k] for k in w]
-            bo, bf = collate(io), collate(if_)
-            ao, af = bo.pop("actions"), bf.pop("actions")
+            def fetch(ep):   # both directions of a pair reuse the same fetched items (deterministic loader; halves the decode time)
+                key = (ep, w[0], w[-1])
+                if key not in cache:
+                    if len(cache) >= 4: cache.pop(next(iter(cache)))
+                    b = collate([ds[ep_from[ep] + k] for k in w]); cache[key] = (b, b.pop("actions"))
+                return cache[key]
+            bo, ao = fetch(mo); bf, af = fetch(mf); bo = dict(bo); bf = dict(bf)
+            if n_done == 0:
+                _l1, _l2 = loss_of(bo, ao), loss_of(bo, ao); print(f"determinism check: {_l1:.6f} vs {_l2:.6f} (same batch twice)", flush=True)
             if n_done == 0: print(f"batch keys: {sorted(bo)}", flush=True)
             # swap sets: IMG = every image-derived channel (current pictures, history tokens/gists/cells, depth PE, depth/pixel
             # labels) -> isolates "does it read the pictures" with the pointer/map/proprio kept; ALL = IMG + pointer + map + anchors

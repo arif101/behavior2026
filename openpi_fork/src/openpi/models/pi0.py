@@ -758,6 +758,8 @@ class Pi0(_model.BaseModel):
             )
         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
         loss = jnp.mean(jnp.square(v_t - u_t), axis=-1)
+        if getattr(self, "flow_only", False):   # readout switch (paired_loss_readout.py sets model.flow_only = True): the
+            return loss                          # aux terms below key on LABELS (gt_depth, aux_pixels, rail, stage) and would swap with them
         if self.target_aux_weight > 0 and train and _clean_tp is not None:   # training-only: parity (train=False) and the paired-loss readout see the flow loss alone
             # TARGET-REGRESSION FORCING: every action token predicts the clean right-hand target offset; masked mean.
             _ta_tok = suffix_out[:, -self.action_horizon :, :].astype(jnp.float32)

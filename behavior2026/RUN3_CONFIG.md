@@ -1025,3 +1025,14 @@ omix2 +0.0471/+0.0385, oy15 +0.0544/+0.0419, oym15 +0.0619/+0.0543 — every dir
 growing (0.0064 -> 0.0233 -> 0.0297) while L_true keeps falling, so the picture channel is doing more of the work on the
 trained twins each checkpoint. Together with the ckpt-5000 probe null this is consistent with fitting the 99 pairs;
 whether it is a metric read is the n=25 / held-out-twin question, unchanged. Sim box idle (card free) from 08:27.
+
+### 2026-09-30 10:58 UTC — paired-loss readout, 4dall ckpt 10000: swap gap +155% (series 0/5000/7500/10000 = +11.5% / +89% / +137% / +155%)
+
+86 pairs, flow-only: L_true 0.0201, L_swap 0.0513, gap +0.0312 (+155.5%), worse on 98% of pairs; L_swap_all 0.0513
+(identical to L_swap: pointer/map add nothing beyond the images); L_cross 0.0915. Per direction (gap at 10000 / 7500):
+od5 +0.0163/+0.0141, odm5 +0.0149/+0.0162, ol5 +0.0087/+0.0091, olm5 +0.0141/+0.0121, omix1 +0.0438/+0.0411, omix2
++0.0494/+0.0471, oy15 +0.0572/+0.0544, oym15 +0.0645/+0.0619. The absolute gap is flattening (0.0233 -> 0.0297 ->
+0.0312) while L_true still falls (0.0261 -> 0.0217 -> 0.0201): L_swap itself is now flat at ~0.051 since 7500, i.e. the
+"wrong picture" loss has stopped moving and the ratio rises only because the true loss keeps dropping — the trained
+twins are being fit, not increasingly discriminated. Sim box idle from 10:57 (42 GB free; pulled ckpts 5000/7500/10000).
+Trainer at 10:58: step 11,400, 10.5 steps/min, 0 errors; ckpt 12500 ~12:50 UTC, final ~17:00 UTC.

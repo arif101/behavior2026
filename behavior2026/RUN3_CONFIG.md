@@ -966,3 +966,23 @@ refused SSH (TCP open, "connection reset") for ~1 h around 02:15-03:30 UTC and c
 Readout series is therefore step 0 (FULL), 5000, 7500?, 10000, 12500?, 14999 — the ?-steps only if the pull lands
 inside the 2.5-h window before the next push deletes them. Trainer at 03:38: step 6370, 5.5 s/step, 0 errors,
 ckpt 7500 ~05:25 UTC, 15k ~16:50 UTC.
+
+### 2026-09-30 05:00 UTC — PAIRED-LOSS READOUT, 4dall ckpt 5000: VISION USED (swap gap +89% vs +11.5% at step 0)
+
+86 directed pairs, flow-only, deterministic loader, same windows as the reference:
+| params      | L_true | L_swap (images+history+3D PE from the twin) | swap gap | worse on | L_swap_all (+pointer/map/anchors) | L_cross (twin's full obs) |
+| FULL (step 0) | 0.0556 | 0.0621 | +0.0064 (+11.5%) | 76% | 0.0622 (+11.9%) | 0.1021 (+84%) |
+| 4dall 5000    | 0.0261 | 0.0494 | +0.0233 (+89.4%) | 97% | 0.0496 (+90.1%) | 0.0786 (+201%) |
+Per direction at 5000 (gap, reference gap): od5 +0.0125 (+0.0053), odm5 +0.0089 (+0.0001), ol5 +0.0056 (+0.0004),
+olm5 +0.0099 (+0.0040), omix1 +0.0306 (+0.0091), omix2 +0.0385 (+0.0115), oy15 +0.0419 (+0.0107), oym15 +0.0543 (+0.0146):
+every direction grew 2-90x, and the gap scales with the size of the perturbation (5 cm < mixed < 15 deg).
+Reading: with the pointer and map kept correct and only the image-derived channels swapped, the loss doubles — the
+model now reads the picture to decide the action on these twins, and the pictures override the pointer. swap_all ~=
+swap at both steps: the pointer/map channels add no discriminative information beyond the images (pointer dropout 0.7
++ 0.15 m noise made them unreliable by design). CAVEAT: all 99 ODART clips are IN the training mix, so this measures
+whether the trained objective now routes through vision on trained counterfactuals (it does; it did not for the 4d/4dpd
+arms' probes), not generalization to held-out states. Held-out tests = the pointer-off corrective-field probe on the
+harvested 301 states and the n=25 eval on 301, both on the sim box with the ckpt-5000 params already pulled there
+(/root/run3_dl/4dall_5000/4dall/ckpt_5000/params). Trainer at 05:00: step 7290, 10.5 steps/min, 0 errors; ckpt 7500
+~05:25 UTC (readout if the pull lands before 10000 replaces it), 15k ~17:00 UTC. Results: sim box
+/root/run3_logs/paired_{full,5000}.{out,json}.

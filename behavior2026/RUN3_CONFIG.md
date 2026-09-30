@@ -1047,3 +1047,16 @@ L_true falls (0.0201 -> 0.0174), so the wrong-picture penalty is growing in abso
 yaw pairs. Still consistent with fitting the trained twins ever more tightly; the held-out question is unchanged. Sim
 box idle from 14:27 (31 GB free; pulls 5000/7500/10000/12500 = 44 GB). Trainer at 14:28: step 13,800, 0 errors; final
 ckpt 14999 ~16:25 UTC, then the driver's final push + RUN3_ALL_DONE.
+
+### 2026-09-30 16:30 UTC — 4DALL RUN COMPLETE (15k steps, 0 errors); final params on HF; final readout launched; trainer idle
+
+Driver: "training complete at step 14999; finalizing" 16:05:51, `RUN3_FINAL_UPLOADED arm=4dall params_files=34 11.66GB`
+(HF b26-run3-params/4dall/params + assets + provenance), DONE 16:06:23, RUN3_ALL_DONE. 22 h 20 min wall, 5.4 s/step
+average, oom_kill 0, no resumes. Trainer box now idle (GPU 0 MiB, 129 GB free; local params-only ckpts 14999 + 5000 +
+12500). Still box-only: /root/run3_logs (train_4dall.log, driver.log, prep_all.out, parity_all*.log, smoke_all.log)
+-> back them up with `backup_mixes.py`-style upload (run3_logs/ to b26-run3-mixes) before any spin-down. Mid-run HF
+ckpts: 4dall/ckpt_12500 remains (the finalize step does not delete it); 2500/5000/7500/10000 were rolled off by the
+keep-newest-1 rule, and 5000/7500/10000/12500 params also sit on the sim box under /root/run3_dl/4dall_<step>/.
+Final params pulled to the sim box by `dl_final.py` (the driver writes them to 4dall/params, not ckpt_14999; symlink at
+/root/run3_dl/4dall_14999/4dall/ckpt_14999/params) and the final paired-loss readout launched -> paired_14999.out.
+Cron tick v4 (9f071cf5) now watches only the sim box and retires itself after recording the final readout.

@@ -1060,3 +1060,23 @@ keep-newest-1 rule, and 5000/7500/10000/12500 params also sit on the sim box und
 Final params pulled to the sim box by `dl_final.py` (the driver writes them to 4dall/params, not ckpt_14999; symlink at
 /root/run3_dl/4dall_14999/4dall/ckpt_14999/params) and the final paired-loss readout launched -> paired_14999.out.
 Cron tick v4 (9f071cf5) now watches only the sim box and retires itself after recording the final readout.
+
+### 2026-09-30 17:39 UTC — FINAL paired-loss readout (4dall step 14999): swap gap +267%; full series recorded; readout campaign closed
+
+| params | L_true | L_swap (images+history+3D PE from the twin) | swap gap | worse on | L_swap_all | L_cross |
+| FULL (step 0) | 0.0556 | 0.0621 | +0.0064 (+11.5%) | 76% | 0.0622 | 0.1021 |
+| 5000  | 0.0261 | 0.0494 | +0.0233 (+89%)  | 97% | 0.0496 | 0.0786 |
+| 7500  | 0.0217 | 0.0514 | +0.0297 (+137%) | 97% | 0.0516 | 0.0890 |
+| 10000 | 0.0201 | 0.0513 | +0.0312 (+155%) | 98% | 0.0513 | 0.0915 |
+| 12500 | 0.0174 | 0.0535 | +0.0361 (+208%) | 99% | 0.0535 | 0.0973 |
+| 14999 | 0.0160 | 0.0587 | +0.0427 (+267%) | 99% | 0.0587 | 0.1046 |
+Per direction at 14999 (gap): od5 +0.0244, odm5 +0.0233, ol5 +0.0139, olm5 +0.0184, omix1 +0.0562, omix2 +0.0689,
+oy15 +0.0744, oym15 +0.0865 — monotone in the perturbation size at every checkpoint. L_swap_all = L_swap at all six
+points: the pointer and map tokens carry no discriminative information beyond the images (pointer dropout 0.7 + noise
+did its job). L_swap rose from 12500 to 14999 (0.0535 -> 0.0587) and L_cross climbed back to the step-0 level: the
+wrong-picture penalty is now growing in absolute terms, i.e. the policy's action on these clips is increasingly a
+function of the picture. Verdict for the TRAINED twins: vision used, strongly. Verdict for HELD-OUT states: unknown
+except the ckpt-5000 pointer-off probe on 301 (no field). Campaign closed; sim box idle (20 GB free; pulled params for
+5000/7500/10000/12500/final under /root/run3_dl/). Awaiting the operator on: n=25 on 301 pointer off/on (recommend the
+FINAL params first, given the monotone series, then 5000 if the final grasps 0), held-out ODART twins on new demos for
+the memorization test, and trainer-log backup / spin-down (logs still box-only on 195.26.233.65).

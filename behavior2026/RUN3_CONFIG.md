@@ -986,3 +986,12 @@ harvested 301 states and the n=25 eval on 301, both on the sim box with the ckpt
 (/root/run3_dl/4dall_5000/4dall/ckpt_5000/params). Trainer at 05:00: step 7290, 10.5 steps/min, 0 errors; ckpt 7500
 ~05:25 UTC (readout if the pull lands before 10000 replaces it), 15k ~17:00 UTC. Results: sim box
 /root/run3_logs/paired_{full,5000}.{out,json}.
+
+### 2026-09-30 05:12 UTC — pointer-off corrective-field probe of 4dall ckpt 5000 LAUNCHED on the sim box (operator go-ahead)
+
+`jacobian_probe_4dall_off.sh` = the 4dpd probe protocol verbatim (AFF_TAU=2, stage from the System-2 head, online map
+target-blind, MAP_ARM=B, 4 harvested near-grasp states x 15 conditions x 3 samples, 16 steps) with POLICY_CONFIG
+pi05_radio_4d_all and the ckpt-5000 params already on the box; out /root/jacobian_probe_4dall_off/, log
+/root/jacobian_probe_4dall_off.out; ~1.5 h (the 4dpd probe ran 12:40-14:16). Summary via `jac_summary.py <dir>`
+(baseline-subtracted restoring displacement pooled over the hand-offset conditions, corr with offset magnitude, frac > 0,
+vision-only conditions separately). Bar: the three nulls were +0.010..0.012 m / corr <= 0.13 / frac 0.65-0.67.

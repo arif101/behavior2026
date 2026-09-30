@@ -1015,3 +1015,13 @@ off (then on) with ckpt 5000 once the 7500 readout frees the card (~08:00 UTC), 
 (ODART twins on demos outside the 15 used) to separate memorization from perception; the data recipe needs scale either
 way (99 pairs / 15 demos is small). Probe server killed 06:58; ckpt 7500 pulled in 40 s; its paired-loss readout
 launched 06:58:45 -> paired_7500.out (~65 min). Trainer at 06:58: step 8620, 10.5 steps/min, 0 errors.
+
+### 2026-09-30 08:28 UTC — paired-loss readout, 4dall ckpt 7500: swap gap +137% (series 0 -> 5000 -> 7500 = +11.5% -> +89% -> +137%)
+
+86 pairs, flow-only: L_true 0.0217 (5000: 0.0261; step 0: 0.0556), L_swap 0.0514, gap +0.0297 (+137.3%), worse on 97% of
+pairs; L_swap_all 0.0516 (pointer/map still add nothing beyond the images); L_cross 0.0890. Per direction (gap at 7500 /
+5000): od5 +0.0141/+0.0125, odm5 +0.0162/+0.0089, ol5 +0.0091/+0.0056, olm5 +0.0121/+0.0099, omix1 +0.0411/+0.0306,
+omix2 +0.0471/+0.0385, oy15 +0.0544/+0.0419, oym15 +0.0619/+0.0543 — every direction up again. The absolute gap keeps
+growing (0.0064 -> 0.0233 -> 0.0297) while L_true keeps falling, so the picture channel is doing more of the work on the
+trained twins each checkpoint. Together with the ckpt-5000 probe null this is consistent with fitting the 99 pairs;
+whether it is a metric read is the n=25 / held-out-twin question, unchanged. Sim box idle (card free) from 08:27.

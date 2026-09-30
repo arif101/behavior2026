@@ -995,3 +995,23 @@ pi05_radio_4d_all and the ckpt-5000 params already on the box; out /root/jacobia
 /root/jacobian_probe_4dall_off.out; ~1.5 h (the 4dpd probe ran 12:40-14:16). Summary via `jac_summary.py <dir>`
 (baseline-subtracted restoring displacement pooled over the hand-offset conditions, corr with offset magnitude, frac > 0,
 vision-only conditions separately). Bar: the three nulls were +0.010..0.012 m / corr <= 0.13 / frac 0.65-0.67.
+
+### 2026-09-30 06:58 UTC — 4dall ckpt 5000, POINTER-OFF corrective-field probe: NO FIELD (fourth null); ckpt 7500 readout launched
+
+180 trials (4 states x 15 conditions x 3 samples), 0 tracebacks, 0 grasps, summary /root/run3_logs/jac_summary_4dall.txt:
+| probe | restoring / 16 steps | corr(restoring, offset) | frac > 0 | vision-only (radio moved) |
+| full, pointer on (09-21) | +0.011 m | 0.013 | 0.66 | — |
+| 4D @5000, pointer on (09-25) | +0.010 m | 0.086 | 0.65 | — |
+| 4dpd @5000, pointer off (09-26) | +0.012 m +- 0.004 | 0.131 | 0.67 | +0.003 |
+| 4dall @5000, pointer off (09-30) | +0.013 m +- 0.007 | 0.060 | 0.57 | +0.003 +- 0.007 |
+By magnitude 3 cm +0.009 / 6 cm +0.017 (same as 4dpd's +0.008 / +0.017); per state x condition the signs are as mixed as
+before (near_tr2 y-6 +0.104 but z-6 -0.024; tr1 y-6 -0.051), i.e. proprio-driven drift, and the trial-to-trial spread
+is larger than 4dpd's (sem 0.0065 vs 0.0038). Base motion at these harvested near-grasp states is still not toward the
+radio (progress -0.015..+0.120 m over |disp| 0.15-0.19 m). READING: the counterfactual data made the flow objective route
+through vision on the 99 TRAINED twins (paired loss +89%), but at HELD-OUT near-grasp states on instance 301 the policy
+shows no restoring field with the pointer off — memorization of the trained pairs is the simplest explanation; the
+alternative (field appears later in training) is testable on the final ckpt. Next held-out tests: n=25 on 301 pointer
+off (then on) with ckpt 5000 once the 7500 readout frees the card (~08:00 UTC), and a held-out counterfactual readout
+(ODART twins on demos outside the 15 used) to separate memorization from perception; the data recipe needs scale either
+way (99 pairs / 15 demos is small). Probe server killed 06:58; ckpt 7500 pulled in 40 s; its paired-loss readout
+launched 06:58:45 -> paired_7500.out (~65 min). Trainer at 06:58: step 8620, 10.5 steps/min, 0 errors.

@@ -954,3 +954,15 @@ mostly by proprio (L_cross >> L_swap); the pictures contribute ~12% and the poin
 Trainer: ckpt 2500 committed and pushed to HF (b26-run3-params/4dall/ckpt_2500) at 21:43:49 UTC; step 3660 at 23:27,
 5.1 s/step, 0 errors, oom_kill 0, disk 102 GB free (one full ckpt on box; train_state pruned once 5000 lands). Readout of
 ckpt 2500 launched on the sim box 23:3x UTC -> /root/run3_logs/paired_2500.{out,json} (~65 min).
+
+### 2026-09-30 03:41 UTC — ckpt 2500 readout LOST (xet pull hung, then keep-newest-1 deleted 2500 from HF); ckpt 5000 pulled in 40 s, readout launched
+
+The sim-box pull of 4dall/ckpt_2500 (23:31 UTC) hung at 9/41 files with 11 GB on disk and never finished; the driver's
+off-box push of ckpt 5000 at 01:34 UTC then deleted ckpt_2500 from HF (run3_hf.py keeps the newest mid-run ckpt only) and
+orbax dropped the local 2500 (max_to_keep 1, keep_period 5000), so no 2500 params exist anywhere. Killed the hung pull,
+removed the partial dir; the same script pulled ckpt_5000 (11 GB) in under 45 s -> the hang was an xet stall, not
+bandwidth. Readout of ckpt 5000 launched 03:41 UTC -> /root/run3_logs/paired_5000.{out,json} (~65 min). The sim box also
+refused SSH (TCP open, "connection reset") for ~1 h around 02:15-03:30 UTC and came back on its own (uptime 67 d).
+Readout series is therefore step 0 (FULL), 5000, 7500?, 10000, 12500?, 14999 — the ?-steps only if the pull lands
+inside the 2.5-h window before the next push deletes them. Trainer at 03:38: step 6370, 5.5 s/step, 0 errors,
+ckpt 7500 ~05:25 UTC, 15k ~16:50 UTC.

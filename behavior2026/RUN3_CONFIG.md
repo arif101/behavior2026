@@ -1036,3 +1036,14 @@ od5 +0.0163/+0.0141, odm5 +0.0149/+0.0162, ol5 +0.0087/+0.0091, olm5 +0.0141/+0.
 "wrong picture" loss has stopped moving and the ratio rises only because the true loss keeps dropping — the trained
 twins are being fit, not increasingly discriminated. Sim box idle from 10:57 (42 GB free; pulled ckpts 5000/7500/10000).
 Trainer at 10:58: step 11,400, 10.5 steps/min, 0 errors; ckpt 12500 ~12:50 UTC, final ~17:00 UTC.
+
+### 2026-09-30 14:28 UTC — paired-loss readout, 4dall ckpt 12500: swap gap +208% (series 0/5000/7500/10000/12500 = +11.5% / +89% / +137% / +155% / +208%)
+
+86 pairs, flow-only: L_true 0.0174, L_swap 0.0535, gap +0.0361 (+207.6%), worse on 99% of pairs; L_swap_all 0.0535
+(= L_swap: pointer/map add nothing beyond the images, fifth time); L_cross 0.0973. Per direction (gap at 12500 / 10000):
+od5 +0.0184/+0.0163, odm5 +0.0183/+0.0149, ol5 +0.0110/+0.0087, olm5 +0.0150/+0.0141, omix1 +0.0492/+0.0438, omix2
++0.0582/+0.0494, oy15 +0.0653/+0.0572, oym15 +0.0757/+0.0645. L_swap has started rising again (0.0513 -> 0.0535) while
+L_true falls (0.0201 -> 0.0174), so the wrong-picture penalty is growing in absolute terms too, mostly on the mixed and
+yaw pairs. Still consistent with fitting the trained twins ever more tightly; the held-out question is unchanged. Sim
+box idle from 14:27 (31 GB free; pulls 5000/7500/10000/12500 = 44 GB). Trainer at 14:28: step 13,800, 0 errors; final
+ckpt 14999 ~16:25 UTC, then the driver's final push + RUN3_ALL_DONE.

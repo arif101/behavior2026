@@ -1123,3 +1123,30 @@ converts each tier with `odart_convert.sh` (BAR=strict) to HF `b26-radio-manufac
 (root kept locally). Expected: ~14 min per attempt -> tier 1 (48 attempts) ~10 h, tier 2 up to ~20 h more. Next after
 tier 1: FK + relabel/gists/hist-token precompute on the sim box, a readout mix of the held-out root, and
 paired_loss_readout with the final params; the memorization test is swap gap on unseen demos vs +267% on trained ones.
+
+### 2026-10-01 05:35 UTC — 4dall n=25 pointer-off: 0/14 so far; ROOT CAUSE from the rollouts; stages 2/3 replaced by the ORACLE test (operator)
+
+Stage 1 (final params, pointer OFF, GripperReopen/head stack): 14/25 done, 0 grasps, 0 successes, 0 injections.
+Rollout anatomy (`rollout_diag.py` on action logs, `odom_diag.py` on the live-map odometry, video frames): the base
+approach WORKS (settles 300-700 steps after start, 0.3-1.3 m of travel, parks 0.4-1.0 m from where the full-stack grasp
+run parked), the hand reaches a hover 10-25 cm from the radio (beside/above/behind it, gripper open) and then FREEZES:
+arm-command std 0.02-0.05 for the remaining ~2500 steps, base stopped; 1 run (2) spun away. Stage head: votes 0 in
+~95% of replans; flipped to 1 in 5/14 runs (steps 464-2496) and NOTHING changed afterwards (run 11: stage 1 served for
+2000 steps, arm std 0.03, gripper never closed, hand drifted away). The head is faithful to its rule (stage 1 = hand
+within 12 cm of a point 14 cm above the button; the hover is outside it); under the pointer-ON full stack the rule-based
+tracker also stayed at 0 in 21/25 runs (full_s2stage). Progress input saturates at 0.25 after 1065 steps of stage 0 (a
+value no training frame carries with the hand at the object). Corrective-clip stage coverage: ODART frames 21% stage 0 /
+30% stage 1 / 49% stage 2 (median 123 stage-0 frames per twin), DART/factory >90% stage 2: no coverage of a long hover.
+READING: (1) primary = no metric read/execution of the last 10-20 cm (scattered hover poses; four null corrective-field
+probes; stage-1 conditioning delivered, no closure); (2) secondary = the stage/progress conditioning deadlock; (3) the
+head-driven serving stack has never grasped on any checkpoint (full_s2stage 0/25, reopen2 0/25, now 0/14), the only
+grasps came from the tracker/no-stage stacks. Caveat from 09-18: the full ckpt scored 0/10 with an ORACLE pointer, so the
+last hop was an execution failure there too; unknown for this checkpoint with 202 scripted-finish clips in it.
+DECISION (operator): trained finish, not a scripted serve-time primitive; stages 2/3 (pointer-on head stack, ckpt-5000
+off) cancelled; `oracle_followup.sh` lets stage 1 finish, then runs the 09-17 P1 convention on the final params
+(StageV2AffordanceWrapper, tracker stage, map tokens forwarded, DIAG_ORACLE_POINT=1, n=10, tag _oracle): grasps ->
+perception gap (finish data must force vision); 0 -> the finish motion is missing (finish data must teach it). The
+held-out twin factory waiter was retired (re-armed later behind the finish work). Next after the oracle: stall-state
+harvest on TRAIN layouts with this policy pointer-off -> finish twins from those states (continuous radio + hand
+offsets, scripted finish, 500-1000 clips, second sim box recommended) -> finish arm (one variable: data; gate = the
+corrective-field probe must show a field at ckpt 5000) -> geometric offset/phase head as the arm after.

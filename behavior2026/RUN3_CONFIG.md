@@ -1093,3 +1093,19 @@ finalize step slimmed the local ckpts to 14999 only, so the mid-run params for s
 on the sim box (/root/run3_dl/4dall_<step>/4dall/ckpt_<step>/params, 11 GB each; 12500 + final are also on HF). If those
 intermediate checkpoints matter (the 5000 one is the probed/eval-candidate ckpt), push them from the sim box before any
 sim-box spin-down.
+
+### 2026-10-01 01:00 UTC — trainer spun down (operator); sim-box ckpts 5000/7500/10000 pushed to HF; n=25 EVAL CHAIN LAUNCHED on 301
+
+Operator spun down the A100 trainer after the backup audit (nothing box-only). `upload_simbox_ckpts.py` pushed the three
+mid-run params that existed only on the sim box to HF `b26-run3-params/4dall/ckpt_{5000,7500,10000}/params` (plain
+upload_folder, NOT run3_hf.py's keep-newest-1 path; 40/32/41 files, 11.66 GB each, byte-verified, 52 s). The 4dall
+series is now complete on HF: ckpt_5000/7500/10000/12500 + final params.
+EVAL (`eval_4dall_chain.sh`, sim box, log /root/eval_4dall_chain.out, per-stage driver logs
+/root/run3_eval_<arm><tag>_driver.out, results in /root/run3_eval_<arm>.log + /root/run3_eval/<arm><tag>/SUMMARY):
+serving = the pre-registered 4D convention — POLICY_CONFIG pi05_radio_4d_all, WRAP GripperReopenWrapper (->
+StageV2AffordanceWrapper -> AffordanceMapFullRes), SERVE_STAGE_SOURCE=head + REOPEN_STAGE_SOURCE=head, map tokens
+forwarded, HISTORY_MODE=normal, instance 301 (public_test index 0), 25 rollouts, no --max-steps. Stages: (1) FINAL params
+pointer OFF (AFF_TAU=2; arm 4dall_final, tag _ptroff) -> (2) if 0 grasps, FINAL params pointer ON (_pton) -> (3) if still
+0, ckpt-5000 pointer OFF (arm 4dall, _ptroff). ~2 h per stage. Reference bars: A4 2/25 grasps, S1 2/25, full 1/25, the
+full-stack System-2-stage/reopen/pointer-off diagnostics all 0. Stage 1 server up 01:00:11 UTC, run 1 started.
+Held-out twins (step 3) are prepared while the eval holds the GPU and run after the chain.

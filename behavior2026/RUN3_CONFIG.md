@@ -1176,3 +1176,16 @@ restore, continuous radio offset (2-8 cm, <=20 deg) + hand offset, scripted fini
 ONE variable (data); gate = corrective-field probe at ckpt 5000 must show a field before any n=25; (4) geometric
 offset/phase head as the arm after. Held-out ODART twins (`odart_heldout.sh`) re-armed behind the finish factory.
 Sim box idle from 11:51 UTC (20 GB free; all 4dall params local; frames_diag/ end frames kept).
+
+### 2026-10-01 17:58 UTC — STALL-STATE HARVEST launched (finish-factory step 1); the oracle verdict closes the readout campaign
+
+`stall_harvest_4dall.sh` (sim box, log /root/stall_harvest.out): the 4dall FINAL policy served POINTER-OFF with the eval
+stack (pi05_radio_4d_all, map tokens on, HISTORY_MODE=normal, stage from the System-2 head, AFF_TAU=2) through
+FreezeHarvestWrapper on 100 TRAIN layouts (direct train ids 0,3,...,297; never 301/public_test), FREEZE_MIN 450 / WIN 150
+/ CAP 1500, one rollout each -> /root/stall_states/h4d_tr<id>.{npz,json} (full sim state + meta: step, stationary,
+base_to_radio_xy, dist_R/L_last) + per-rollout dirs with the stage-head log. ~6-8 min per attempt -> ~12 h. Server up
+17:58:28, first harvest started. Usability filter for the finish twins: base_to_radio_xy < 1.2 m (the hover states; run
+2/8-style spin-outs excluded). Cron f3522263 monitors. NEXT (to build while it runs): the finish-twin factory = restore a
+stall npz (freeze_continue-style), perturb the radio (continuous 2-8 cm lateral/depth, <=20 deg yaw) and optionally the
+hand, run the scripted finish (orient -> descend -> close -> lift) with the honest_strict bar, record obs -> LeRobot
+root -> HF; then the finish arm (4dall recipe + finish clips up-weighted; gate = corrective-field probe at ckpt 5000).

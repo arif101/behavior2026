@@ -1109,3 +1109,17 @@ pointer OFF (AFF_TAU=2; arm 4dall_final, tag _ptroff) -> (2) if 0 grasps, FINAL 
 0, ckpt-5000 pointer OFF (arm 4dall, _ptroff). ~2 h per stage. Reference bars: A4 2/25 grasps, S1 2/25, full 1/25, the
 full-stack System-2-stage/reopen/pointer-off diagnostics all 0. Stage 1 server up 01:00:11 UTC, run 1 started.
 Held-out twins (step 3) are prepared while the eval holds the GPU and run after the chain.
+
+### 2026-10-01 01:15 UTC — held-out ODART twin factory armed (runs after the eval chain releases the GPU)
+
+The 4dall twins came from 15 of the 21 `factory_obs2` demos (10 160 170 180 190 20 210 250 260 270 310 320 330 340 370
+390 40 50 60 70 80; 9 of them skipped as stalls); the factory restores straight from /root/rawdemos/task-0000/
+episode_<demo>.hdf5, so the other 17 demos of the 38-demo factory set are available and UNSEEN by the arm:
+tier 1 = 100 120 230 280 350 400 (spread over the range), tier 2 = 110 130 140 220 240 290 300 360 380 410 420.
+`odart_heldout.sh` (sim box, log /root/odart_heldout.out, per-attempt logs /root/odart_heldout_logs/) waits for
+EVAL_4DALL_CHAIN_DONE + no serve/harness process, refuses to start on stale renders, then runs the same factory
+(`factory_approach_cap_v13_odart.py --perturb-object`), same 8 perturbations, 2400 s cap, skip after 2 failures, and
+converts each tier with `odart_convert.sh` (BAR=strict) to HF `b26-radio-manufactured/b1k_radio_odart_rheldout<tier>_<ts>`
+(root kept locally). Expected: ~14 min per attempt -> tier 1 (48 attempts) ~10 h, tier 2 up to ~20 h more. Next after
+tier 1: FK + relabel/gists/hist-token precompute on the sim box, a readout mix of the held-out root, and
+paired_loss_readout with the final params; the memorization test is swap gap on unseen demos vs +267% on trained ones.

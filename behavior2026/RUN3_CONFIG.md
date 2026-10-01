@@ -1080,3 +1080,16 @@ except the ckpt-5000 pointer-off probe on 301 (no field). Campaign closed; sim b
 5000/7500/10000/12500/final under /root/run3_dl/). Awaiting the operator on: n=25 on 301 pointer off/on (recommend the
 FINAL params first, given the monotone series, then 5000 if the final grasps 0), held-out ODART twins on new demos for
 the memorization test, and trainer-log backup / spin-down (logs still box-only on 195.26.233.65).
+
+### 2026-10-01 00:41 UTC — trainer 195.26.233.65 fully backed up (operator request); box is spin-down ready
+
+`backup_trainer_4dall.py` (token from /root/.hf_token) -> HF dataset `arif101/b26-run3-mixes`, verified by remote file
+count + byte totals: `run3_logs_4dall_0930/` = /root/run3_logs/** + bringup_all.log (20 files, 1.43 MB; distinct prefix
+because run3_logs/ holds the earlier boxes' logs) and `mix_all/` = /root/b1k_radio_mix_all data/** + meta/** (29 files,
+42.99 GB; videos excluded as for mix_4d — they rebuild from the HF sources). 72 s total. Already on HF before this: final
+params (`b26-run3-params/4dall/params`, 34 files 11.66 GB) + assets + provenance + ckpt_12500; readout mix
+(`mix_readout/`); all 22 FK dirs; odart_episode_map.json. Nothing box-only remains on the trainer. NOTE: the driver's
+finalize step slimmed the local ckpts to 14999 only, so the mid-run params for steps 5000 / 7500 / 10000 now exist ONLY
+on the sim box (/root/run3_dl/4dall_<step>/4dall/ckpt_<step>/params, 11 GB each; 12500 + final are also on HF). If those
+intermediate checkpoints matter (the 5000 one is the probed/eval-candidate ckpt), push them from the sim box before any
+sim-box spin-down.

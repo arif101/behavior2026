@@ -1150,3 +1150,29 @@ held-out twin factory waiter was retired (re-armed later behind the finish work)
 harvest on TRAIN layouts with this policy pointer-off -> finish twins from those states (continuous radio + hand
 offsets, scripted finish, 500-1000 clips, second sim box recommended) -> finish arm (one variable: data; gate = the
 corrective-field probe must show a field at ckpt 5000) -> geometric offset/phase head as the arm after.
+
+### 2026-10-01 11:51 UTC — 4DALL VERDICT: pointer-off n=25 = 0/25; ORACLE pointer n=10 = 0/10 (EXECUTION gap, fifth oracle/off null)
+
+Stage 1 (final params, pointer OFF, GripperReopen/head stack, instance 301): EVAL_SUMMARY rollouts=25 grasp=0 success=0
+(08:43 UTC). Pre-registered bar A4 2/25 (pointer on): NOT beaten; equal-stack bar (full-stack pointer-off 0/10): equal.
+ORACLE (DIAG_ORACLE_POINT=1, exact sim-state target every step, StageV2 tracker stack, map tokens on, n=10):
+EVAL_SUMMARY rollouts=10 grasp=0 success=0 (11:51 UTC); 3201/3201 injections every run. Closest RIGHT hand to the TRUE
+target: 0.179 1.547 0.282 0.206 0.185 0.136 0.136 1.296 0.343 0.181 m -> median 0.196 m, best 0.136 m (full ckpt 09-18
+oracle: median 0.276, best 0.083). Two runs (2, 8) spun out (base yaw 740-780 deg, hand > 1.2 m). The TRACKER (exact
+pointer -> exact rule) reached stage 1 in 6/10 runs at steps 435-723 and served it for ~2500 steps: no closure in any.
+Rollout anatomy identical to pointer-off: base settles by step 500-1200, hand hovers 14-35 cm from the radio (end frames:
+right hand beside/behind the radio, gripper open, run 7 left hand on the table), arm-command std 0.03-0.10 thereafter.
+READING: with a PERFECT target in the conditioning the policy still stops 14-20 cm short and never closes -> the missing
+piece is the FINISH MOTION (hover -> aligned descent -> closure), not the visual read; the corrective clips (202, >90%
+stage 1-2 frames, scripted finishes from DEMO pre-grasp poses) did not transfer the finish to the policy's OWN hover
+states. This matches 09-18 (full oracle 0/10, A4 oracle 0/10): the finish has been missing in every checkpoint. The
+paired-loss +267% (vision used on trained twins) and the four null corrective-field probes are consistent with it:
+the picture is read, the target is known, the motion is not produced. Series of 301 results, 4dall final: pointer-off
+0/25, oracle 0/10; the head-driven stack remains 0 for every checkpoint it was tried on.
+DECISION STANDS (operator, 10-01): TRAINED finish. Next: (1) stall-state harvest on TRAIN layouts with this policy
+(pointer-off, freeze-harvest wrapper; never 301) -> bank of on-policy hover states; (2) FINISH TWINS from the bank:
+restore, continuous radio offset (2-8 cm, <=20 deg) + hand offset, scripted finish (orient/descend/close/lift), clips
+150-300 frames, target 500-1000 (second sim box recommended); (3) finish arm = 4dall recipe + finish clips up-weighted,
+ONE variable (data); gate = corrective-field probe at ckpt 5000 must show a field before any n=25; (4) geometric
+offset/phase head as the arm after. Held-out ODART twins (`odart_heldout.sh`) re-armed behind the finish factory.
+Sim box idle from 11:51 UTC (20 GB free; all 4dall params local; frames_diag/ end frames kept).

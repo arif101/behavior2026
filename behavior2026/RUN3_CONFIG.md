@@ -1189,3 +1189,22 @@ base_to_radio_xy, dist_R/L_last) + per-rollout dirs with the stage-head log. ~6-
 stall npz (freeze_continue-style), perturb the radio (continuous 2-8 cm lateral/depth, <=20 deg yaw) and optionally the
 hand, run the scripted finish (orient -> descend -> close -> lift) with the honest_strict bar, record obs -> LeRobot
 root -> HF; then the finish arm (4dall recipe + finish clips up-weighted; gate = corrective-field probe at ckpt 5000).
+
+### 2026-10-02 07:29 UTC — STALL-STATE HARVEST COMPLETE: 100/100 train layouts banked (89 usable hovers)
+
+`stall_harvest_4dall.sh` ran 17:58 -> 07:29 UTC (13.5 h, 8.1 min per layout, 0 tracebacks, 0 no-freeze). STALL_BANK
+n=100: stationary 67 (the other 33 dumped at the 1500-step cap while still dithering), base_to_radio_xy < 1.2 m in 89
+(median 0.78 m, IQR 0.65-0.86); 11 spin-outs (1.2-2.4 m) excluded by the factory's FF_MAX_GAP. Bank:
+/root/stall_states/h4d_tr<id>.{npz,json} (full sim state + 61-d proprio + base/radio pose + meta), per-rollout dirs with
+the stage-head log under /root/stall_harvest/. The hover geometry matches the 301 eval stalls (base parked 0.5-1.0 m
+out, right hand 10-65 cm from the grasp pose). Sim box idle.
+FINISH FACTORY status (`behavior2026_eval/finish_factory.py` = FinishFactoryWrapper, driver `finish_factory_run.sh`,
+converter `finish_convert.sh` derived from odart_convert.sh; canonical pre-grasp posture `/root/canonical_pregrasp.json`
+from 94 ODART clips via `canon_posture.py`): 4 smokes on h4d_tr0/tr9 fixed (1) the honesty tick firing before the
+accumulator existed, (2) the base drive-up touching the table from a parked stance (far hovers now skip the base),
+(3) orienting 15 cm from the table (hand retreats 30 cm up the lifted corridor first), (4) a wrist-limit lockup
+(joint-space move to the canonical posture before ORIENT). The pipeline now runs restore -> perturb -> retreat ->
+posture -> orient -> stage -> approach with recording (828-937 frames) and zero radio displacement, but the
+arm-only 7-DOF servo stops 9-12 cm short (joint 5 at its lower limit). NEXT EDIT: the factory's 10-DOF servo (right
+arm + trunk joints 1-3, TCAL-probed trunk columns, J11) in place of the arm-only one; then the first passing clip
+gates the full run over the bank (K=6 specs per state: unperturbed + 5 continuous radio/hand offsets).

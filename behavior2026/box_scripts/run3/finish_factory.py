@@ -45,6 +45,9 @@ ARM_REACH = float(os.environ.get("FF_ARM_REACH", 0.40))  # hand->grasp gap the 7
 RETREAT_D = float(os.environ.get("FF_RETREAT", 0.30))    # landing point back along the (lifted) corridor where the attitude is set
 ORIENT_BUDGET = int(os.environ.get("FF_ORIENT_BUDGET", 300))
 NO_TRUNK = os.environ.get("FF_NO_TRUNK", "0") == "1"       # 1 = arm-only servo (the 10-01 smokes); default = factory 10-DOF
+BASE_DRIVE = os.environ.get("FF_BASE_DRIVE", "0") == "1"
+TILT_MAX = float(os.environ.get("FF_TILT_MAX", 10.0))      # deg; radio up-vector vs vertical at clip start
+Z_MIN = float(os.environ.get("FF_Z_MIN", 0.50))            # m; radio rest height in this scene is 0.534 (fallen/edge < 0.50)   # 1 = BCAL + planar base drive-up for far/lateral hovers (fails from a parked stance; off)
 A_TORSO, A_ARM_L, A_GRIP_L, A_ARM_R, A_GRIP_R = slice(3, 7), slice(7, 14), 14, slice(15, 22), 22   # 23-d action
 J_ROW, J_PBLK, J_ABLK = 42, 0, 3   # RCAL3 result on every factory demo (freeze_continue.py)
 OPEN_AIR = ("RETREAT", "POSTURE", "ORIENT", "STAGE", "APPROACH")
@@ -366,6 +369,13 @@ class FinishFactoryWrapper(AffordanceMapFullRes):
         except Exception:  # noqa: BLE001
             pass
         pE0, RE0 = self._poseR(); pRad0, RRad0 = self._radio_pose()
+        # the policy sometimes knocks the radio over during its approach (tr15: z 0.48 vs 0.53 rest, 10-02): the canonical
+        # grasp frame is radio-relative, so a tipped radio sends the corridor into the body -> skip such states
+        up = float(RRad0.apply(np.array([0.0, 0.0, 1.0]))[2]); tilt = float(np.degrees(np.arccos(np.clip(up, -1, 1))))
+        meta.update(radio_tilt_deg=round(tilt, 1), radio_z_start=round(float(pRad0[2]), 4))
+        if tilt > TILT_MAX or pRad0[2] < Z_MIN:
+            print(f"RADIO_NOT_UPRIGHT {tag} tilt={tilt:.1f} deg z={pRad0[2]:.3f}", flush=True)
+            meta["phase"] = "SKIP_RADIO_TIPPED"; return self._skip_meta(meta)
         canon = json.load(open(CANON))
         rel_p = np.array(canon["rel_p"]); rel_R = R.from_quat(canon["rel_R_quat"]); tine_axis = np.array(canon["tine_axis_radio"])
         # corridor from the CURRENT hand toward the grasp pose (lifted to >= 35 deg elevation, factory v13d rule)
@@ -430,7 +440,9 @@ class FinishFactoryWrapper(AffordanceMapFullRes):
         base = {"driven": False}
         land_p = tgt_p + 0.20 * sdir
         planar = float(np.linalg.norm((land_p - pE)[:2]))
-        if gap0 > ARM_REACH or planar > 0.12:
+        if BASE_DRIVE and (gap0 > ARM_REACH or planar > 0.12):   # 10-02: off by default — from a parked stance the BCAL probe/drive
+            # touches the table within 2 steps (tr0/tr3: 8/8 RADIO_TOUCHED_BASE/BASE_BLOCKED_TABLE); the 10-DOF servo gets the
+            # lateral hovers instead, and the far band (gap > FF_MAX_GAP) waits for a reverse-then-advance base phase
             self._cap = False
             self._bcal(hold)
             p_start, _ = self._base_xy_yaw()
@@ -532,7 +544,7 @@ class FinishFactoryWrapper(AffordanceMapFullRes):
         os.makedirs(META_OUT, exist_ok=True)
         meta.update(n_obs=0, n_env_steps=self._n_env)
         json.dump(meta, open(f"{META_OUT}/{meta['tag']}_meta.json", "w"), indent=1)
-        print(f"FINISH_RESULT tag={meta['tag']} code={meta['code']} ok=False strict=False phase={meta['phase']} n_obs=0 gap0={meta.get('gap0', meta.get('gap_stall'))}", flush=True)
+        print(f"FINISH_RESULT tag={meta['tag']} code={meta['code']} ok=False strict=False phase={meta['phase']} n_obs=0 gap0={meta.get('gap0', meta.get('gap_stall'))} tilt={meta.get('radio_tilt_deg')}", flush=True)
         return meta
 
     def _finish_meta(self, meta):

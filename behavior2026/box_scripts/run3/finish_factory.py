@@ -46,6 +46,7 @@ RETREAT_D = float(os.environ.get("FF_RETREAT", 0.30))    # landing point back al
 ORIENT_BUDGET = int(os.environ.get("FF_ORIENT_BUDGET", 300))
 NO_TRUNK = os.environ.get("FF_NO_TRUNK", "0") == "1"       # 1 = arm-only servo (the 10-01 smokes); default = factory 10-DOF
 BASE_DRIVE = os.environ.get("FF_BASE_DRIVE", "0") == "1"
+STALL_ITS = int(os.environ.get("FF_STALL_ITS", 40))        # servo iterations without 2 mm of progress -> give up the phase
 TILT_MAX = float(os.environ.get("FF_TILT_MAX", 10.0))      # deg; radio up-vector vs vertical at clip start
 Z_MIN = float(os.environ.get("FF_Z_MIN", 0.50))            # m; radio rest height in this scene is 0.534 (fallen/edge < 0.50)   # 1 = BCAL + planar base drive-up for far/lateral hovers (fails from a parked stance; off)
 A_TORSO, A_ARM_L, A_GRIP_L, A_ARM_R, A_GRIP_R = slice(3, 7), slice(7, 14), 14, slice(15, 22), 22   # 23-d action
@@ -238,10 +239,17 @@ class FinishFactoryWrapper(AffordanceMapFullRes):
         rob = self._robot
         arm_idx = np.asarray(_np(rob.arm_control_idx["right"]), int)
         best_d = 9.9; self._last_pos_ok = False; oerr = 9.9
+        best_score = 9.9; last_improve = 0
         for it in range(budget):
             pE, RE = self._poseR()
             d = float(np.linalg.norm(target_p - pE)); best_d = min(best_d, d)
             oerr = float(np.linalg.norm((target_R * RE.inv()).as_rotvec()))
+            score = d + 0.3 * oerr * (w_orn > 0.1)
+            if score < best_score - 0.002:
+                best_score = score; last_improve = it
+            elif it - last_improve >= STALL_ITS:   # 10-02: a joint-limit stall burned the full budget (tr18: 3 specs = 50 min)
+                print(f"{tag} STALLED it={it} d={d:.4f} orn_err={oerr:.3f} best={best_d:.4f} sat={self._saturated()}", flush=True)
+                return False, best_d, oerr
             if d < done:
                 self._last_pos_ok = True
                 if oerr < orn_done:

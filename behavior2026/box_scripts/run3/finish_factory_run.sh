@@ -45,7 +45,7 @@ for f in $(ls /root/stall_states/h4d_tr*.npz | sort -V); do
   free_gb=$(df -BG / | awk "NR==2{gsub(\"G\",\"\",\$4); print \$4}"); [ "$free_gb" -lt 8 ] && { nb=$((nb+1)); convert_batch $nb; since=0; }
   SP=$(specs_for $id); n=$((n+1))
   say "=== $tag ($n): $SP ==="
-  FF_STATE=$f FF_ID=$id FF_PERTURBS="$SP" AFF_TAU=2 timeout 3000 bash /root/freeze_rollout.sh $W train $id /root/finish_runs/$tag 50 --policy local > /root/finish_runs/${tag}.out 2>&1
+  FF_STATE=$f FF_ID=$id FF_PERTURBS="$SP" AFF_TAU=2 timeout ${STATE_TIMEOUT:-6000} bash /root/freeze_rollout.sh $W train $id /root/finish_runs/$tag 50 --policy local > /root/finish_runs/${tag}.out 2>&1
   grep -hE "FINISH_RESULT|FINISH_DONE|DIAG_TRACEBACK" /root/finish_runs/$tag/eval.log 2>/dev/null | cut -c1-200
   rm -rf /root/finish_runs/$tag/videos
   find /tmp -mindepth 1 -maxdepth 1 -type d -user root -name "tmp????????" -mmin +120 -exec rm -rf {} + 2>/dev/null

@@ -1227,3 +1227,20 @@ SKIP_GAP_TOO_LARGE for a later base-drive band; 11 spin-outs skipped), convert+p
 (raw renders 0.4-0.7 GB each; freed 37 GB of HF-backed ckpt caches first -> 52 GB), HF roots b1k_radio_finish_r<batch>_<ts>
 + factory_clips_finish/*_meta.json. Expect ~20 min per state -> ~24 h; cron tick 21,51. After: FK pass (fk_all.sh
 pattern) over the new roots, then the finish-arm prep on a fresh trainer (mix_all + finish roots up-weighted).
+
+### 2026-10-02 19:33 UTC — finish factory: first 17 clips on HF (2 batches); three in-flight fixes; driver restarted with a 100-min state cap
+
+Driver 1 (16:26-19:13 UTC, 8 states): 17 ok clips, all honest_strict, pushed as b26-radio-manufactured/
+b1k_radio_finish_rfinish1_10021725 (12 eps / 2712 frames) and ..._rfinish2_10021910 (5 eps / 2073 frames). Failure
+phases and the fixes shipped in flight (the wrapper is imported per state, so each took effect at the next state):
+(1) 8 specs RADIO_TOUCHED_BASE / BASE_BLOCKED_TABLE on tr0/tr3 — the planar-offset rule sent within-reach lateral hovers to
+the BCAL base drive-up, which touches the table within 2 steps from a parked stance -> FF_BASE_DRIVE off (lateral hovers go
+to the 10-DOF servo; tr18/tr21 then produced clips); (2) 6 specs RADIO_TOUCHED on tr15 — the policy had knocked the radio
+to z 0.48 (rest 0.534) during its own approach, the radio-relative canonical grasp frame then points into the body ->
+upright check at clip start (tilt > 10 deg or z < 0.50 = SKIP_RADIO_TIPPED; 1/100 bank states); (3) joint-limit stalls
+burned the full servo budgets (tr18: 3 specs = the 50-min state cap; tr21 cut at 4/6) -> stagnation exit (40 iterations
+without 2 mm progress ends the phase) + STATE_TIMEOUT 6000 s in the driver (staged as finish_factory_run2.sh, started
+19:32 UTC after a clean STOP at the tr21 boundary, log /root/finish_factory2.out, resumes at tr24; tr18 specs 03-05 and
+tr21 04-05 were never attempted). Yield so far on the arm-and-trunk path: 17/20 specs attempted on reachable upright states.
+Clip lengths 178-676 frames; lateral hovers (tr18: 31 cm out, 16 cm sideways) reach on some offsets and not others,
+which the perturbation sweep covers. Cron tick v2 at 21,51 watches driver 2.

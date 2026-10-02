@@ -1208,3 +1208,22 @@ posture -> orient -> stage -> approach with recording (828-937 frames) and zero 
 arm-only 7-DOF servo stops 9-12 cm short (joint 5 at its lower limit). NEXT EDIT: the factory's 10-DOF servo (right
 arm + trunk joints 1-3, TCAL-probed trunk columns, J11) in place of the arm-only one; then the first passing clip
 gates the full run over the bank (K=6 specs per state: unperturbed + 5 continuous radio/hand offsets).
+
+### 2026-10-02 16:27 UTC — FIRST FINISH CLIPS PASS; FINISH FACTORY LAUNCHED over the stall bank
+
+The 10-DOF servo port (factory J11: right-arm Jacobian columns + TCAL-probed trunk columns, trunk steps <= 0.03 rad,
+torso joint 4 locked) fixed the last 9-12 cm: on stall state h4d_tr9 (hand 11 cm from the grasp pose) both smoke
+specs completed RETREAT -> POSTURE (canonical pre-grasp from 94 ODART clips) -> TCAL -> ORIENT (50 it, 0.055 rad) ->
+STAGE (23 it) -> APPROACH (15 it, 2.4 cm) -> PUSH -> CLOSE (native AG at k=13) -> LIFT (+9 cm), honest_strict
+(radio displacement 0.000 m before contact), 243 and 363 recorded frames; spec 01 = radio +4 cm lateral / +3 cm depth /
++10 deg. Clip format = the converter's LIVE-RaC family (proprio 61, actions 23, 3 RGB + 3 depth streams, objpose,
+base_pose, radio_rest_z); `finish_convert.sh` (derived from odart_convert.sh, no tag re-encoding) converted the two
+into a LeRobot root (2 eps / 606 frames, live stage rule 1 -> 2 at contact/lift, gt_depth_ds + sample_weight) and
+pushed it (b26-radio-manufactured/b1k_radio_finish_rsmoke_1002; deleted locally, re-made in batch 1).
+LAUNCHED 16:27 UTC: `finish_factory_run.sh` (log /root/finish_factory.out): every stall state ascending, K=6 specs
+(00 unperturbed + 5 random continuous: radio dlat/ddepth +-2..8 cm, yaw +-20 deg, hand dy/dz +-4 cm, wrist +-15 deg,
+seeded per state), FF_ARM_REACH=FF_MAX_GAP=0.60 (71 states in the arm band; the 18 farther hovers get
+SKIP_GAP_TOO_LARGE for a later base-drive band; 11 spin-outs skipped), convert+push every 6 states or at < 8 GB free
+(raw renders 0.4-0.7 GB each; freed 37 GB of HF-backed ckpt caches first -> 52 GB), HF roots b1k_radio_finish_r<batch>_<ts>
++ factory_clips_finish/*_meta.json. Expect ~20 min per state -> ~24 h; cron tick 21,51. After: FK pass (fk_all.sh
+pattern) over the new roots, then the finish-arm prep on a fresh trainer (mix_all + finish roots up-weighted).

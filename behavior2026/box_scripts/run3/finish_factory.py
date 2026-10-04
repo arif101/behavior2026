@@ -46,7 +46,11 @@ RETREAT_D = float(os.environ.get("FF_RETREAT", 0.30))    # landing point back al
 ORIENT_BUDGET = int(os.environ.get("FF_ORIENT_BUDGET", 300))
 NO_TRUNK = os.environ.get("FF_NO_TRUNK", "0") == "1"       # 1 = arm-only servo (the 10-01 smokes); default = factory 10-DOF
 BASE_DRIVE = os.environ.get("FF_BASE_DRIVE", "0") == "1"
-STALL_ITS = int(os.environ.get("FF_STALL_ITS", 40))        # servo iterations without 2 mm of progress -> give up the phase
+STALL_ITS = int(os.environ.get("FF_STALL_ITS", 40))
+LATERAL_DEG = float(os.environ.get("FF_LATERAL_DEG", 999.0))  # hover corridor > this off the base->radio line -> base-side corridor.
+# 10-02 22:58: DISABLED (999). The angle does not separate the failures: passing states tr9/tr42/tr51 sit 99-164 deg off the
+# base line, failing tr27 sits 27 deg. The wrist-limit failures need a different predictor (left for the post-run analysis).
+LIFT_FIRST = float(os.environ.get("FF_LIFT_FIRST", 0.15))     # m straight up before crossing to the base-side landing        # servo iterations without 2 mm of progress -> give up the phase
 TILT_MAX = float(os.environ.get("FF_TILT_MAX", 10.0))      # deg; radio up-vector vs vertical at clip start
 Z_MIN = float(os.environ.get("FF_Z_MIN", 0.50))            # m; radio rest height in this scene is 0.534 (fallen/edge < 0.50)   # 1 = BCAL + planar base drive-up for far/lateral hovers (fails from a parked stance; off)
 A_TORSO, A_ARM_L, A_GRIP_L, A_ARM_R, A_GRIP_R = slice(3, 7), slice(7, 14), 14, slice(15, 22), 22   # 23-d action
@@ -396,6 +400,19 @@ class FinishFactoryWrapper(AffordanceMapFullRes):
         if el < 35.0:
             xy = sdir[:2] / (np.linalg.norm(sdir[:2]) + 1e-9)
             sdir = np.array([xy[0] * np.cos(np.radians(35.0)), xy[1] * np.cos(np.radians(35.0)), np.sin(np.radians(35.0))])
+        # LATERAL hovers (tr18/tr27/tr45, 10-02): the hover's own corridor leaves the wrist pinned at limits after POSTURE and
+        # the finish falls 5-12 cm short. When the hand sits > LATERAL_DEG off the base->radio line, use the DEMO-side corridor
+        # (from the robot base toward the radio, lifted 35 deg) and lift the hand straight up first so the retreat does not sweep
+        # through the radio. Front hovers keep their own corridor (6/6 passing states so far).
+        bxy = _np(self._robot.get_position_orientation()[0]).astype(np.float64)[:2]
+        dir_base = bxy - pRad0[:2]; dir_base = dir_base / (np.linalg.norm(dir_base) + 1e-9)
+        cxy = sdir[:2] / (np.linalg.norm(sdir[:2]) + 1e-9)
+        lat_deg = float(np.degrees(np.arccos(np.clip(np.dot(cxy, dir_base), -1, 1))))
+        lateral = lat_deg > LATERAL_DEG
+        if lateral:
+            sdir = np.array([dir_base[0] * np.cos(np.radians(35.0)), dir_base[1] * np.cos(np.radians(35.0)), np.sin(np.radians(35.0))])
+        meta.update(lateral_deg=round(lat_deg, 1), corridor="base" if lateral else "hover")
+        print(f"CORRIDOR {tag}: hand {lat_deg:.0f} deg off the base line -> {'BASE-side' if lateral else 'hover'} corridor {np.round(sdir, 3).tolist()}", flush=True)
         lat = np.array([-sdir[1], sdir[0], 0.0]); lat /= (np.linalg.norm(lat) + 1e-9)
         dep = np.array([sdir[0], sdir[1], 0.0]); dep /= (np.linalg.norm(dep) + 1e-9)
         meta.update(gap_stall=round(float(np.linalg.norm(tgt0 - pE0)), 4), base_to_radio=round(float(np.linalg.norm((pRad0 - _np(self._robot.get_position_orientation()[0]))[:2])), 3))
@@ -474,6 +491,11 @@ class FinishFactoryWrapper(AffordanceMapFullRes):
         # the hand was >= 0.5 m clear. So: land RETREAT_D back along the corridor (which is lifted >= 35 deg -> up and away).
         stage_p = tgt_p + 0.10 * sdir
         land = tgt_p + RETREAT_D * sdir
+        if lateral:   # lift straight up first (open-air, honesty-ticked), then cross to the base-side landing
+            ok_u, _, _ = self._servo(pE + np.array([0.0, 0.0, LIFT_FIRST]), RE, hold, 80, "RETREAT", stride=0.012, w_orn=0.3, done=0.02, orn_done=9.9)
+            hold = self._hold(); pE, RE = self._poseR()
+            if self._hon["pre_disp"] > 0.04:
+                meta["phase"] = "RADIO_TOUCHED_RETREAT"; return self._finish_meta(meta)
         if float(np.linalg.norm(land - pE)) > 0.03:
             ok_r, _, _ = self._servo(land, RE, hold, 120, "RETREAT", stride=0.012, w_orn=0.3, done=0.02, orn_done=9.9)
             hold = self._hold()

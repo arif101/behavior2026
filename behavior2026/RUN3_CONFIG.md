@@ -1244,3 +1244,42 @@ without 2 mm progress ends the phase) + STATE_TIMEOUT 6000 s in the driver (stag
 tr21 04-05 were never attempted). Yield so far on the arm-and-trunk path: 17/20 specs attempted on reachable upright states.
 Clip lengths 178-676 frames; lateral hovers (tr18: 31 cm out, 16 cm sideways) reach on some offsets and not others,
 which the perturbation sweep covers. Cron tick v2 at 21,51 watches driver 2.
+
+### 2026-10-04 16:41 UTC — FINISH FACTORY COMPLETE: 100/100 stall states, 273 strict finish clips (76,094 frames) in 17 HF roots
+
+`FINISH_FACTORY_DONE states=92 clips_strict=375 ok=273 meta=593 skipped_far=147` (driver 2 log /root/finish_factory2.out;
+driver 1 did 8 states 10-02 16:26-19:13, driver 2 the other 92 from 10-02 19:32 to 10-04 16:41 = 45 h). The driver iterates
+all 100 bank files (`/root/stall_states/h4d_tr<id>.npz`); the "89 usable" figure was the stall-gap analysis, the wrapper
+decides per state. 593 specs attempted (K=6 per state minus cap cuts), 0 tracebacks, 0 CONVERT/PUSH failures, 431 servo
+stagnation exits, one state (tr153) ended on the 100-min cap. Yield: 273 ok clips, every one honest_strict (radio
+displacement <= 2 cm / rot <= 15 deg before contact), 180-680 frames each (mean 279), native AG weld on every clip, lift
+>= 9 cm. Per state: 39 states 6/6, 15 partial (1-5), 29 zero-yield with attempts, 17 fully far-skipped (gap > 0.60 m).
+Pace 33 min/state overall: near-hand states take 5-12 min for 6 clips (clips 180-240 frames, zero pre-grasp displacement),
+failure states 55-100 min.
+HF roots (b26-radio-manufactured, LeRobot format from `finish_convert.sh`, BAR=strict, eps per root): rfinish1_10021725 12,
+rfinish2_10021910 5, rfinish1_10022117 18, rfinish2_10030009 18, rfinish3_10030224 18, rfinish4_10030558 18,
+rfinish6_10031106 18, rfinish7_10031340 14, rfinish8_10031718 18, rfinish9_10032205 14, rfinish10_10040153 14,
+rfinish11_10040428 16, rfinish12_10040802 22, rfinish13_10041156 18, rfinish14_10041328 27, rfinish15_10041605 17,
+rfinish16_10041639 6 (batch 5 had no renders; numbering skips it). Clip metas: /root/factory_clips_finish/*_meta.json
+(also on HF under factory_clips_finish/). The converter selects on honest_strict over RENDERED clips only; the 3 DONE
+metas with ok=False (tr126_01/_04 honesty rejects, tr189_04 failed the final success check) were never rendered.
+Spec outcomes over 593: DONE 276, SKIP_GAP_TOO_LARGE 147, APPROACH_FAILED 100, RADIO_TOUCHED 24, RADIO_TOUCHED_RETREAT 18,
+SKIP_RADIO_TIPPED 12 (2 states), RADIO_TOUCHED_BASE 5 + BASE_BLOCKED_TABLE 3 (driver-1 base-drive era, off since tr18),
+WELD_FAILED 3, SKIP_OBJPERTURB_UNSETTLED 3, RADIO_TOUCHED_POSTURE 2.
+Failure families for the post-run analysis (no wrapper change was made mid-run after the 10-02 fixes; FF_LATERAL_DEG=999
+corridor switch disabled from tr63 on, angle does not predict the failures): (a) APPROACH_FAILED / wrist-limit family (joints
+1 and 5 at 'hi' after POSTURE; tr084, tr147, tr153, tr186, tr207, tr240, tr288 went 0/6 on it) = 100 specs, the biggest
+loss; (b) RADIO_TOUCHED_RETREAT 18 (tr285 all six: the retreat corridor itself crosses the radio from where the hand
+starts, no perturbation rescues it); (c) RADIO_TOUCHED_POSTURE 2 (new, tr198 +1: the joint-space move to the canonical
+pre-grasp clips the radio); (d) far band: 17 whole states + band-edge partials (147 specs) for a later base-drive
+(reverse-then-advance) variant; (e) 2 tipped-radio states skipped. Zero-yield-with-attempts states: tr000 tr003 tr015
+tr027 tr045 tr054 tr066 tr072 tr084 tr087 tr096 tr099 tr108 tr114 tr120 tr126 tr147 tr150 tr153 tr174 tr186 tr198 tr207
+tr240 tr246 tr252 tr285 tr288 tr297. Full-pass states: tr006 tr009 tr033 tr036 tr039 tr042 tr051 tr057 tr063 tr069 tr075
+tr078 tr090 tr093 tr117 tr123 tr129 tr141 tr144 tr156 tr159 tr165 tr177 tr192 tr204 tr219 tr228 tr234 tr237 tr243 tr249
+tr255 tr258 tr264 tr267 tr270 tr276 tr291 tr294.
+Sim box FREE (driver + harness exited, GPU 2 MiB, 59 GB disk). Cron 1cb37483 deleted. NEXT: FK (camera-pose) pass over the
+17 finish roots (fk_all.sh pattern -> HF b26-run3-mixes/fk_b1k_radio_finish_*), then a fresh trainer with the prep chain:
+mix_all + the 17 finish roots up-weighted (ONE variable = data; 273 on-policy finish clips vs the 202 off-policy corrective
+clips of 4dall); gate = corrective-field probe at ckpt 5000 must show a field before any n=25; then n=25 on 301 under the
+tracker stack, pointer on, vs A4 2/25. Then the wrist-limit family analysis (a) and the far-band base-drive variant (d) for
+a second factory pass if more clips are wanted.

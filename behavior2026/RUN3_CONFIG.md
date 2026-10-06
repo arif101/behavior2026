@@ -1283,3 +1283,21 @@ mix_all + the 17 finish roots up-weighted (ONE variable = data; 273 on-policy fi
 clips of 4dall); gate = corrective-field probe at ckpt 5000 must show a field before any n=25; then n=25 on 301 under the
 tracker stack, pointer on, vs A4 2/25. Then the wrist-limit family analysis (a) and the far-band base-drive variant (d) for
 a second factory pass if more clips are wanted.
+
+### 2026-10-06 14:10 UTC — FK (camera-pose) PASS DONE over the 17 finish roots; sim box free; next = fresh trainer
+
+`fk_finish.sh` (this dir; = fk_all.sh of 09-28 minus the HF fetch: one Isaac boot, all roots' proprio concatenated with
+ranges.json row spans, fk_cam_poses.py once with the shared unique-joint-config cache, split per root, upload) ran
+13:40 -> 14:10 UTC on the sim box (log /root/fk_finish.out, FK log /root/fk_finish/fk.log): 76,094 rows across the 17
+roots, FK_DONE (76094, 21), 66,311 unique joint configs, zero_pose_rows=0 on every root. HF b26-run3-mixes/
+fk_b1k_radio_finish_<root>/{cam_pose,index}.npy for: rfinish1_10021725 2712 rows, rfinish1_10022117 4164,
+rfinish2_10021910 2073, rfinish2_10030009 5679, rfinish3_10030224 4939, rfinish4_10030558 5453, rfinish6_10031106 4297,
+rfinish7_10031340 3521, rfinish8_10031718 4436, rfinish9_10032205 5985, rfinish10_10040153 3626, rfinish11_10040428 4099,
+rfinish12_10040802 6958, rfinish13_10041156 6279, rfinish14_10041328 6425, rfinish15_10041605 4308, rfinish16_10041639 1140.
+Every finish root now has camera poses, same as the 21 corrective roots. Commits 29b46c8 + d41fdb4 pushed to origin main
+(10-06 13:30 UTC). Sim box idle (GPU 2 MiB, 58 GB free; the 17 finish roots + fk dirs remain on the box as HF-backed copies).
+NEXT: fresh A100 trainer (operator provides the box) -> stage the repo archive + /root/.hf_token -> trainer_bringup_all.sh
+extended to download the 17 finish roots + fk_b1k_radio_finish_* -> prep chain with mix_all + the finish roots up-weighted
+(the finish arm: ONE variable = data, 273 on-policy finish clips on top of 4dall's recipe) -> parity gate -> launch ->
+corrective-field probe at ckpt 5000 must show a field (sim box) before any n=25 -> n=25 on 301 under the tracker stack,
+pointer on, vs A4 2/25.

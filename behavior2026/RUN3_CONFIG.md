@@ -1301,3 +1301,32 @@ extended to download the 17 finish roots + fk_b1k_radio_finish_* -> prep chain w
 (the finish arm: ONE variable = data, 273 on-policy finish clips on top of 4dall's recipe) -> parity gate -> launch ->
 corrective-field probe at ckpt 5000 must show a field (sim box) before any n=25 -> n=25 on 301 under the tracker stack,
 pointer on, vs A4 2/25.
+
+### 2026-10-09 04:07 UTC — FINISH ARM: new trainer box, repo restore, recipe written, bring-up LAUNCHED
+
+Trainer box (operator): `ssh root@195.26.233.76 -p 34396 -i ~/.ssh/id_ed25519` (A100-SXM4-80GB, 300 GB disk, cgroup cap 250 GB,
+256 cores, Ubuntu 24.04, uv 0.9 + ffmpeg present; proc-gpus 8 / dev-nodes 1 = a 1-GPU slice of an 8-GPU host, fine for training).
+/root/.hf_token staged by ssh pipe from the sim box (never printed). Repo archive = main f10424d (33 MB tar.gz via scp) at /root/behavior2026.
+REPO RESTORE (707b9ea): the RUN3_CONFIG note commits f716a95 (09-30) and fccf375 (10-01) had silently DELETED 144 tracked files —
+the scratchpad cleaner had removed them from the worktree checkout and `git add -A` staged the deletions: the whole openpi_fork/src
+tree (model.py, siglip.py, gemma.py, policies, serving, weight_loaders.py, data_loader.py, ...), behavior2026/eval/* wrappers,
+assemble_run3_mix.py, relabel_v2.py, precompute_gists.py, add_cam_pose_column.py, serve_arm.sh, freeze_rollout.sh,
+convert_clips_to_parquet.py, reverse_curriculum_collect.py, spec docs. Restored from each commit's parent; `git diff c6f9d35`
+(the 09-29 trainer archive) shows no deletions. Origin main (29b46c8) still carries the deletions until the next push. The
+worktree now lives at ~/projects/openpi/b26main (out of the scratchpad; the cleaner also deleted the .git link twice).
+Box copies of the eval wrappers (behavior2026_eval/*.py on the sim box) may be newer than the restored repo copies — sync later.
+FINISH ARM RECIPE (f10424d): `pi05_radio_4d_fin` = pi05_radio_4d_all with dataset_root=/root/b1k_radio_mix_fin and exp_name
+radio_4d_fin (ONE variable vs 4dall = the DATA; same FULL warm start, same 15k steps, batch 32, SigLIP frozen);
+`prep_fin_data.sh` = prep_all_data.sh with: mix_all BACKUP unassembled into MAP/FAC/EPI/OLD/NEW (all 498 processed eps keep their
+v2 labels, gists, cam_pose, hist tokens), the 17 finish roots labeled + gists (A4 tower) + cam_pose (fk_b1k_radio_finish_*) +
+hist tokens (FULL tower), sample_weight W_FINISH (default 4.78 = the corrective weight -> finish clips ~27% of the weighted mass,
+x8 stage oversample on top at launch), assemble -> /root/b1k_radio_mix_fin (expect 771 eps / 633,635 frames), MIX_FIN_OK gate,
+parity vs FULL for 4d_all + 4d_fin, 40-step smoke on 4d_fin + cgroup sampler; `trainer_bringup_fin.sh` (downloads add
+b1k_radio_finish_r* and mix_all/*, drop mix_4d; helper-presence gate; config-import gate incl. 4d_fin); run3_driver.sh arm
+`4dfin`. LAUNCHED 04:07:47 UTC: `setsid nohup bash /root/behavior2026/behavior2026/box_scripts/run3/trainer_bringup_fin.sh >
+/root/bringup_fin.log` (STAGE_TOOLING_OK, STAGE_APT_OK by 04:07:54; ~3 h). Cron FIN BRINGUP TICK (4,24,44) watches it; on
+TRAINER_BRINGUP_FIN_DONE it checks the four launch gates (PARITY_EXTRA rel_diff <= 1e-5 for both configs; smoke has the loader
+lines + loss, no Traceback; SMOKE_MEM anon < 200 GB; MIX_FIN eps 771) and, if all pass, launches `ARMS=4dfin RUN3_STEPS=15000
+bash /root/run3/run3_driver.sh` (the arm's final params -> HF b26-run3-params/4dfin/). READOUT PLAN: ckpt_5000 pointer-off
+corrective-field probe on the sim box (4dall/4dpd/4d all showed NO field) = the gate; then n=25 on 301 (tracker stack, pointer on)
+vs A4 2/25; oracle-pointer n=10 if n=25 is 0. Sim box 213.173.104.75:20281 idle; stall bank (1.2 MB) still box-local (backup pending).

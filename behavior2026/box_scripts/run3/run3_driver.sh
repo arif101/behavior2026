@@ -54,7 +54,7 @@ failure_sig(){ grep -nE "Traceback|RESOURCE_EXHAUSTED|No space left|Killed|CUDA_
 
 for ARM in $ARMS; do
   # arm name -> config: a0..a5 = Run-3 data arms; press / full = the 2026-09 stacked configs (PRESS_FIX_SPEC, TEMPORAL_FORCING_BUILD)
-  case $ARM in press) CFG=pi05_radio_press; EXP=radio_press;; full) CFG=pi05_radio_full; EXP=radio_full;; 4d) CFG=pi05_radio_4d; EXP=radio_4d;; 4dpd) CFG=pi05_radio_4d_pd; EXP=radio_4d_pd;; 4dall) CFG=pi05_radio_4d_all; EXP=radio_4d_all;; 4dallf) CFG=pi05_radio_4d_allf; EXP=radio_4d_allf;; *) CFG=pi05_radio_run3_$ARM; EXP=radio_run3_$ARM;; esac
+  case $ARM in press) CFG=pi05_radio_press; EXP=radio_press;; full) CFG=pi05_radio_full; EXP=radio_full;; 4d) CFG=pi05_radio_4d; EXP=radio_4d;; 4dpd) CFG=pi05_radio_4d_pd; EXP=radio_4d_pd;; 4dall) CFG=pi05_radio_4d_all; EXP=radio_4d_all;; 4dfin) CFG=pi05_radio_4d_fin; EXP=radio_4d_fin;; 4dallf) CFG=pi05_radio_4d_allf; EXP=radio_4d_allf;; *) CFG=pi05_radio_run3_$ARM; EXP=radio_run3_$ARM;; esac
   CKDIR=$FORK/outputs/checkpoints/$CFG/$EXP; LOG=$LOGDIR/train_$ARM.log
   if [ -f $LOGDIR/$ARM.DONE ]; then say "$ARM: already DONE, skipping"; continue; fi
   ROOT=$(env ${FORK_SRC:+PYTHONPATH=$FORK_SRC} $PY -c "import openpi.training.config as c; print(c.get_config('$CFG').data.base_config.dataset_root)" 2>/dev/null)

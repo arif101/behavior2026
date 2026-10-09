@@ -17,7 +17,7 @@ W_FINISH=${W_FINISH:-4.78}
 MAP=/root/backup/b1k_radio_map; FAC=/root/manufactured/b1k_radio_factory; EPI=/root/manufactured/b1k_radio_episodes; M=/root/manufactured
 OLD="$M/b1k_radio_dart_r1 $M/b1k_radio_dart_r2 $M/b1k_radio_dart_r3"
 NEW="$M/b1k_radio_dart_r4 $M/b1k_radio_dart_r5 $M/b1k_radio_dart_r6 $M/b1k_radio_dart_r6_0925_1457 $M/b1k_radio_dart_r7 $M/b1k_radio_dart_r8 $M/b1k_radio_dart_r8_09261035 $M/b1k_radio_dart_r9_09261201 $(ls -d $M/b1k_radio_odart_r* | sort -V | tr '\n' ' ')"
-FIN="$(ls -d $M/b1k_radio_finish_r* 2>/dev/null | sort -V | tr '\n' ' ')"
+FIN="$(ls -d $M/b1k_radio_finish_rfinish* 2>/dev/null | sort -V | tr '\n' ' ')"
 say "finish roots: $(echo $FIN | wc -w) (expect 17); W_FINISH=$W_FINISH"
 [ "$(echo $FIN | wc -w)" -eq 17 ] || { say "FINISH_ROOTS_MISSING"; exit 1; }
 for D in $OLD $NEW $FIN; do [ -d $D/data ] || { say "MISSING_ROOT $D"; exit 1; }; done

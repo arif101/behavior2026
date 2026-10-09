@@ -30,7 +30,7 @@ if what == "map":
     snapshot_download("arif101/b26-foveated-backup-20260730", repo_type="dataset", token=tok, local_dir="/root/backup", allow_patterns=["b1k_radio_map/*", "keys/*"])
 elif what == "manu":
     snapshot_download("arif101/b26-radio-manufactured", repo_type="dataset", token=tok, local_dir="/root/manufactured",
-                      allow_patterns=["b1k_radio_factory/*", "b1k_radio_episodes/*", "poison_windows.json", "b1k_radio_dart_r*", "b1k_radio_odart_r*", "b1k_radio_finish_r*"])
+                      allow_patterns=["b1k_radio_factory/*", "b1k_radio_episodes/*", "poison_windows.json", "b1k_radio_dart_r*", "b1k_radio_odart_r*", "b1k_radio_finish_rfinish*"])
 elif what == "params":
     snapshot_download("arif101/b26-run3-params", repo_type="model", token=tok, local_dir="/root/run3_dl", allow_patterns=["a4/params/*", "a4/assets/*", "full/params/*", "full/assets/*"])
 elif what == "mixes":
@@ -47,7 +47,7 @@ for w in map manu params mixes; do (setsid nohup $DL_PY /root/dl_fin.py $w > /ro
 FAIL=0; for w in map manu params mixes; do until grep -qE "DL_OK|Traceback" /root/run3_logs/dl_$w.log; do sleep 20; done; grep -q DL_OK /root/run3_logs/dl_$w.log && say "download $w ok" || { say "download $w FAILED"; tail -3 /root/run3_logs/dl_$w.log; FAIL=1; }; done
 [ $FAIL -eq 0 ] || { say BRINGUP_FIN_DL_FAILED; exit 1; }
 cp /root/mixes_bk/odart_episode_map.json /root/odart_episode_map.json
-echo "corrective roots: $(ls -d /root/manufactured/b1k_radio_dart_r* /root/manufactured/b1k_radio_odart_r* | wc -l) (expect 21)"; echo "finish roots: $(ls -d /root/manufactured/b1k_radio_finish_r* | wc -l) (expect 17)"; echo "fk dirs: $(ls -d /root/mixes_bk/fk* | wc -l) (expect 39)"; echo "mix_all backup: $(ls /root/mixes_bk/mix_all/data/**/*.parquet 2>/dev/null | wc -l) parquet files"
+echo "corrective roots: $(ls -d /root/manufactured/b1k_radio_dart_r* /root/manufactured/b1k_radio_odart_r* | wc -l) (expect 21)"; echo "finish roots: $(ls -d /root/manufactured/b1k_radio_finish_rfinish* | wc -l) (expect 17)"; echo "fk dirs: $(ls -d /root/mixes_bk/fk* | wc -l) (expect 39)"; echo "mix_all backup: $(ls /root/mixes_bk/mix_all/data/**/*.parquet 2>/dev/null | wc -l) parquet files"
 PY=/root/openpi_fork/.venv/bin/python; R3=/root/run3
 [ -d /root/backup/b1k_radio_map/videos ] || $PY $R3/restore_map_videos.py
 # ---- the whole data prep + parity + smoke -------------------------------------------------------------------------------
